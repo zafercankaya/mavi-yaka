@@ -1,5 +1,5 @@
 {
-  "name": "@kampanya/crawler",
+  "name": "@maviyaka/crawler",
   "version": "0.0.1",
   "private": true,
   "scripts": {
@@ -11,7 +11,7 @@
     "discover": "ts-node src/discover-all.ts"
   },
   "dependencies": {
-    "@kampanya/shared": "*",
+    "@maviyaka/shared": "*",
     "@prisma/client": "^6.4.0",
     "cheerio": "^1.0.0",
     "dotenv": "^16.4.5",

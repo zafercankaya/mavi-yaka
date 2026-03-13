@@ -1,5 +1,5 @@
 import { PrismaClient, Market } from '@prisma/client';
-import { generateFingerprint } from '@kampanya/shared';
+import { generateFingerprint } from '@maviyaka/shared';
 import { NormalizedCampaign } from './normalize';
 
 export interface DedupeResult {

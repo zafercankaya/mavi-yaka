@@ -23,13 +23,18 @@ model User {
   referredById String?                 @map("referred_by_id")
   referredBy   User?                   @relation("UserReferrals", fields: [referredById], references: [id])
   referrals    User[]                  @relation("UserReferrals")
-  fcmTokens     FcmToken[]
-  follows       Follow[]
-  favorites     Favorite[]
-  subscription  Subscription?
-  notifPref     NotificationPreference?
-  notifications Notification[]
-  lastActivityAt DateTime?             @map("last_activity_at")
+  fcmTokens           FcmToken[]
+  followedCompanies   FollowedCompany[]
+  followedSectors     FollowedSector[]
+  savedJobs           SavedJob[]
+  jobAlerts           JobAlert[]
+  subscription        Subscription?
+  notifPref           NotificationPreference?
+  notifications       Notification[]
+  preferredSectors    Sector[]
+  preferredJobTypes   JobType[]
+  preferredLocations  Json?              @map("preferred_locations")
+  lastActivityAt      DateTime?          @map("last_activity_at")
   createdAt    DateTime                @default(now()) @map("created_at")
   updatedAt    DateTime                @updatedAt @map("updated_at")
 
@@ -68,23 +73,24 @@ enum Platform {
 // ─── Subscriptions ───────────────────────────────────────
 
 model SubscriptionPlan {
-  id                String         @id @default(uuid())
-  name              String
-  market            Market         @default(TR)
-  currency          String         @default("TRY") @db.VarChar(3)
-  appleProductId    String?        @map("apple_product_id")
-  googleProductId   String?        @map("google_product_id")
-  priceMonthly      Decimal?       @map("price_monthly") @db.Decimal(10, 2)
-  priceYearly       Decimal?       @map("price_yearly") @db.Decimal(10, 2)
-  maxBrandFollows   Int            @default(1) @map("max_brand_follows")
-  maxCampaignFollows Int           @default(1) @map("max_campaign_follows")
-  dailyNotifLimit   Int            @default(3) @map("daily_notif_limit")
-  hasAdvancedFilter Boolean        @default(false) @map("has_advanced_filter")
-  adFree            Boolean        @default(false) @map("ad_free")
-  weeklyDigest      Boolean        @default(false) @map("weekly_digest")
-  isActive          Boolean        @default(true) @map("is_active")
-  subscriptions     Subscription[]
-  createdAt         DateTime       @default(now()) @map("created_at")
+  id                 String         @id @default(uuid())
+  name               String
+  market             Market         @default(TR)
+  currency           String         @default("TRY") @db.VarChar(3)
+  appleProductId     String?        @map("apple_product_id")
+  googleProductId    String?        @map("google_product_id")
+  priceMonthly       Decimal?       @map("price_monthly") @db.Decimal(10, 2)
+  priceYearly        Decimal?       @map("price_yearly") @db.Decimal(10, 2)
+  maxCompanyFollows  Int            @default(5) @map("max_company_follows")
+  maxSavedJobs       Int            @default(20) @map("max_saved_jobs")
+  maxAlerts          Int            @default(1) @map("max_alerts")
+  dailyViewLimit     Int            @default(20) @map("daily_view_limit")
+  hasAdvancedFilter  Boolean        @default(false) @map("has_advanced_filter")
+  adFree             Boolean        @default(false) @map("ad_free")
+  weeklyDigest       Boolean        @default(false) @map("weekly_digest")
+  isActive           Boolean        @default(true) @map("is_active")
+  subscriptions      Subscription[]
+  createdAt          DateTime       @default(now()) @map("created_at")
 
   @@unique([name, market])
   @@map("subscription_plans")
@@ -155,117 +161,241 @@ enum Market {
   SE
 }
 
-// ─── Content ─────────────────────────────────────────────
+// ─── Sectors & Job Enums ─────────────────────────────────
 
-model Brand {
-  id         String        @id @default(uuid())
-  name       String
-  slug       String
-  logoUrl    String?       @map("logo_url")
-  websiteUrl String?       @map("website_url")
-  categoryId String?       @map("category_id")
-  market     Market        @default(TR)
-  isActive   Boolean       @default(true) @map("is_active")
-  category   Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  campaigns  Campaign[]
-  sources    CrawlSource[]
-  follows    Follow[]
-  createdAt  DateTime      @default(now()) @map("created_at")
+enum Sector {
+  LOGISTICS
+  MANUFACTURING
+  RETAIL
+  CONSTRUCTION
+  FOOD_SERVICE
+  CLEANING
+  SECURITY
+  WAREHOUSE
+  COURIER
+  AGRICULTURE
+  AUTOMOTIVE
+  TEXTILE
+  MINING
+  HEALTHCARE_SUPPORT
+  HOSPITALITY
+  MAINTENANCE
+  DRIVER
+  TECHNICIAN
+  OTHER
+}
+
+enum JobType {
+  FULL_TIME
+  PART_TIME
+  DAILY
+  SEASONAL
+  INTERNSHIP
+  CONTRACT
+}
+
+enum WorkMode {
+  ON_SITE
+  REMOTE
+  HYBRID
+}
+
+enum ExperienceLevel {
+  NONE
+  ENTRY
+  MID
+  SENIOR
+}
+
+enum SalaryPeriod {
+  HOURLY
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+enum SourceType {
+  GOVERNMENT
+  JOB_PLATFORM
+  COMPANY_CAREER
+}
+
+enum JobStatus {
+  ACTIVE
+  EXPIRED
+  REMOVED
+}
+
+// ─── Companies (was Brand) ──────────────────────────────
+
+model Company {
+  id            String        @id @default(uuid())
+  name          String
+  slug          String
+  logoUrl       String?       @map("logo_url")
+  websiteUrl    String?       @map("website_url")
+  sector        Sector        @default(OTHER)
+  market        Market        @default(TR)
+  description   String?       @db.Text
+  employeeCount String?       @map("employee_count")
+  isActive      Boolean       @default(true) @map("is_active")
+  jobListings   JobListing[]
+  sources       CrawlSource[]
+  followers     FollowedCompany[]
+  createdAt     DateTime      @default(now()) @map("created_at")
 
   @@unique([slug, market])
   @@index([market, isActive])
-  @@map("brands")
+  @@map("companies")
 }
 
-model Category {
-  id        String     @id @default(uuid())
-  name      String     @unique
-  nameEn    String?    @map("name_en")
-  nameDe    String?    @map("name_de")
-  slug      String     @unique
-  iconName  String?    @map("icon_name")
-  iconUrl   String?    @map("icon_url")
-  sortOrder Int        @default(0) @map("sort_order")
-  campaigns Campaign[]
-  brands    Brand[]
-  follows   Follow[]
-  createdAt DateTime   @default(now()) @map("created_at")
+// ─── Job Listings (was Campaign) ─────────────────────────
 
-  @@map("categories")
-}
+model JobListing {
+  id              String           @id @default(uuid())
+  title           String
+  slug            String
+  companyId       String           @map("company_id")
+  sourceUrl       String           @map("source_url")
+  canonicalUrl    String?          @map("canonical_url")
 
-model Campaign {
-  id           String         @id @default(uuid())
-  title        String
-  description  String?        @db.Text
-  categoryId   String?        @map("category_id")
-  brandId      String         @map("brand_id")
-  sourceId     String         @map("source_id")
-  sourceUrl    String         @map("source_url")
-  canonicalUrl String?        @map("canonical_url")
-  fingerprint  String         @unique
-  discountRate Decimal?       @map("discount_rate") @db.Decimal(5, 2)
-  promoCode    String?        @map("promo_code")
-  imageUrls    String[]       @map("image_urls")
-  startDate    DateTime?      @map("start_date")
-  endDate      DateTime?      @map("end_date")
-  market       Market         @default(TR)
-  status       CampaignStatus @default(ACTIVE)
-  lastSeenAt   DateTime       @default(now()) @map("last_seen_at")
-  metadata     Json?
-  createdAt    DateTime       @default(now()) @map("created_at")
-  updatedAt    DateTime       @updatedAt @map("updated_at")
+  // Location
+  country         Market
+  state           String?
+  city            String?
+  latitude        Float?
+  longitude       Float?
 
-  category  Category?   @relation(fields: [categoryId], references: [id])
-  brand     Brand       @relation(fields: [brandId], references: [id])
-  source    CrawlSource @relation(fields: [sourceId], references: [id])
-  favorites Favorite[]
+  // Job details
+  sector          Sector           @default(OTHER)
+  jobType         JobType          @default(FULL_TIME) @map("job_type")
+  workMode        WorkMode         @default(ON_SITE) @map("work_mode")
 
-  @@index([market, status, createdAt(sort: Desc)])
+  // Salary
+  salaryMin       Decimal?         @map("salary_min") @db.Decimal(12, 2)
+  salaryMax       Decimal?         @map("salary_max") @db.Decimal(12, 2)
+  salaryCurrency  String?          @map("salary_currency") @db.VarChar(3)
+  salaryPeriod    SalaryPeriod?    @map("salary_period")
+
+  // Details
+  experienceLevel ExperienceLevel? @map("experience_level")
+  description     String?          @db.Text
+  requirements    String?          @db.Text
+  benefits        String?          @db.Text
+  deadline        DateTime?
+  postedDate      DateTime?        @map("posted_date")
+  imageUrl        String?          @map("image_url")
+
+  // Status & tracking
+  status          JobStatus        @default(ACTIVE)
+  lastSeenAt      DateTime         @default(now()) @map("last_seen_at")
+  viewCount       Int              @default(0) @map("view_count")
+  clickCount      Int              @default(0) @map("click_count")
+  fingerprint     String?
+
+  // Relations
+  sourceId        String?          @map("source_id")
+  company         Company          @relation(fields: [companyId], references: [id])
+  source          CrawlSource?     @relation(fields: [sourceId], references: [id])
+  savedBy         SavedJob[]
+
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  @@index([country, status, createdAt(sort: Desc)])
+  @@index([country, sector, status])
+  @@index([country, state, city, status])
+  @@index([companyId, status])
   @@index([status, createdAt(sort: Desc)])
-  @@index([brandId, status])
-  @@index([categoryId, status])
   @@index([lastSeenAt])
-  @@map("campaigns")
+  @@index([sourceId])
+  @@map("job_listings")
 }
 
-enum CampaignStatus {
-  ACTIVE
-  EXPIRED
-  HIDDEN
+// ─── Locations ──────────────────────────────────────────
+
+model Location {
+  id         String  @id @default(uuid())
+  country    Market
+  state      String
+  city       String?
+  latitude   Float
+  longitude  Float
+  population Int?
+  nameLocal  String  @map("name_local")
+  nameEn     String  @map("name_en")
+
+  @@unique([country, state, city])
+  @@index([country, state])
+  @@index([country])
+  @@map("locations")
 }
 
 // ─── Follows ─────────────────────────────────────────────
 
-model Follow {
-  id         String    @id @default(uuid())
-  userId     String    @map("user_id")
-  brandId    String?   @map("brand_id")
-  categoryId String?   @map("category_id")
-  isFrozen   Boolean   @default(false) @map("is_frozen")
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  brand      Brand?    @relation(fields: [brandId], references: [id], onDelete: Cascade)
-  category   Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  createdAt  DateTime  @default(now()) @map("created_at")
+model FollowedCompany {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  companyId String   @map("company_id")
+  isFrozen  Boolean  @default(false) @map("is_frozen")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
 
-  @@unique([userId, brandId])
-  @@unique([userId, categoryId])
-  @@map("follows")
+  @@unique([userId, companyId])
+  @@map("followed_companies")
 }
 
-// ─── Favorites ──────────────────────────────────────────
+model FollowedSector {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  sector    Sector
+  market    Market
+  isFrozen  Boolean  @default(false) @map("is_frozen")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
 
-model Favorite {
-  id         String   @id @default(uuid())
-  userId     String   @map("user_id")
-  campaignId String   @map("campaign_id")
-  isFrozen   Boolean  @default(false) @map("is_frozen")
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  createdAt  DateTime @default(now()) @map("created_at")
+  @@unique([userId, sector, market])
+  @@map("followed_sectors")
+}
 
-  @@unique([userId, campaignId])
-  @@map("favorites")
+// ─── Saved Jobs (was Favorite) ──────────────────────────
+
+model SavedJob {
+  id           String     @id @default(uuid())
+  userId       String     @map("user_id")
+  jobListingId String     @map("job_listing_id")
+  isFrozen     Boolean    @default(false) @map("is_frozen")
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobListing   JobListing @relation(fields: [jobListingId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  @@unique([userId, jobListingId])
+  @@map("saved_jobs")
+}
+
+// ─── Job Alerts ─────────────────────────────────────────
+
+model JobAlert {
+  id             String           @id @default(uuid())
+  userId         String           @map("user_id")
+  name           String
+  country        Market
+  state          String?
+  city           String?
+  sector         Sector?
+  jobType        JobType?         @map("job_type")
+  workMode       WorkMode?        @map("work_mode")
+  keywords       String?
+  salaryMin      Decimal?         @map("salary_min") @db.Decimal(12, 2)
+  isActive       Boolean          @default(true) @map("is_active")
+  lastNotifiedAt DateTime?        @map("last_notified_at")
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime         @default(now()) @map("created_at")
+
+  @@index([userId, isActive])
+  @@map("job_alerts")
 }
 
 // ─── Notifications ──────────────────────────────────────
@@ -299,21 +429,22 @@ model NotificationPreference {
 
 model CrawlSource {
   id                String      @id @default(uuid())
-  brandId           String      @map("brand_id")
+  companyId         String      @map("company_id")
   name              String
+  type              SourceType  @default(COMPANY_CAREER)
   crawlMethod       CrawlMethod @map("crawl_method")
   seedUrls          String[]    @map("seed_urls")
   maxDepth          Int         @default(2) @map("max_depth")
   selectors         Json?
+  detailSelectors   Json?       @map("detail_selectors")
   schedule          String      @default("0 3 * * *")
-  agingDays         Int         @default(7) @map("aging_days")
+  agingDays         Int         @default(14) @map("aging_days")
   market            Market      @default(TR)
   isActive          Boolean     @default(true) @map("is_active")
   lastCrawledAt     DateTime?   @map("last_crawled_at")
-  discoveredFeedUrl String?     @map("discovered_feed_url")
   discoveredApiUrl  String?     @map("discovered_api_url")
-  brand             Brand       @relation(fields: [brandId], references: [id])
-  campaigns         Campaign[]
+  company           Company     @relation(fields: [companyId], references: [id])
+  jobListings       JobListing[]
   crawlLogs         CrawlLog[]
   createdAt         DateTime    @default(now()) @map("created_at")
   updatedAt         DateTime    @updatedAt @map("updated_at")
@@ -323,24 +454,23 @@ model CrawlSource {
 }
 
 enum CrawlMethod {
-  CAMPAIGN
-  PRODUCT
-  RSS
-  FEED
+  HTML
   API
+  RSS
+  STRUCTURED_DATA
 }
 
 model CrawlLog {
-  id               String      @id @default(uuid())
-  sourceId         String      @map("source_id")
-  status           CrawlStatus
-  campaignsFound   Int         @default(0) @map("campaigns_found")
-  campaignsNew     Int         @default(0) @map("campaigns_new")
-  campaignsUpdated Int         @default(0) @map("campaigns_updated")
-  errorMessage     String?     @map("error_message") @db.Text
-  durationMs       Int?        @map("duration_ms")
-  source           CrawlSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
-  createdAt        DateTime    @default(now()) @map("created_at")
+  id             String      @id @default(uuid())
+  sourceId       String      @map("source_id")
+  status         CrawlStatus
+  jobsFound      Int         @default(0) @map("jobs_found")
+  jobsNew        Int         @default(0) @map("jobs_new")
+  jobsUpdated    Int         @default(0) @map("jobs_updated")
+  errorMessage   String?     @map("error_message") @db.Text
+  durationMs     Int?        @map("duration_ms")
+  source         CrawlSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  createdAt      DateTime    @default(now()) @map("created_at")
 
   @@index([sourceId, createdAt(sort: Desc)])
   @@map("crawl_logs")
@@ -367,30 +497,28 @@ model AppConfig {
 // ─── Daily Reports ────────────────────────────────────────
 
 model DailyReport {
-  id               String   @id @default(uuid())
-  date             DateTime @unique @map("report_date") @db.Date
+  id             String   @id @default(uuid())
+  date           DateTime @unique @map("report_date") @db.Date
 
-  // Crawl stats (all markets combined)
-  totalSources     Int      @default(0) @map("total_sources")
-  sourcesSuccess   Int      @default(0) @map("sources_success")
-  sourcesFailed    Int      @default(0) @map("sources_failed")
-  campaignsFound   Int      @default(0) @map("campaigns_found")
-  campaignsNew     Int      @default(0) @map("campaigns_new")
-  campaignsUpdated Int      @default(0) @map("campaigns_updated")
-  campaignsExpired Int      @default(0) @map("campaigns_expired")
-  crawlDurationMs  Int      @default(0) @map("crawl_duration_ms")
+  // Crawl stats
+  totalSources   Int      @default(0) @map("total_sources")
+  sourcesSuccess Int      @default(0) @map("sources_success")
+  sourcesFailed  Int      @default(0) @map("sources_failed")
+  jobsFound      Int      @default(0) @map("jobs_found")
+  jobsNew        Int      @default(0) @map("jobs_new")
+  jobsUpdated    Int      @default(0) @map("jobs_updated")
+  jobsExpired    Int      @default(0) @map("jobs_expired")
+  crawlDurationMs Int     @default(0) @map("crawl_duration_ms")
 
   // Maintenance stats
-  maintenanceActions Int    @default(0) @map("maintenance_actions")
-  maintenanceErrors  Int    @default(0) @map("maintenance_errors")
+  maintenanceActions Int  @default(0) @map("maintenance_actions")
+  maintenanceErrors  Int  @default(0) @map("maintenance_errors")
 
-  // Per-market detail (JSON array)
-  marketStats      Json     @default("[]") @map("market_stats")
+  // Per-market detail
+  marketStats    Json     @default("[]") @map("market_stats")
+  maintenanceTasks Json   @default("[]") @map("maintenance_tasks")
 
-  // Maintenance task detail (JSON array)
-  maintenanceTasks Json     @default("[]") @map("maintenance_tasks")
-
-  createdAt        DateTime @default(now()) @map("created_at")
+  createdAt      DateTime @default(now()) @map("created_at")
 
   @@index([date(sort: Desc)])
   @@map("daily_reports")

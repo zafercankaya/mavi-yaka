@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Kampanya Sepeti",
-    "slug": "kampanya-sepeti",
-    "scheme": "kampanya",
+    "name": "Mavi Yaka",
+    "slug": "mavi-yaka",
+    "scheme": "maviyaka",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -35,13 +35,10 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "bundleIdentifier": "com.kampanyasepeti.app",
-      "buildNumber": "6",
+      "bundleIdentifier": "com.maviyaka.app",
+      "buildNumber": "1",
       "supportsTablet": true,
       "usesAppleSignIn": true,
-      "associatedDomains": [
-        "applinks:kampanya-sepeti-api-3c9f.onrender.com"
-      ],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -57,8 +54,8 @@
       }
     },
     "android": {
-      "package": "com.kampanyasepeti.app",
-      "versionCode": 24,
+      "package": "com.maviyaka.app",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -69,7 +66,9 @@
         "ACCESS_NETWORK_STATE",
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE",
-        "WAKE_LOCK"
+        "WAKE_LOCK",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
       ]
     },
     "web": {
@@ -105,8 +104,8 @@
       [
         "react-native-google-mobile-ads",
         {
-          "androidAppId": "ca-app-pub-4200780317005480~8939916783",
-          "iosAppId": "ca-app-pub-4200780317005480~5000671778"
+          "androidAppId": "ca-app-pub-XXXXXXXXXXXXXXXX~XXXXXXXXXX",
+          "iosAppId": "ca-app-pub-XXXXXXXXXXXXXXXX~XXXXXXXXXX"
         }
       ]
     ],
@@ -115,7 +114,7 @@
         "root": "./app"
       },
       "eas": {
-        "projectId": "13f0c4ed-963d-40ec-8490-e36784a325ae"
+        "projectId": "PLACEHOLDER_EAS_PROJECT_ID"
       }
     },
     "owner": "zafer77can"

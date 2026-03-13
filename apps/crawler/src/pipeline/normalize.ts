@@ -1,4 +1,4 @@
-import { canonicalizeUrl } from '@kampanya/shared';
+import { canonicalizeUrl } from '@maviyaka/shared';
 import { optimizeImageUrls } from './optimize-images';
 
 export interface RawCampaignData {

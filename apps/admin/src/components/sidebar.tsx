@@ -7,10 +7,11 @@ import { cn } from '@/lib/utils';
 const navItems = [
   { href: '/', label: 'Dashboard', icon: '📊' },
   { href: '/reports', label: 'Gunluk Raporlar', icon: '📋' },
-  { href: '/campaigns', label: 'Kampanyalar', icon: '📢' },
+  { href: '/jobs', label: 'İş İlanları', icon: '💼' },
   { href: '/sources', label: 'Kaynaklar', icon: '🔗' },
-  { href: '/brands', label: 'Markalar', icon: '🏷️' },
-  { href: '/categories', label: 'Kategoriler', icon: '📁' },
+  { href: '/companies', label: 'Firmalar', icon: '🏢' },
+  { href: '/sectors', label: 'Sektörler', icon: '🏭' },
+  { href: '/locations', label: 'Lokasyonlar', icon: '📍' },
   { href: '/plans', label: 'Planlar', icon: '💎' },
   { href: '/crawl-logs', label: 'Crawl Logları', icon: '📋' },
   { href: '/analytics', label: 'Analitikler', icon: '📈' },
@@ -23,7 +24,7 @@ export function Sidebar() {
   return (
     <aside className="w-64 bg-white border-r border-gray-200 min-h-screen p-4">
       <div className="mb-8">
-        <h1 className="text-xl font-bold text-orange-500">Kampanya Sepeti</h1>
+        <h1 className="text-xl font-bold text-blue-600">Mavi Yaka</h1>
         <p className="text-xs text-gray-500">Admin Panel</p>
       </div>
 

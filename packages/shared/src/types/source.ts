@@ -1,17 +1,18 @@
 import { z } from 'zod';
-import { Market } from './campaign';
+import { Market } from './job';
 
-export enum CrawlMethod {
-  CAMPAIGN = 'CAMPAIGN',
-  PRODUCT = 'PRODUCT',
-  RSS = 'RSS',
-  FEED = 'FEED',
-  API = 'API',
+export enum SourceType {
+  GOVERNMENT = 'GOVERNMENT',
+  JOB_PLATFORM = 'JOB_PLATFORM',
+  COMPANY_CAREER = 'COMPANY_CAREER',
 }
 
-// Keep SourceType as alias for backward compatibility during migration
-export const SourceType = CrawlMethod;
-export type SourceType = CrawlMethod;
+export enum CrawlMethod {
+  HTML = 'HTML',
+  API = 'API',
+  RSS = 'RSS',
+  STRUCTURED_DATA = 'STRUCTURED_DATA',
+}
 
 export enum CrawlStatus {
   RUNNING = 'RUNNING',
@@ -20,28 +21,46 @@ export enum CrawlStatus {
   FAILED = 'FAILED',
 }
 
-export const selectorsConfigSchema = z.object({
-  list: z.string().describe('CSS selector for campaign card list'),
-  link: z.string().describe('CSS selector for campaign link within card'),
-  title: z.string().describe('CSS selector for title on detail page'),
-  description: z.string().optional().describe('CSS selector for description'),
-  image: z.string().optional().describe('CSS selector for campaign image'),
-  startDate: z.string().optional().describe('CSS selector for start date'),
-  endDate: z.string().optional().describe('CSS selector for end date'),
-  discountRate: z.string().optional().describe('CSS selector for discount rate'),
+export const listSelectorsSchema = z.object({
+  list: z.string().describe('CSS selector for job listing cards'),
+  link: z.string().describe('CSS selector for job detail link'),
+  title: z.string().optional().describe('CSS selector for title in list'),
+  company: z.string().optional().describe('CSS selector for company name'),
+  location: z.string().optional().describe('CSS selector for location'),
+  salary: z.string().optional().describe('CSS selector for salary'),
+  jobType: z.string().optional().describe('CSS selector for job type tag'),
 });
 
-export type SelectorsConfig = z.infer<typeof selectorsConfigSchema>;
+export const detailSelectorsSchema = z.object({
+  title: z.string().describe('CSS selector for job title'),
+  company: z.string().optional().describe('CSS selector for company name'),
+  location: z.string().optional().describe('CSS selector for location'),
+  salary: z.string().optional().describe('CSS selector for salary range'),
+  jobType: z.string().optional().describe('CSS selector for employment type'),
+  workMode: z.string().optional().describe('CSS selector for work mode'),
+  description: z.string().optional().describe('CSS selector for description'),
+  requirements: z.string().optional().describe('CSS selector for requirements'),
+  benefits: z.string().optional().describe('CSS selector for benefits'),
+  deadline: z.string().optional().describe('CSS selector for application deadline'),
+  postedDate: z.string().optional().describe('CSS selector for posted date'),
+  image: z.string().optional().describe('CSS selector for job/company image'),
+  experience: z.string().optional().describe('CSS selector for experience level'),
+});
+
+export type ListSelectors = z.infer<typeof listSelectorsSchema>;
+export type DetailSelectors = z.infer<typeof detailSelectorsSchema>;
 
 export const createSourceSchema = z.object({
-  brandId: z.string().uuid(),
+  companyId: z.string().uuid(),
   name: z.string().min(1).max(200),
+  type: z.nativeEnum(SourceType).default(SourceType.COMPANY_CAREER),
   crawlMethod: z.nativeEnum(CrawlMethod),
   seedUrls: z.array(z.string().url()).min(1).max(20),
   maxDepth: z.number().int().min(1).max(3).default(2),
-  selectors: selectorsConfigSchema.optional(),
+  selectors: listSelectorsSchema.optional(),
+  detailSelectors: detailSelectorsSchema.optional(),
   schedule: z.string().default('0 3 * * *'),
-  agingDays: z.number().int().min(1).max(90).default(7),
+  agingDays: z.number().int().min(1).max(90).default(14),
   market: z.nativeEnum(Market).default(Market.TR),
 });
 
@@ -49,9 +68,10 @@ export type CreateSourceDto = z.infer<typeof createSourceSchema>;
 
 export interface CrawlSourcePublic {
   id: string;
-  brandId: string;
-  brandName: string;
+  companyId: string;
+  companyName: string;
   name: string;
+  type: SourceType;
   crawlMethod: CrawlMethod;
   seedUrls: string[];
   schedule: string;
@@ -66,9 +86,9 @@ export interface CrawlLogPublic {
   sourceId: string;
   sourceName: string;
   status: CrawlStatus;
-  campaignsFound: number;
-  campaignsNew: number;
-  campaignsUpdated: number;
+  jobsFound: number;
+  jobsNew: number;
+  jobsUpdated: number;
   errorMessage: string | null;
   durationMs: number | null;
   createdAt: string;

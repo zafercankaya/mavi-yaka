@@ -18,9 +18,10 @@ export const createPlanSchema = z.object({
   googleProductId: z.string().optional(),
   priceMonthly: z.number().positive().optional(),
   priceYearly: z.number().positive().optional(),
-  maxBrandFollows: z.number().int().min(-1).default(1),
-  maxCampaignFollows: z.number().int().min(-1).default(1),
-  dailyNotifLimit: z.number().int().min(-1).default(3),
+  maxCompanyFollows: z.number().int().min(-1).default(5),
+  maxSavedJobs: z.number().int().min(-1).default(20),
+  maxAlerts: z.number().int().min(-1).default(1),
+  dailyViewLimit: z.number().int().min(-1).default(20),
   hasAdvancedFilter: z.boolean().default(false),
   adFree: z.boolean().default(false),
 });
@@ -32,9 +33,10 @@ export interface SubscriptionPlanPublic {
   name: string;
   priceMonthly: number | null;
   priceYearly: number | null;
-  maxBrandFollows: number;
-  maxCampaignFollows: number;
-  dailyNotifLimit: number;
+  maxCompanyFollows: number;
+  maxSavedJobs: number;
+  maxAlerts: number;
+  dailyViewLimit: number;
   hasAdvancedFilter: boolean;
   adFree: boolean;
   isActive: boolean;
@@ -42,12 +44,14 @@ export interface SubscriptionPlanPublic {
 
 export interface Entitlement {
   planName: string;
-  maxBrandFollows: number;
-  maxCampaignFollows: number;
-  dailyNotifLimit: number;
+  maxCompanyFollows: number;
+  maxSavedJobs: number;
+  maxAlerts: number;
+  dailyViewLimit: number;
   hasAdvancedFilter: boolean;
   adFree: boolean;
-  currentBrandFollowCount: number;
-  currentCampaignFollowCount: number;
+  currentCompanyFollowCount: number;
+  currentSavedJobCount: number;
+  currentAlertCount: number;
   isPremium: boolean;
 }

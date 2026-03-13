@@ -1,5 +1,5 @@
 import * as cheerio from 'cheerio';
-import { SelectorsConfig } from '@kampanya/shared';
+import { SelectorsConfig } from '@maviyaka/shared';
 import { RawCampaignData } from '../pipeline/normalize';
 import { CRAWL_DELAY_MS, REQUEST_TIMEOUT_MS } from '../config';
 import { pickBestFromSrcset } from '../pipeline/optimize-images';

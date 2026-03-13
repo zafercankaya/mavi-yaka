@@ -69,16 +69,16 @@ async function main() {
   // Admin user
   const adminPassword = await bcrypt.hash('admin123456', 12);
   await prisma.user.upsert({
-    where: { email: 'admin@kampanya-sepeti.app' },
+    where: { email: 'admin@maviyaka.app' },
     update: {},
     create: {
-      email: 'admin@kampanya-sepeti.app',
+      email: 'admin@maviyaka.app',
       passwordHash: adminPassword,
       displayName: 'Admin',
       role: UserRole.SUPER_ADMIN,
     },
   });
-  console.log('  ✓ Admin user (admin@kampanya-sepeti.app / admin123456)');
+  console.log('  ✓ Admin user (admin@maviyaka.app / admin123456)');
 
   // Brands
   const brands = [

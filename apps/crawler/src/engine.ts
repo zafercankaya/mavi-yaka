@@ -1,6 +1,6 @@
 import { PrismaClient, CrawlMethod, CrawlStatus, Market } from '@prisma/client';
 import { CrawlMarket } from './config';
-import { SelectorsConfig } from '@kampanya/shared';
+import { SelectorsConfig } from '@maviyaka/shared';
 import { scrapeCampaigns, closeBrowser } from './processors/scrape.processor';
 import { scrapeGeneric } from './processors/generic-scraper';
 import { scrapeGenericPlaywright } from './processors/playwright-fallback';
