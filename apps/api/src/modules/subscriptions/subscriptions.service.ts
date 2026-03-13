@@ -257,7 +257,7 @@ export class SubscriptionsService {
     });
 
     // İlk N aktif kalır (free limit), kalanlar frozen
-    const toFreeze = follows.slice(FREE_PLAN.maxCompanyFollows).map((f) => f.id);
+    const toFreeze = follows.slice(FREE_PLAN.maxCompanyFollows).map((f: { id: string }) => f.id);
     if (toFreeze.length > 0) {
       await this.prisma.followedCompany.updateMany({
         where: { id: { in: toFreeze } },
@@ -265,7 +265,7 @@ export class SubscriptionsService {
       });
     }
     // Aktif kalanları unfreeze et (eğer daha önce frozen ise)
-    const toUnfreeze = follows.slice(0, FREE_PLAN.maxCompanyFollows).map((f) => f.id);
+    const toUnfreeze = follows.slice(0, FREE_PLAN.maxCompanyFollows).map((f: { id: string }) => f.id);
     if (toUnfreeze.length > 0) {
       await this.prisma.followedCompany.updateMany({
         where: { id: { in: toUnfreeze }, isFrozen: true },
@@ -279,14 +279,14 @@ export class SubscriptionsService {
       orderBy: { createdAt: 'desc' },
       select: { id: true },
     });
-    const toFreezeSaved = savedJobs.slice(FREE_PLAN.maxSavedJobs).map((f) => f.id);
+    const toFreezeSaved = savedJobs.slice(FREE_PLAN.maxSavedJobs).map((f: { id: string }) => f.id);
     if (toFreezeSaved.length > 0) {
       await this.prisma.savedJob.updateMany({
         where: { id: { in: toFreezeSaved } },
         data: { isFrozen: true },
       });
     }
-    const toUnfreezeSaved = savedJobs.slice(0, FREE_PLAN.maxSavedJobs).map((f) => f.id);
+    const toUnfreezeSaved = savedJobs.slice(0, FREE_PLAN.maxSavedJobs).map((f: { id: string }) => f.id);
     if (toUnfreezeSaved.length > 0) {
       await this.prisma.savedJob.updateMany({
         where: { id: { in: toUnfreezeSaved }, isFrozen: true },

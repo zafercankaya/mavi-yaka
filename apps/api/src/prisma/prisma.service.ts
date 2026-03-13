@@ -13,7 +13,7 @@ export class PrismaService
     // This lets the container pass Render's health check before DB is ready.
     this.$connect()
       .then(() => this.logger.log('Database connected'))
-      .catch((err) => this.logger.warn(`DB initial connect failed (will retry on first query): ${(err as Error).message}`));
+      .catch((err: Error) => this.logger.warn(`DB initial connect failed (will retry on first query): ${err.message}`));
   }
 
   async onModuleDestroy() {
