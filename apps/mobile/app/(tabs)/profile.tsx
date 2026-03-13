@@ -164,9 +164,9 @@ export default function ProfileScreen() {
       <View style={styles.menu}>
         <MenuItem
           icon="megaphone-outline"
-          label={t('profile.campaignNotifications')}
+          label={t('profile.jobNotifications')}
           badge={unreadCount > 0 ? unreadCount : undefined}
-          onPress={() => requireAuth(() => router.push('/campaign-notifications'))}
+          onPress={() => requireAuth(() => router.push('/job-notifications'))}
         />
         <MenuItem
           icon="notifications-outline"

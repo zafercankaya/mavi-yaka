@@ -1,15 +1,9 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsUUID, IsOptional, ValidateIf } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+import { IsEnum } from 'class-validator';
+import { Sector } from '@prisma/client';
 
-export class CreateFollowDto {
-  @ApiPropertyOptional({ description: 'Takip edilecek marka ID' })
-  @IsUUID()
-  @IsOptional()
-  brandId?: string;
-
-  @ApiPropertyOptional({ description: 'Takip edilecek kategori ID' })
-  @IsUUID()
-  @IsOptional()
-  @ValidateIf((o) => !o.brandId)
-  categoryId?: string;
+export class FollowSectorParamDto {
+  @ApiProperty({ description: 'Takip edilecek sektör', enum: Sector })
+  @IsEnum(Sector)
+  sector!: Sector;
 }

@@ -29,7 +29,7 @@ export function useSocialAuth() {
       clientId: GOOGLE_CLIENT_ID_WEB,
       responseType: AuthSession.ResponseType.IdToken,
       scopes: ['openid', 'profile', 'email'],
-      redirectUri: AuthSession.makeRedirectUri({ scheme: 'kampanya' }),
+      redirectUri: AuthSession.makeRedirectUri({ scheme: 'maviyaka' }),
     },
     discovery,
   );

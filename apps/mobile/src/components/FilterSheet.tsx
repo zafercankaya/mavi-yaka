@@ -1,29 +1,29 @@
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Brand, Category } from '../api/brands';
+import { Company } from '../api/companies';
 import { Colors, Spacing, FontSize, BorderRadius } from '../constants/theme';
 
 interface Props {
-  brands: Brand[];
-  categories: Category[];
-  selectedBrandId: string | undefined;
-  selectedCategoryId: string | undefined;
+  companies: Company[];
+  sectors: string[];
+  selectedCompanyId: string | undefined;
+  selectedSector: string | undefined;
   selectedSort: string;
-  onBrandChange: (id: string | undefined) => void;
-  onCategoryChange: (id: string | undefined) => void;
+  onCompanyChange: (id: string | undefined) => void;
+  onSectorChange: (sector: string | undefined) => void;
   onSortChange: (sort: string) => void;
 }
 
 const SORT_OPTIONS = [
   { value: 'newest', label: 'En Yeni', icon: 'time-outline' as const },
   { value: 'ending_soon', label: 'Bitmek Üzere', icon: 'alarm-outline' as const },
-  { value: 'discount_high', label: 'En Yüksek İndirim', icon: 'trending-down-outline' as const },
+  { value: 'salary_high', label: 'En Yüksek Maaş', icon: 'trending-up-outline' as const },
 ];
 
 export default function FilterSheet({
-  brands, categories,
-  selectedBrandId, selectedCategoryId, selectedSort,
-  onBrandChange, onCategoryChange, onSortChange,
+  companies, sectors,
+  selectedCompanyId, selectedSector, selectedSort,
+  onCompanyChange, onSectorChange, onSortChange,
 }: Props) {
   return (
     <View style={styles.container}>
@@ -48,45 +48,45 @@ export default function FilterSheet({
         ))}
       </ScrollView>
 
-      {/* Categories */}
-      <Text style={styles.sectionTitle}>Kategori</Text>
+      {/* Sectors */}
+      <Text style={styles.sectionTitle}>Sektör</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
         <TouchableOpacity
-          style={[styles.chip, !selectedCategoryId && styles.chipActive]}
-          onPress={() => onCategoryChange(undefined)}
+          style={[styles.chip, !selectedSector && styles.chipActive]}
+          onPress={() => onSectorChange(undefined)}
         >
-          <Text style={[styles.chipText, !selectedCategoryId && styles.chipTextActive]}>Tümü</Text>
+          <Text style={[styles.chipText, !selectedSector && styles.chipTextActive]}>Tümü</Text>
         </TouchableOpacity>
-        {categories.map((cat) => (
+        {sectors.map((sector) => (
           <TouchableOpacity
-            key={cat.id}
-            style={[styles.chip, selectedCategoryId === cat.id && styles.chipActive]}
-            onPress={() => onCategoryChange(selectedCategoryId === cat.id ? undefined : cat.id)}
+            key={sector}
+            style={[styles.chip, selectedSector === sector && styles.chipActive]}
+            onPress={() => onSectorChange(selectedSector === sector ? undefined : sector)}
           >
-            <Text style={[styles.chipText, selectedCategoryId === cat.id && styles.chipTextActive]}>
-              {cat.name}
+            <Text style={[styles.chipText, selectedSector === sector && styles.chipTextActive]}>
+              {sector}
             </Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
 
-      {/* Brands */}
-      <Text style={styles.sectionTitle}>Marka</Text>
+      {/* Companies */}
+      <Text style={styles.sectionTitle}>Firma</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
         <TouchableOpacity
-          style={[styles.chip, !selectedBrandId && styles.chipActive]}
-          onPress={() => onBrandChange(undefined)}
+          style={[styles.chip, !selectedCompanyId && styles.chipActive]}
+          onPress={() => onCompanyChange(undefined)}
         >
-          <Text style={[styles.chipText, !selectedBrandId && styles.chipTextActive]}>Tümü</Text>
+          <Text style={[styles.chipText, !selectedCompanyId && styles.chipTextActive]}>Tümü</Text>
         </TouchableOpacity>
-        {brands.map((brand) => (
+        {companies.map((company) => (
           <TouchableOpacity
-            key={brand.id}
-            style={[styles.chip, selectedBrandId === brand.id && styles.chipActive]}
-            onPress={() => onBrandChange(selectedBrandId === brand.id ? undefined : brand.id)}
+            key={company.id}
+            style={[styles.chip, selectedCompanyId === company.id && styles.chipActive]}
+            onPress={() => onCompanyChange(selectedCompanyId === company.id ? undefined : company.id)}
           >
-            <Text style={[styles.chipText, selectedBrandId === brand.id && styles.chipTextActive]}>
-              {brand.name}
+            <Text style={[styles.chipText, selectedCompanyId === company.id && styles.chipTextActive]}>
+              {company.name}
             </Text>
           </TouchableOpacity>
         ))}

@@ -3,28 +3,28 @@ import { PrismaClient } from '@prisma/client';
 const API_URL = process.env.API_URL || 'http://localhost:3000';
 
 /**
- * Crawl sonrası yeni bulunan kampanyalar için API'ye bildirim isteği gönderir.
+ * Crawl sonrası yeni bulunan iş ilanları için API'ye bildirim isteği gönderir.
  * API tarafındaki NotificationsService Expo Push üzerinden bildirim gönderir.
  */
-export async function notifyNewCampaigns(
+export async function notifyNewJobListings(
   prisma: PrismaClient,
-  brandId: string,
-  newCampaignIds: string[],
+  companyId: string,
+  newJobListingIds: string[],
 ): Promise<void> {
-  if (newCampaignIds.length === 0) return;
+  if (newJobListingIds.length === 0) return;
 
-  // DB'den yeni kampanya detaylarını al
-  const campaigns = await prisma.campaign.findMany({
-    where: { id: { in: newCampaignIds } },
-    select: { id: true, title: true, discountRate: true, categoryId: true },
+  // DB'den yeni iş ilanı detaylarını al
+  const jobListings = await prisma.jobListing.findMany({
+    where: { id: { in: newJobListingIds } },
+    select: { id: true, title: true, sector: true },
   });
 
-  if (campaigns.length === 0) return;
+  if (jobListings.length === 0) return;
 
-  // Kategori ID'lerini topla (brand'in kategorisi de dahil)
-  const categoryIds = [...new Set(campaigns.map((c) => c.categoryId).filter(Boolean))];
+  // Sektörleri topla
+  const sectors = [...new Set(jobListings.map((j) => j.sector).filter(Boolean))];
 
-  console.log(`[Notify] Sending ${campaigns.length} new campaigns to API for brand ${brandId}`);
+  console.log(`[Notify] Sending ${jobListings.length} new job listings to API for company ${companyId}`);
 
   // API'ye bildirim webhook'u gönder (internal)
   try {
@@ -35,12 +35,11 @@ export async function notifyNewCampaigns(
         'X-Internal-Key': process.env.INTERNAL_API_KEY || '',
       },
       body: JSON.stringify({
-        brandId,
-        categoryId: categoryIds[0] ?? null,
-        campaigns: campaigns.map((c) => ({
-          id: c.id,
-          title: c.title,
-          discountRate: c.discountRate ? Number(c.discountRate) : null,
+        companyId,
+        sector: sectors[0] ?? null,
+        jobListings: jobListings.map((j) => ({
+          id: j.id,
+          title: j.title,
         })),
       }),
     });

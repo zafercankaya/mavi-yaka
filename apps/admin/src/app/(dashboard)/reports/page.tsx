@@ -12,10 +12,10 @@ interface DailyReportSummary {
   totalSources: number;
   sourcesSuccess: number;
   sourcesFailed: number;
-  campaignsFound: number;
-  campaignsNew: number;
-  campaignsUpdated: number;
-  campaignsExpired: number;
+  jobsFound: number;
+  jobsNew: number;
+  jobsUpdated: number;
+  jobsExpired: number;
   crawlDurationMs: number;
   maintenanceActions: number;
   maintenanceErrors: number;
@@ -113,8 +113,8 @@ export default function ReportsPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="pt-4 pb-3">
-              <p className="text-xs text-gray-500">Bugunun Yeni Kampanyalari</p>
-              <p className="text-2xl font-bold text-green-600">{reports[0]?.campaignsNew ?? '-'}</p>
+              <p className="text-xs text-gray-500">Bugunun Yeni Ilanlari</p>
+              <p className="text-2xl font-bold text-green-600">{reports[0]?.jobsNew ?? '-'}</p>
             </CardContent>
           </Card>
           <Card>
@@ -128,7 +128,7 @@ export default function ReportsPage() {
           <Card>
             <CardContent className="pt-4 pb-3">
               <p className="text-xs text-gray-500">Expire Olan</p>
-              <p className="text-2xl font-bold text-orange-600">{reports[0]?.campaignsExpired ?? '-'}</p>
+              <p className="text-2xl font-bold text-orange-600">{reports[0]?.jobsExpired ?? '-'}</p>
             </CardContent>
           </Card>
           <Card>
@@ -174,10 +174,10 @@ export default function ReportsPage() {
                       <td className="py-3 text-right">{r.totalSources}</td>
                       <td className="py-3 text-right text-green-600">{r.sourcesSuccess}</td>
                       <td className="py-3 text-right text-red-600">{r.sourcesFailed}</td>
-                      <td className="py-3 text-right">{formatNumber(r.campaignsFound)}</td>
-                      <td className="py-3 text-right font-medium text-green-600">{r.campaignsNew}</td>
-                      <td className="py-3 text-right">{r.campaignsUpdated}</td>
-                      <td className="py-3 text-right text-orange-600">{r.campaignsExpired}</td>
+                      <td className="py-3 text-right">{formatNumber(r.jobsFound)}</td>
+                      <td className="py-3 text-right font-medium text-green-600">{r.jobsNew}</td>
+                      <td className="py-3 text-right">{r.jobsUpdated}</td>
+                      <td className="py-3 text-right text-orange-600">{r.jobsExpired}</td>
                       <td className="py-3 text-right">
                         {r.maintenanceErrors > 0 ? (
                           <Badge variant="destructive" className="text-xs">{r.maintenanceActions}</Badge>

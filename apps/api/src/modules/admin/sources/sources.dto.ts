@@ -8,9 +8,9 @@ import { CrawlMethod, Market } from '@prisma/client';
 export class CreateSourceDto {
   @ApiProperty({ example: '550e8400-e29b-41d4-a716-446655440000' })
   @IsUUID()
-  brandId!: string;
+  companyId!: string;
 
-  @ApiProperty({ example: 'Trendyol Kampanyalar' })
+  @ApiProperty({ example: 'Kariyer.net Ilanlar' })
   @IsString()
   @MinLength(1)
   @MaxLength(200)
@@ -21,7 +21,7 @@ export class CreateSourceDto {
   crawlMethod!: CrawlMethod;
 
   @ApiProperty({
-    example: ['https://www.trendyol.com/kampanyalar'],
+    example: ['https://www.example.com/kariyer'],
     description: 'Crawl edilecek URL listesi (1-20 arası)',
   })
   @IsArray()
@@ -37,11 +37,11 @@ export class CreateSourceDto {
 
   @ApiPropertyOptional({
     example: {
-      list: '.campaign-card',
+      list: '.job-card',
       link: 'a.card-link',
-      title: 'h1.campaign-title',
-      description: '.campaign-desc',
-      image: 'img.campaign-img',
+      title: 'h1.job-title',
+      description: '.job-desc',
+      image: 'img.job-img',
     },
   })
   @IsObject()

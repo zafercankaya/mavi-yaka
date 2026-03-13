@@ -192,9 +192,9 @@ async function main() {
       const imageUrl = await extractImageFromUrl(c.source_url, c.market);
 
       if (imageUrl) {
-        await p.campaign.update({
+        await p.jobListing.update({
           where: { id: c.id },
-          data: { imageUrls: [imageUrl] },
+          data: { imageUrl: imageUrl },
         });
         console.log(`✓ ${imageUrl.substring(0, 60)}...`);
         enriched++;

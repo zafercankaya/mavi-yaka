@@ -63,8 +63,8 @@ function RootLayout() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
           <Stack.Screen
-            name="campaign/[id]"
-            options={{ title: t('campaign.detail') }}
+            name="job/[id]"
+            options={{ title: t('job.detail') }}
           />
           <Stack.Screen
             name="subscription"

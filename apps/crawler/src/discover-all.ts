@@ -9,8 +9,8 @@ const prisma = new PrismaClient();
 
 async function main() {
   const sources = await prisma.crawlSource.findMany({
-    where: { isActive: true, discoveredFeedUrl: null, discoveredApiUrl: null },
-    include: { brand: { select: { name: true } } },
+    where: { isActive: true },
+    include: { company: { select: { name: true } } },
     orderBy: { createdAt: 'asc' },
   });
 
@@ -31,30 +31,19 @@ async function main() {
     try {
       const result = await discoverBestMethod(seedUrl);
 
-      const updateData: any = {};
-
       if (result.method === 'RSS' && result.feedUrl) {
-        updateData.discoveredFeedUrl = result.feedUrl;
         rssCount++;
-        console.log(`${progress} ${source.brand.name}: RSS -> ${result.feedUrl}`);
+        console.log(`${progress} ${source.company.name}: RSS -> ${result.feedUrl}`);
       } else if (result.method === 'API' && result.apiUrl) {
-        updateData.discoveredApiUrl = result.apiUrl;
         apiCount++;
-        console.log(`${progress} ${source.brand.name}: API -> ${result.apiUrl}`);
+        console.log(`${progress} ${source.company.name}: API -> ${result.apiUrl}`);
       } else {
         htmlCount++;
-        console.log(`${progress} ${source.brand.name}: HTML (no RSS/API found)`);
-      }
-
-      if (Object.keys(updateData).length > 0) {
-        await prisma.crawlSource.update({
-          where: { id: source.id },
-          data: updateData,
-        });
+        console.log(`${progress} ${source.company.name}: HTML (no RSS/API found)`);
       }
     } catch (err) {
       errorCount++;
-      console.error(`${progress} ${source.brand.name}: ERROR — ${(err as Error).message}`);
+      console.error(`${progress} ${source.company.name}: ERROR — ${(err as Error).message}`);
     }
 
     // Small delay between requests

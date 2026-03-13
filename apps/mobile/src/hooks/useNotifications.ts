@@ -38,8 +38,8 @@ export function useNotifications() {
     // Handle notification tapped
     responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data;
-      if (data?.campaignId) {
-        router.push(`/campaign/${data.campaignId}`);
+      if (data?.jobId) {
+        router.push(`/job/${data.jobId}`);
       }
     });
 
@@ -93,7 +93,7 @@ async function registerForPushNotifications() {
 
   // Android notification channel
   if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('campaigns', {
+    await Notifications.setNotificationChannelAsync('jobs', {
       name: i18n.t('notifications.channelName'),
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 250, 250, 250],

@@ -13,13 +13,13 @@ export interface MarketConfig {
   appStoreUrl: string;
 }
 
-const PLAY_STORE_BASE = 'https://play.google.com/store/apps/details?id=com.kampanyasepeti.app';
-const APP_STORE_BASE = 'https://apps.apple.com/app/kampanya-sepeti/id';
+const PLAY_STORE_BASE = 'https://play.google.com/store/apps/details?id=com.maviyaka.app';
+const APP_STORE_BASE = 'https://apps.apple.com/app/mavi-yaka/id';
 
 export const MARKETS: MarketConfig[] = [
   {
     market: 'TR', slug: 'tr', language: 'tr', locale: 'tr-TR',
-    appName: 'Kampanya Sepeti', flag: '\u{1F1F9}\u{1F1F7}', countryName: 'Turkiye',
+    appName: 'Mavi Yaka', flag: '\u{1F1F9}\u{1F1F7}', countryName: 'Turkiye',
     storeListingFile: 'tr', dir: 'ltr',
     seoKeywords: ['indirim', 'kampanya', 'kupon', 'firsat', 'taksit', 'promosyon', 'indirim uygulamasi'],
     playStoreUrl: PLAY_STORE_BASE, appStoreUrl: APP_STORE_BASE,

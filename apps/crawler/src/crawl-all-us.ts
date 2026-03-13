@@ -1,40 +1,39 @@
 /**
- * Crawl all uncrawled US categories sequentially.
+ * Crawl all uncrawled US sectors sequentially.
  * Run: npx ts-node --transpile-only src/crawl-all-us.ts
  */
 import './config';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Sector } from '@prisma/client';
 import { crawlSource, cleanupStaleLogs } from './engine';
 import { closeBrowser } from './processors/scrape.processor';
 
 const p = new PrismaClient();
 
-const US_CATEGORIES = [
-  'alisveris',
-  'giyim-moda',
-  'kozmetik-kisisel-bakim',
-  'ev-yasam',
-  'yeme-icme',
-  'spor-outdoor',
-  'seyahat-ulasim',
-  'finans',
-  'sigorta',
-  'otomobil',
-  // 'elektronik' — already crawled
-  // 'kitap-hobi' — already crawled
-  // 'gida-market' — being crawled separately
+const US_SECTORS: Sector[] = [
+  'RETAIL',
+  'MANUFACTURING',
+  'LOGISTICS_TRANSPORTATION',
+  'CONSTRUCTION',
+  'FOOD_BEVERAGE',
+  'AUTOMOTIVE',
+  'TEXTILE',
+  'HEALTHCARE',
+  'HOSPITALITY_TOURISM',
+  'SECURITY_SERVICES',
+  'FACILITY_MANAGEMENT',
+  'OTHER',
 ];
 
 async function main() {
   // Clean up stale RUNNING logs
   await cleanupStaleLogs(p);
 
-  // Skip categories provided as args (already crawled)
-  const skipCategories = process.argv.slice(2);
+  // Skip sectors provided as args (already crawled)
+  const skipSectors = process.argv.slice(2);
 
-  for (const categorySlug of US_CATEGORIES) {
-    if (skipCategories.includes(categorySlug)) {
-      console.log(`\n⏩ Skipping ${categorySlug} (already done)\n`);
+  for (const sector of US_SECTORS) {
+    if (skipSectors.includes(sector)) {
+      console.log(`\nSkipping ${sector} (already done)\n`);
       continue;
     }
 
@@ -42,48 +41,48 @@ async function main() {
       where: {
         isActive: true,
         market: 'US' as any,
-        brand: { category: { slug: categorySlug } },
+        company: { sector },
       },
-      include: { brand: { select: { name: true } } },
-      orderBy: { brand: { name: 'asc' } },
+      include: { company: { select: { name: true } } },
+      orderBy: { company: { name: 'asc' } },
     });
 
     console.log(`\n${'='.repeat(60)}`);
-    console.log(`  CATEGORY: ${categorySlug} (${sources.length} sources)`);
+    console.log(`  SECTOR: ${sector} (${sources.length} sources)`);
     console.log(`${'='.repeat(60)}\n`);
 
-    const results: { brand: string; found: number; new_: number; status: string; ms: number }[] = [];
+    const results: { company: string; found: number; new_: number; status: string; ms: number }[] = [];
 
     for (let i = 0; i < sources.length; i++) {
       const s = sources[i];
-      console.log(`\n[${i + 1}/${sources.length}] Crawling: ${s.brand.name}...`);
+      console.log(`\n[${i + 1}/${sources.length}] Crawling: ${s.company.name}...`);
 
       try {
         const r = await crawlSource(p, s.id);
         results.push({
-          brand: s.brand.name,
-          found: r.campaignsFound,
-          new_: r.campaignsNew,
+          company: s.company.name,
+          found: r.jobsFound,
+          new_: r.jobsNew,
           status: r.status,
           ms: r.durationMs,
         });
-        console.log(`  → ${r.status}: found=${r.campaignsFound}, new=${r.campaignsNew} (${(r.durationMs / 1000).toFixed(1)}s)`);
+        console.log(`  → ${r.status}: found=${r.jobsFound}, new=${r.jobsNew} (${(r.durationMs / 1000).toFixed(1)}s)`);
       } catch (err) {
         console.error(`  → ERROR: ${(err as Error).message}`);
-        results.push({ brand: s.brand.name, found: 0, new_: 0, status: 'ERROR', ms: 0 });
+        results.push({ company: s.company.name, found: 0, new_: 0, status: 'ERROR', ms: 0 });
       }
     }
 
-    // Category summary
+    // Sector summary
     const totalFound = results.reduce((s, r) => s + r.found, 0);
     const totalNew = results.reduce((s, r) => s + r.new_, 0);
     const failed = results.filter(r => r.status === 'FAILED' || r.status === 'ERROR').length;
-    console.log(`\n--- ${categorySlug} SUMMARY: ${totalFound} found, ${totalNew} new, ${failed} failed ---\n`);
+    console.log(`\n--- ${sector} SUMMARY: ${totalFound} found, ${totalNew} new, ${failed} failed ---\n`);
   }
 
   await closeBrowser();
   await p.$disconnect();
-  console.log('\n✅ All US categories crawled!\n');
+  console.log('\nAll US sectors crawled!\n');
 }
 
 main().catch(async (e) => {

@@ -8,49 +8,49 @@ import { useMarket } from '@/lib/market';
 interface DashboardStats {
   totalUsers: number;
   activeFollows: number;
-  activeCampaigns: number;
-  expiredCampaigns: number;
-  hiddenCampaigns: number;
-  totalCampaigns: number;
-  todayCampaigns: number;
-  weekCampaigns: number;
-  totalBrands: number;
-  totalCategories: number;
+  activeJobs: number;
+  expiredJobs: number;
+  hiddenJobs: number;
+  totalJobs: number;
+  todayJobs: number;
+  weekJobs: number;
+  totalCompanies: number;
+  totalSectors: number;
   totalSources: number;
-  totalFavorites: number;
+  totalSavedJobs: number;
   recentCrawls: Array<{
     id: string;
     status: string;
-    campaignsFound: number;
-    campaignsNew: number;
-    campaignsUpdated: number;
+    jobsFound: number;
+    jobsNew: number;
+    jobsUpdated: number;
     createdAt: string;
-    source: { name: string; brand: { name: string } };
+    source: { name: string; company: { name: string } };
   }>;
 }
 
-interface TopBrand {
+interface TopCompany {
   id: string;
   name: string;
   logoUrl: string | null;
-  activeCampaigns: number;
+  activeJobs: number;
   followers: number;
 }
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [topBrands, setTopBrands] = useState<TopBrand[]>([]);
+  const [topCompanies, setTopCompanies] = useState<TopCompany[]>([]);
   const { market } = useMarket();
 
   useEffect(() => {
     async function load() {
       try {
-        const [statsRes, brandsRes] = await Promise.all([
+        const [statsRes, companiesRes] = await Promise.all([
           apiFetch<{ data: DashboardStats }>(`/admin/dashboard/stats?market=${market}`),
-          apiFetch<{ data: TopBrand[] }>(`/admin/dashboard/top-brands?market=${market}`),
+          apiFetch<{ data: TopCompany[] }>(`/admin/dashboard/top-companies?market=${market}`),
         ]);
         setStats(statsRes.data);
-        setTopBrands(brandsRes.data);
+        setTopCompanies(companiesRes.data);
       } catch (err) {
         console.error('Dashboard load error:', err);
       }
@@ -72,51 +72,51 @@ export default function DashboardPage() {
 
       {/* Main Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard title="Aktif Kampanyalar" value={stats.activeCampaigns} icon="🎯" color="text-green-600" />
-        <StatCard title="Toplam Kampanya" value={stats.totalCampaigns} icon="📢" />
-        <StatCard title="Markalar" value={stats.totalBrands} icon="🏷️" />
+        <StatCard title="Aktif Ilanlar" value={stats.activeJobs} icon="💼" color="text-green-600" />
+        <StatCard title="Toplam Ilan" value={stats.totalJobs} icon="📋" />
+        <StatCard title="Firmalar" value={stats.totalCompanies} icon="🏢" />
         <StatCard title="Kullanicilar" value={stats.totalUsers} icon="👥" color="text-blue-600" />
       </div>
 
       {/* Secondary Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <StatCard title="Kategoriler" value={stats.totalCategories} icon="📂" color="text-purple-600" />
-        <StatCard title="Bugun Eklenen" value={stats.todayCampaigns} icon="📅" color="text-orange-500" />
-        <StatCard title="Bu Hafta" value={stats.weekCampaigns} icon="📆" />
+        <StatCard title="Sektorler" value={stats.totalSectors} icon="🏭" color="text-purple-600" />
+        <StatCard title="Bugun Eklenen" value={stats.todayJobs} icon="📅" color="text-orange-500" />
+        <StatCard title="Bu Hafta" value={stats.weekJobs} icon="📆" />
         <StatCard title="Takipler" value={stats.activeFollows} icon="❤️" color="text-red-500" />
-        <StatCard title="Favoriler" value={stats.totalFavorites} icon="⭐" color="text-yellow-500" />
+        <StatCard title="Kayitli Ilanlar" value={stats.totalSavedJobs} icon="⭐" color="text-yellow-500" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Top Brands */}
+        {/* Top Companies */}
         <Card>
           <CardHeader>
-            <CardTitle>En Populer Markalar</CardTitle>
+            <CardTitle>En Populer Firmalar</CardTitle>
           </CardHeader>
           <CardContent>
-            {topBrands.length === 0 ? (
-              <p className="text-gray-500 text-sm">Henuz marka yok.</p>
+            {topCompanies.length === 0 ? (
+              <p className="text-gray-500 text-sm">Henuz firma yok.</p>
             ) : (
               <div className="space-y-3">
-                {topBrands.map((brand, i) => (
+                {topCompanies.map((company, i) => (
                   <div
-                    key={brand.id}
+                    key={company.id}
                     className="flex items-center justify-between p-3 bg-gray-50 rounded-md"
                   >
                     <div className="flex items-center gap-3">
                       <span className="text-sm font-bold text-gray-400 w-5">{i + 1}</span>
-                      {brand.logoUrl ? (
-                        <img src={brand.logoUrl} alt={brand.name} className="w-8 h-8 rounded object-cover" />
+                      {company.logoUrl ? (
+                        <img src={company.logoUrl} alt={company.name} className="w-8 h-8 rounded object-cover" />
                       ) : (
                         <div className="w-8 h-8 rounded bg-orange-100 flex items-center justify-center text-xs font-bold text-orange-600">
-                          {brand.name[0]}
+                          {company.name[0]}
                         </div>
                       )}
-                      <span className="font-medium text-sm">{brand.name}</span>
+                      <span className="font-medium text-sm">{company.name}</span>
                     </div>
                     <div className="flex items-center gap-4 text-xs text-gray-500">
-                      <span>{brand.activeCampaigns} kampanya</span>
-                      <span>{brand.followers} takipci</span>
+                      <span>{company.activeJobs} ilan</span>
+                      <span>{company.followers} takipci</span>
                     </div>
                   </div>
                 ))}
@@ -142,11 +142,11 @@ export default function DashboardPage() {
                   >
                     <div>
                       <p className="font-medium text-sm">{log.source.name}</p>
-                      <p className="text-xs text-gray-500">{log.source.brand.name}</p>
+                      <p className="text-xs text-gray-500">{log.source.company.name}</p>
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="text-xs text-gray-500">
-                        {log.campaignsFound} bulundu, {log.campaignsNew} yeni
+                        {log.jobsFound} bulundu, {log.jobsNew} yeni
                       </span>
                       <StatusBadge status={log.status} />
                       <span className="text-xs text-gray-400">
@@ -161,24 +161,24 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Campaign Status Breakdown */}
+      {/* Job Status Breakdown */}
       <Card>
         <CardHeader>
-          <CardTitle>Kampanya Durumlari</CardTitle>
+          <CardTitle>Ilan Durumlari</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex gap-6">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-green-500" />
-              <span className="text-sm text-gray-600">Aktif: <strong>{stats.activeCampaigns}</strong></span>
+              <span className="text-sm text-gray-600">Aktif: <strong>{stats.activeJobs}</strong></span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-gray-400" />
-              <span className="text-sm text-gray-600">Suresi Dolmus: <strong>{stats.expiredCampaigns}</strong></span>
+              <span className="text-sm text-gray-600">Suresi Dolmus: <strong>{stats.expiredJobs}</strong></span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-red-400" />
-              <span className="text-sm text-gray-600">Gizli: <strong>{stats.hiddenCampaigns}</strong></span>
+              <span className="text-sm text-gray-600">Gizli: <strong>{stats.hiddenJobs}</strong></span>
             </div>
           </div>
         </CardContent>

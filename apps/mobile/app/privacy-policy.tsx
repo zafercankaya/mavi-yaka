@@ -25,7 +25,7 @@ function PrivacyContentTR() {
       <Text style={styles.date}>Son güncelleme: 18 Şubat 2026</Text>
 
       <Section title="1. Veri Sorumlusu">
-        Kampanya Sepeti uygulaması ("Uygulama") olarak kişisel verilerinizin korunmasına büyük
+        Mavi Yaka uygulaması ("Uygulama") olarak kişisel verilerinizin korunmasına büyük
         önem veriyoruz. 6698 sayılı Kişisel Verilerin Korunması Kanunu ("KVKK") kapsamında
         veri sorumlusu sıfatıyla sizleri bilgilendirmek isteriz.
       </Section>
@@ -97,7 +97,7 @@ function PrivacyContentEN() {
       <Text style={styles.date}>Last updated: February 18, 2026</Text>
 
       <Section title="1. Data Controller">
-        Kampanya Sepeti ("App") values the protection of your personal data. This privacy policy
+        Mavi Yaka ("App") values the protection of your personal data. This privacy policy
         explains how we collect, use, and protect your information.
       </Section>
 

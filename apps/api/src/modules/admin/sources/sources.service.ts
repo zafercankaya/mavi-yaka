@@ -7,17 +7,17 @@ import { CreateSourceDto, UpdateSourceDto } from './sources.dto';
 export class SourcesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(categoryId?: string, brandId?: string, market?: Market) {
+  async findAll(sector?: string, companyId?: string, market?: Market) {
     const where: any = {};
-    if (brandId) {
-      where.brandId = brandId;
-    } else if (categoryId) {
-      where.brand = { categoryId };
+    if (companyId) {
+      where.companyId = companyId;
+    } else if (sector) {
+      where.company = { sector };
     }
     if (market) where.market = market;
     return this.prisma.crawlSource.findMany({
       where,
-      include: { brand: { select: { name: true, categoryId: true } } },
+      include: { company: { select: { name: true, sector: true } } },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -25,7 +25,7 @@ export class SourcesService {
   async findOne(id: string) {
     const source = await this.prisma.crawlSource.findUnique({
       where: { id },
-      include: { brand: { select: { name: true } } },
+      include: { company: { select: { name: true } } },
     });
     if (!source) throw new NotFoundException('Kaynak bulunamadı');
     return source;
@@ -34,7 +34,7 @@ export class SourcesService {
   async create(dto: CreateSourceDto) {
     return this.prisma.crawlSource.create({
       data: {
-        brandId: dto.brandId,
+        companyId: dto.companyId,
         name: dto.name,
         crawlMethod: dto.crawlMethod,
         seedUrls: dto.seedUrls,
@@ -44,7 +44,7 @@ export class SourcesService {
         agingDays: dto.agingDays ?? 7,
         market: dto.market ?? Market.TR,
       },
-      include: { brand: { select: { name: true } } },
+      include: { company: { select: { name: true } } },
     });
   }
 
@@ -53,15 +53,15 @@ export class SourcesService {
     return this.prisma.crawlSource.update({
       where: { id },
       data: dto as any,
-      include: { brand: { select: { name: true } } },
+      include: { company: { select: { name: true } } },
     });
   }
 
   async remove(id: string) {
     await this.findOne(id);
     return this.prisma.$transaction(async (tx) => {
-      // Delete campaigns of this source (favorites cascade automatically)
-      await tx.campaign.deleteMany({ where: { sourceId: id } });
+      // Delete job listings of this source (saved jobs cascade automatically)
+      await tx.jobListing.deleteMany({ where: { sourceId: id } });
       // Delete the source (logs cascade automatically)
       return tx.crawlSource.delete({ where: { id } });
     });

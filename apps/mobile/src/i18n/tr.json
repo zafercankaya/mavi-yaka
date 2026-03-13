@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "Mavi Yaka",
+    "name": "MaviYaka.iş",
     "tagline": "Mavi yaka iş ilanları, tek bir yerde"
   },
   "tabs": {
@@ -125,24 +125,23 @@
     "SENIOR": "5+ Yıl"
   },
   "sector": {
-    "LOGISTICS": "Lojistik",
-    "MANUFACTURING": "Üretim",
-    "RETAIL": "Perakende",
+    "LOGISTICS_TRANSPORTATION": "Lojistik & Taşımacılık",
+    "MANUFACTURING": "Üretim & İmalat",
+    "RETAIL": "Perakende & Mağazacılık",
     "CONSTRUCTION": "İnşaat",
-    "FOOD_SERVICE": "Gıda Hizmetleri",
-    "CLEANING": "Temizlik",
-    "SECURITY": "Güvenlik",
-    "WAREHOUSE": "Depo",
-    "COURIER": "Kurye",
-    "AGRICULTURE": "Tarım",
+    "FOOD_BEVERAGE": "Gıda & İçecek",
     "AUTOMOTIVE": "Otomotiv",
-    "TEXTILE": "Tekstil",
-    "MINING": "Madencilik",
-    "HEALTHCARE_SUPPORT": "Sağlık Destek",
-    "HOSPITALITY": "Konaklama",
-    "MAINTENANCE": "Bakım & Onarım",
-    "DRIVER": "Şoför",
-    "TECHNICIAN": "Teknisyen",
+    "TEXTILE": "Tekstil & Konfeksiyon",
+    "MINING_ENERGY": "Madencilik & Enerji",
+    "HEALTHCARE": "Sağlık",
+    "HOSPITALITY_TOURISM": "Konaklama & Turizm",
+    "AGRICULTURE": "Tarım & Hayvancılık",
+    "SECURITY_SERVICES": "Güvenlik Hizmetleri",
+    "FACILITY_MANAGEMENT": "Temizlik & Tesis Yönetimi",
+    "METAL_STEEL": "Metal & Çelik",
+    "CHEMICALS_PLASTICS": "Kimya & Plastik",
+    "ECOMMERCE_CARGO": "E-ticaret & Kargo",
+    "TELECOMMUNICATIONS": "Telekomünikasyon",
     "OTHER": "Diğer"
   },
   "follows": {

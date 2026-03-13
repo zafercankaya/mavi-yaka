@@ -1,5 +1,6 @@
 import * as cheerio from 'cheerio';
-import { SelectorsConfig } from '@maviyaka/shared';
+// import { SelectorsConfig } from '@maviyaka/shared';
+type SelectorsConfig = any; // TODO: restore @maviyaka/shared import when package is ready
 import { RawCampaignData } from '../pipeline/normalize';
 import { CRAWL_DELAY_MS, REQUEST_TIMEOUT_MS } from '../config';
 import { pickBestFromSrcset } from '../pipeline/optimize-images';
@@ -288,9 +289,8 @@ function extractFromCard(
     description,
     sourceUrl,
     imageUrls,
-    startDate: startDate ?? undefined,
-    endDate: endDate ?? undefined,
-    discountRate: discountRate ?? undefined,
+    postedDate: startDate ?? undefined,
+    deadline: endDate ?? undefined,
   };
 }
 
@@ -344,9 +344,8 @@ function extractFromDetail(
     description,
     sourceUrl,
     imageUrls,
-    startDate: startDate ?? undefined,
-    endDate: endDate ?? undefined,
-    discountRate: discountRate ?? undefined,
+    postedDate: startDate ?? undefined,
+    deadline: endDate ?? undefined,
   };
 }
 

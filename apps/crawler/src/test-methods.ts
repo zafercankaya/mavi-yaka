@@ -7,7 +7,16 @@ import { discoverBestMethod } from './processors/auto-discover';
 import { fetchRssCampaigns } from './processors/rss.processor';
 import { scrapeGeneric } from './processors/generic-scraper';
 import { normalizeCampaign, RawCampaignData } from './pipeline/normalize';
-import { scoreCampaign } from './pipeline/quality-filter';
+import { filterCampaigns } from './pipeline/quality-filter';
+
+// scoreCampaign is no longer exported; use filterCampaigns wrapper
+function scoreCampaign(normalized: any, companyName?: string) {
+  const { passed, rejected } = filterCampaigns([normalized], companyName);
+  if (passed.length > 0) {
+    return { passed: true, score: 3, reasons: ['passed-filter'], hardRejected: null };
+  }
+  return { passed: false, score: 0, reasons: ['rejected'], hardRejected: 'quality-filter' };
+}
 
 const prisma = new PrismaClient();
 
@@ -68,9 +77,9 @@ function showCampaigns(campaigns: RawCampaignData[]) {
 
     console.log(`\n  📌 "${c.title?.substring(0, 70)}"`);
     console.log(`     URL: ${c.sourceUrl?.substring(0, 80)}`);
-    console.log(`     StartDate: ${c.startDate || 'YOK'}`);
-    console.log(`     EndDate: ${c.endDate || 'YOK'}`);
-    console.log(`     Discount: ${c.discountRate ? '%' + c.discountRate : 'YOK'}`);
+    console.log(`     PostedDate: ${c.postedDate || 'YOK'}`);
+    console.log(`     Deadline: ${c.deadline || 'YOK'}`);
+    console.log(`     Discount: YOK`);
     console.log(`     Images: ${c.imageUrls?.length || 0}`);
     console.log(`     Quality: score=${quality.score} ${quality.passed ? 'PASSED' : 'REJECTED'} [${quality.reasons.join(', ')}]`);
   }

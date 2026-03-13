@@ -1,12 +1,12 @@
 /**
- * Fetch brand logos from their websites and update the database.
+ * Fetch company logos from their websites and update the database.
  * Priority: Clearbit > apple-touch-icon > large favicon > Google S2 favicon
  *
  * Usage:
- *   npx ts-node --transpile-only src/fetch-brand-logos.ts           # all brands without logos
- *   npx ts-node --transpile-only src/fetch-brand-logos.ts --upgrade  # upgrade ALL brands to best available
+ *   npx ts-node --transpile-only src/fetch-brand-logos.ts           # all companies without logos
+ *   npx ts-node --transpile-only src/fetch-brand-logos.ts --upgrade  # upgrade ALL companies to best available
  *   npx ts-node --transpile-only src/fetch-brand-logos.ts US         # only US market (no logo)
- *   npx ts-node --transpile-only src/fetch-brand-logos.ts US --upgrade # upgrade all US brands
+ *   npx ts-node --transpile-only src/fetch-brand-logos.ts US --upgrade # upgrade all US companies
  */
 import './config';
 import { PrismaClient } from '@prisma/client';
@@ -134,53 +134,53 @@ async function main() {
     where.market = marketArg;
   }
 
-  const brands = await prisma.brand.findMany({
+  const companies = await prisma.company.findMany({
     where,
     select: { id: true, name: true, websiteUrl: true, logoUrl: true },
     orderBy: { name: 'asc' },
   });
 
-  console.log(`Mode: ${upgradeMode ? 'UPGRADE (all brands)' : 'NEW ONLY (no logo)'}`);
+  console.log(`Mode: ${upgradeMode ? 'UPGRADE (all companies)' : 'NEW ONLY (no logo)'}`);
   if (marketArg) console.log(`Market: ${marketArg}`);
-  console.log(`Found ${brands.length} brands to process\n`);
+  console.log(`Found ${companies.length} companies to process\n`);
 
   let updated = 0;
   let failed = 0;
 
-  for (let i = 0; i < brands.length; i++) {
-    const brand = brands[i];
-    if (!brand.websiteUrl) {
-      console.log(`  [${i + 1}/${brands.length}] SKIP ${brand.name}: no websiteUrl`);
+  for (let i = 0; i < companies.length; i++) {
+    const company = companies[i];
+    if (!company.websiteUrl) {
+      console.log(`  [${i + 1}/${companies.length}] SKIP ${company.name}: no websiteUrl`);
       failed++;
       continue;
     }
 
     try {
-      const logoUrl = await findLogoUrl(brand.websiteUrl);
+      const logoUrl = await findLogoUrl(company.websiteUrl);
       if (logoUrl) {
         // In upgrade mode, skip if current logo is already better or same
-        if (upgradeMode && brand.logoUrl === logoUrl) {
-          console.log(`  [${i + 1}/${brands.length}] = ${brand.name}: unchanged`);
+        if (upgradeMode && company.logoUrl === logoUrl) {
+          console.log(`  [${i + 1}/${companies.length}] = ${company.name}: unchanged`);
           continue;
         }
         // In upgrade mode, only upgrade if new logo is Clearbit (better quality)
-        if (upgradeMode && brand.logoUrl && !logoUrl.includes('clearbit.com')) {
+        if (upgradeMode && company.logoUrl && !logoUrl.includes('clearbit.com')) {
           // Don't downgrade existing logo to non-clearbit
           continue;
         }
-        await prisma.brand.update({
-          where: { id: brand.id },
+        await prisma.company.update({
+          where: { id: company.id },
           data: { logoUrl },
         });
         const tag = logoUrl.includes('clearbit') ? 'CLR' : logoUrl.includes('google.com') ? 'G2' : 'WEB';
-        console.log(`  [${i + 1}/${brands.length}] ✓ ${brand.name} [${tag}]: ${logoUrl.substring(0, 70)}`);
+        console.log(`  [${i + 1}/${companies.length}] OK ${company.name} [${tag}]: ${logoUrl.substring(0, 70)}`);
         updated++;
       } else {
-        console.log(`  [${i + 1}/${brands.length}] ✗ ${brand.name}: no logo found`);
+        console.log(`  [${i + 1}/${companies.length}] FAIL ${company.name}: no logo found`);
         failed++;
       }
     } catch (err) {
-      console.log(`  [${i + 1}/${brands.length}] ✗ ${brand.name}: ${(err as Error).message}`);
+      console.log(`  [${i + 1}/${companies.length}] FAIL ${company.name}: ${(err as Error).message}`);
       failed++;
     }
 

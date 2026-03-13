@@ -1,46 +1,295 @@
-import { canonicalizeUrl } from '@maviyaka/shared';
 import { optimizeImageUrls } from './optimize-images';
 
-export interface RawCampaignData {
+// ─── Types ──────────────────────────────────────────────────────────
+
+export type Market = 'TR' | 'US' | 'DE' | 'UK' | 'IN' | 'BR' | 'ID' | 'RU' | 'MX' | 'JP' | 'PH' | 'TH' | 'CA' | 'AU' | 'FR' | 'IT' | 'ES' | 'EG' | 'SA' | 'KR' | 'AR' | 'AE' | 'VN' | 'PL' | 'MY' | 'CO' | 'ZA' | 'PT' | 'NL' | 'PK' | 'SE';
+
+export interface RawJobData {
   title: string;
   description?: string;
+  requirements?: string;
+  benefits?: string;
   sourceUrl: string;
   imageUrls?: string[];
-  startDate?: string;
-  endDate?: string;
-  discountRate?: number;
-  promoCode?: string;
+  deadline?: string;
+  postedDate?: string;
+  salaryText?: string;
+  locationText?: string;
+  jobTypeText?: string;
+  workModeText?: string;
+  experienceText?: string;
 }
 
-export interface NormalizedCampaign {
+export type JobType = 'FULL_TIME' | 'PART_TIME' | 'DAILY' | 'SEASONAL' | 'INTERNSHIP' | 'CONTRACT';
+export type WorkMode = 'ON_SITE' | 'REMOTE' | 'HYBRID';
+export type ExperienceLevel = 'NONE' | 'ENTRY' | 'MID' | 'SENIOR';
+export type SalaryPeriod = 'HOURLY' | 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+export type Sector = 'LOGISTICS_TRANSPORTATION' | 'MANUFACTURING' | 'RETAIL' | 'CONSTRUCTION' | 'FOOD_BEVERAGE' | 'AUTOMOTIVE' | 'TEXTILE' | 'MINING_ENERGY' | 'HEALTHCARE' | 'HOSPITALITY_TOURISM' | 'AGRICULTURE' | 'SECURITY_SERVICES' | 'FACILITY_MANAGEMENT' | 'METAL_STEEL' | 'CHEMICALS_PLASTICS' | 'ECOMMERCE_CARGO' | 'TELECOMMUNICATIONS' | 'OTHER';
+
+export interface SalaryInfo {
+  min: number | null;
+  max: number | null;
+  currency: string;
+  period: SalaryPeriod;
+}
+
+export interface NormalizedJobListing {
   title: string;
   description: string | null;
+  requirements: string | null;
+  benefits: string | null;
   sourceUrl: string;
   canonicalUrl: string;
   imageUrls: string[];
-  startDate: Date | null;
-  endDate: Date | null;
-  discountRate: number | null;
-  promoCode: string | null;
+  deadline: Date | null;
+  postedDate: Date | null;
+  salaryMin: number | null;
+  salaryMax: number | null;
+  salaryCurrency: string | null;
+  salaryPeriod: SalaryPeriod | null;
+  jobType: JobType | null;
+  workMode: WorkMode | null;
+  experienceLevel: ExperienceLevel | null;
+  sector: Sector | null;
+  city: string | null;
+  state: string | null;
 }
 
-// UUID pattern: 8-4-4-4-12 hex chars (with or without dashes)
+// ─── Constants ──────────────────────────────────────────────────────
+
+const MARKET_CURRENCY: Record<Market, { code: string; symbols: string[] }> = {
+  TR: { code: 'TRY', symbols: ['₺', 'TL', 'TRY'] },
+  US: { code: 'USD', symbols: ['$', 'USD'] },
+  DE: { code: 'EUR', symbols: ['€', 'EUR'] },
+  UK: { code: 'GBP', symbols: ['£', 'GBP'] },
+  IN: { code: 'INR', symbols: ['₹', 'Rs', 'INR'] },
+  BR: { code: 'BRL', symbols: ['R$', 'BRL'] },
+  ID: { code: 'IDR', symbols: ['Rp', 'IDR'] },
+  RU: { code: 'RUB', symbols: ['₽', 'руб', 'RUB'] },
+  MX: { code: 'MXN', symbols: ['$', 'MXN'] },
+  JP: { code: 'JPY', symbols: ['¥', '円', 'JPY'] },
+  PH: { code: 'PHP', symbols: ['₱', 'PHP'] },
+  TH: { code: 'THB', symbols: ['฿', 'THB', 'บาท'] },
+  CA: { code: 'CAD', symbols: ['$', 'CAD', 'C$'] },
+  AU: { code: 'AUD', symbols: ['$', 'AUD', 'A$'] },
+  FR: { code: 'EUR', symbols: ['€', 'EUR'] },
+  IT: { code: 'EUR', symbols: ['€', 'EUR'] },
+  ES: { code: 'EUR', symbols: ['€', 'EUR'] },
+  EG: { code: 'EGP', symbols: ['EGP', 'ج.م', 'E£'] },
+  SA: { code: 'SAR', symbols: ['SAR', 'ر.س', 'SR'] },
+  KR: { code: 'KRW', symbols: ['₩', 'KRW', '원'] },
+  AR: { code: 'ARS', symbols: ['$', 'ARS', 'AR$'] },
+  AE: { code: 'AED', symbols: ['AED', 'د.إ'] },
+  VN: { code: 'VND', symbols: ['₫', 'VND', 'đ'] },
+  PL: { code: 'PLN', symbols: ['zł', 'PLN'] },
+  MY: { code: 'MYR', symbols: ['RM', 'MYR'] },
+  CO: { code: 'COP', symbols: ['$', 'COP', 'COL$'] },
+  ZA: { code: 'ZAR', symbols: ['R', 'ZAR'] },
+  PT: { code: 'EUR', symbols: ['€', 'EUR'] },
+  NL: { code: 'EUR', symbols: ['€', 'EUR'] },
+  PK: { code: 'PKR', symbols: ['Rs', 'PKR', '₨'] },
+  SE: { code: 'SEK', symbols: ['kr', 'SEK'] },
+};
+
+// Period keywords in multiple languages
+const PERIOD_KEYWORDS: { period: SalaryPeriod; keywords: string[] }[] = [
+  { period: 'HOURLY', keywords: ['hour', 'hr', '/h', 'saat', 'saatlik', 'stunde', 'hora', 'heure', 'ora', 'час', 'jam', 'ชั่วโมง', '時間', '시간', 'godzin', 'uur', 'timme'] },
+  { period: 'DAILY', keywords: ['day', '/d', 'gün', 'günlük', 'tag', 'día', 'jour', 'giorno', 'день', 'hari', 'วัน', '日', '일', 'dzień', 'dag'] },
+  { period: 'WEEKLY', keywords: ['week', '/w', 'hafta', 'haftalık', 'woche', 'semana', 'semaine', 'settimana', 'неделя', 'minggu', 'สัปดาห์', '週', '주', 'tydzień', 'vecka'] },
+  { period: 'MONTHLY', keywords: ['month', '/mo', 'ay', 'aylık', 'monat', 'mes', 'mois', 'mese', 'месяц', 'bulan', 'เดือน', '月', '월', 'miesiąc', 'maand', 'månad', 'brutto', 'net'] },
+  { period: 'YEARLY', keywords: ['year', 'annual', '/yr', 'yıl', 'yıllık', 'jahr', 'año', 'anual', 'année', 'annuel', 'anno', 'annuale', 'год', 'tahun', 'ปี', '年', '연', 'rok', 'jaar', 'år'] },
+];
+
+// Job type keywords per language
+const JOB_TYPE_KEYWORDS: { type: JobType; keywords: string[] }[] = [
+  { type: 'FULL_TIME', keywords: [
+    'full-time', 'full time', 'fulltime', 'tam zamanlı', 'tam zamanli', 'vollzeit',
+    'tiempo completo', 'jornada completa', 'temps plein', 'tempo pieno', 'tempo integral',
+    'полная занятость', 'полный рабочий', 'penuh waktu', 'เต็มเวลา', '正社員', 'フルタイム',
+    '정규직', '풀타임', 'pełny etat', 'sepenuh masa', 'voltijd', 'heltid',
+  ]},
+  { type: 'PART_TIME', keywords: [
+    'part-time', 'part time', 'parttime', 'yarı zamanlı', 'yari zamanli', 'teilzeit',
+    'medio tiempo', 'media jornada', 'temps partiel', 'tempo parziale', 'meio período',
+    'частичная занятость', 'неполный', 'paruh waktu', 'พาร์ทไทม์', 'パート', 'アルバイト',
+    '파트타임', '시간제', 'pół etatu', 'separuh masa', 'deeltijd', 'deltid',
+  ]},
+  { type: 'DAILY', keywords: [
+    'daily', 'day labor', 'günlük', 'günübirlik', 'tagelohn', 'jornalero',
+    'journalier', 'giornaliero', 'diário', 'дневной', 'harian', 'รายวัน', '日雇い', '일용직',
+    'dzienna', 'harian', 'dagelijks', 'daglig',
+  ]},
+  { type: 'SEASONAL', keywords: [
+    'seasonal', 'mevsimlik', 'saisonarbeit', 'saisonal', 'temporada', 'estacional',
+    'saisonnier', 'stagionale', 'temporário', 'сезонный', 'musiman', 'ตามฤดูกาล', '季節',
+    '계절', 'sezonow', 'bermusim', 'seizoens', 'säsongs',
+  ]},
+  { type: 'INTERNSHIP', keywords: [
+    'intern', 'internship', 'staj', 'stajyer', 'praktikum', 'praktikant',
+    'pasantía', 'prácticas', 'stage', 'stagiaire', 'tirocinio', 'estágio',
+    'стажировка', 'стажёр', 'magang', 'ฝึกงาน', 'インターン', '실습', '인턴',
+    'staż', 'praktyk', 'latihan industri', 'stage', 'praktik',
+  ]},
+  { type: 'CONTRACT', keywords: [
+    'contract', 'contractor', 'freelance', 'sözleşmeli', 'befristet', 'freiberuflich',
+    'contrato', 'freelance', 'contrat', 'indépendant', 'contratto', 'libero professionista',
+    'контракт', 'фриланс', 'kontrak', 'สัญญาจ้าง', '契約', '계약직', '프리랜서',
+    'umowa zlecenie', 'kontrak', 'contract', 'kontrakt',
+  ]},
+];
+
+// Work mode keywords per language
+const WORK_MODE_KEYWORDS: { mode: WorkMode; keywords: string[] }[] = [
+  { mode: 'REMOTE', keywords: [
+    'remote', 'work from home', 'wfh', 'uzaktan', 'uzaktan çalışma', 'homeoffice', 'home office',
+    'remoto', 'teletrabajo', 'télétravail', 'lavoro da remoto', 'trabalho remoto',
+    'удалённая', 'удаленная', 'удалённо', 'jarak jauh', 'ทำงานที่บ้าน', 'リモート', '在宅',
+    '재택', '원격', 'zdaln', 'kerja dari rumah', 'thuiswerk', 'distans',
+  ]},
+  { mode: 'HYBRID', keywords: [
+    'hybrid', 'hibrit', 'hybrid', 'híbrido', 'hybride', 'ibrido', 'гибридный',
+    'hibrida', 'ไฮบริด', 'ハイブリッド', '하이브리드', 'hybrydo', 'hibrid', 'hybride',
+  ]},
+  { mode: 'ON_SITE', keywords: [
+    'on-site', 'on site', 'onsite', 'in-person', 'in person', 'office',
+    'yerinde', 'sahada', 'vor ort', 'präsenz', 'presencial', 'en sitio',
+    'sur site', 'en présentiel', 'in sede', 'in loco', 'очная', 'офис',
+    'di lokasi', 'ทำงานที่ออฟฟิศ', 'オフィス', '出社', '사무실', '현장',
+    'stacjonarn', 'di lokasi', 'op locatie', 'på plats',
+  ]},
+];
+
+// Experience level keywords
+const EXPERIENCE_KEYWORDS: { level: ExperienceLevel; keywords: string[] }[] = [
+  { level: 'NONE', keywords: [
+    'no experience', 'without experience', 'experience not required',
+    'deneyim aranmaz', 'deneyim şartı yok', 'deneyimsiz', 'tecrübe aranmaz',
+    'keine erfahrung', 'ohne erfahrung', 'sin experiencia', 'sans expérience',
+    'senza esperienza', 'sem experiência', 'без опыта', 'tanpa pengalaman',
+    'ไม่จำเป็นต้องมีประสบการณ์', '未経験', '경험 불문', '경험 무관',
+    'bez doświadczenia', 'tiada pengalaman', 'geen ervaring', 'ingen erfarenhet',
+  ]},
+  { level: 'ENTRY', keywords: [
+    'entry level', 'entry-level', 'junior', '0-2 year', '1-2 year', '0-1 year',
+    'yeni mezun', 'yeni başlayan', '0-2 yıl', 'berufseinsteiger', 'berufseinstieg',
+    'nivel inicial', 'débutant', 'neolaureato', 'júnior', 'начальный', 'начинающий',
+    'fresh graduate', 'pemula', 'เริ่มต้น', 'ジュニア', '新卒', '신입', '주니어',
+    'początkujący', 'permulaan', 'starter', 'nybörjare',
+  ]},
+  { level: 'MID', keywords: [
+    '2-5 year', '3-5 year', '2-4 year', 'experienced', 'mid-level', 'mid level',
+    'deneyimli', 'tecrübeli', '2-5 yıl', '3-5 yıl', 'erfahren', 'berufserfahrung',
+    'experimentado', 'expérimenté', 'esperienza', 'experiente', 'опытный', 'средний',
+    'berpengalaman', 'มีประสบการณ์', '経験者', '경력', 'doświadczony', 'pengalaman', 'ervaren', 'erfaren',
+  ]},
+  { level: 'SENIOR', keywords: [
+    '5+ year', '5-10 year', 'senior', 'expert', 'lead', 'foreman', 'master',
+    'kıdemli', 'usta', 'uzman', 'baş', '5+ yıl', 'formen', 'meister', 'vorarbeiter',
+    'sénior', 'experto', 'capataz', 'sénior', 'chef', 'maître', 'caposquadra',
+    'старший', 'мастер', 'бригадир', 'mandor', 'หัวหน้า', 'ベテラン', '시니어', '숙련',
+    'starszy', 'ketua', 'senior', 'förman',
+  ]},
+];
+
+// Sector keywords for detection
+const SECTOR_KEYWORDS: { sector: Sector; keywords: string[] }[] = [
+  { sector: 'LOGISTICS_TRANSPORTATION', keywords: [
+    'logistics', 'transport', 'shipping', 'delivery', 'cargo', 'freight', 'warehouse', 'supply chain',
+    'lojistik', 'nakliye', 'taşımacılık', 'kargo', 'depo', 'dağıtım', 'sevkiyat',
+    'logistik', 'spedition', 'logística', 'transporte', 'logistique', 'logistica', 'trasporto',
+  ]},
+  { sector: 'MANUFACTURING', keywords: [
+    'manufacturing', 'factory', 'production', 'assembly', 'industrial',
+    'üretim', 'fabrika', 'imalat', 'montaj', 'sanayi', 'endüstri',
+    'produktion', 'fertigung', 'fabricación', 'fábrica', 'fabrication', 'usine', 'fabbrica', 'produzione',
+  ]},
+  { sector: 'RETAIL', keywords: [
+    'retail', 'store', 'shop', 'sales', 'cashier', 'merchandising',
+    'perakende', 'mağaza', 'satış', 'kasiyer', 'market', 'reyon',
+    'einzelhandel', 'comercio', 'tienda', 'commerce', 'magasin', 'negozio', 'vendita',
+  ]},
+  { sector: 'CONSTRUCTION', keywords: [
+    'construction', 'building', 'civil engineering',
+    'inşaat', 'yapı', 'bina', 'şantiye',
+    'bau', 'baustelle', 'construcción', 'obra', 'bâtiment', 'chantier', 'edilizia', 'cantiere',
+  ]},
+  { sector: 'FOOD_BEVERAGE', keywords: [
+    'food', 'beverage', 'restaurant', 'catering', 'kitchen', 'bakery', 'cafe',
+    'gıda', 'yiyecek', 'içecek', 'restoran', 'mutfak', 'fırın', 'pastane',
+    'gastronomie', 'lebensmittel', 'alimentos', 'restaurante', 'restauration', 'ristorazione', 'cucina',
+  ]},
+  { sector: 'AUTOMOTIVE', keywords: [
+    'automotive', 'automobile', 'car', 'vehicle', 'motor',
+    'otomotiv', 'otomobil', 'araç', 'oto',
+    'automobil', 'fahrzeug', 'automotriz', 'automóvil', 'automobile', 'véhicule', 'veicolo',
+  ]},
+  { sector: 'TEXTILE', keywords: [
+    'textile', 'garment', 'apparel', 'clothing', 'fashion', 'sewing',
+    'tekstil', 'konfeksiyon', 'giyim', 'dikiş', 'kumaş',
+    'textil', 'bekleidung', 'confección', 'habillement', 'tessile', 'abbigliamento',
+  ]},
+  { sector: 'MINING_ENERGY', keywords: [
+    'mining', 'energy', 'oil', 'gas', 'power', 'electricity',
+    'madencilik', 'maden', 'enerji', 'petrol', 'doğalgaz', 'elektrik',
+    'bergbau', 'energie', 'minería', 'energía', 'mines', 'énergie', 'minerario', 'energia',
+  ]},
+  { sector: 'HEALTHCARE', keywords: [
+    'healthcare', 'health', 'hospital', 'medical', 'clinic', 'nursing', 'care',
+    'sağlık', 'hastane', 'klinik', 'hemşire', 'bakım', 'tıbbi',
+    'gesundheit', 'krankenhaus', 'salud', 'hospital', 'santé', 'hôpital', 'sanità', 'ospedale',
+  ]},
+  { sector: 'HOSPITALITY_TOURISM', keywords: [
+    'hotel', 'hospitality', 'tourism', 'travel', 'resort', 'accommodation',
+    'otel', 'konaklama', 'turizm', 'seyahat', 'tatil',
+    'gastgewerbe', 'tourismus', 'hostelería', 'turismo', 'hôtellerie', 'alberghiero',
+  ]},
+  { sector: 'AGRICULTURE', keywords: [
+    'agriculture', 'farming', 'farm', 'livestock', 'harvest', 'crop',
+    'tarım', 'çiftlik', 'hayvancılık', 'ziraat', 'hasat', 'seracılık',
+    'landwirtschaft', 'agricultura', 'granja', 'agricoltura', 'fattoria',
+  ]},
+  { sector: 'SECURITY_SERVICES', keywords: [
+    'security', 'guard', 'surveillance', 'patrol',
+    'güvenlik', 'koruma', 'bekçi', 'özel güvenlik',
+    'sicherheit', 'wachdienst', 'seguridad', 'vigilancia', 'sécurité', 'surveillance', 'sicurezza', 'vigilanza',
+  ]},
+  { sector: 'FACILITY_MANAGEMENT', keywords: [
+    'facility', 'cleaning', 'janitor', 'maintenance', 'housekeeping',
+    'temizlik', 'tesis yönetimi', 'bina bakım', 'hizmetli',
+    'gebäudemanagement', 'reinigung', 'limpieza', 'mantenimiento', 'nettoyage', 'entretien', 'pulizia',
+  ]},
+  { sector: 'METAL_STEEL', keywords: [
+    'metal', 'steel', 'iron', 'welding', 'foundry', 'forge',
+    'metal', 'çelik', 'demir', 'kaynak', 'döküm', 'dövme',
+    'stahl', 'metall', 'acero', 'acier', 'métallurgie', 'acciaio', 'metallurgia',
+  ]},
+  { sector: 'CHEMICALS_PLASTICS', keywords: [
+    'chemical', 'plastic', 'polymer', 'rubber', 'petrochemical',
+    'kimya', 'plastik', 'polimer', 'kauçuk', 'petrokimya',
+    'chemie', 'kunststoff', 'química', 'plástico', 'chimie', 'plastique', 'chimica', 'plastica',
+  ]},
+  { sector: 'ECOMMERCE_CARGO', keywords: [
+    'ecommerce', 'e-commerce', 'online', 'marketplace', 'fulfillment',
+    'e-ticaret', 'kargo', 'teslimat', 'sipariş',
+    'e-handel', 'comercio electrónico', 'e-commerce', 'commercio elettronico',
+  ]},
+  { sector: 'TELECOMMUNICATIONS', keywords: [
+    'telecom', 'telecommunications', 'network', 'mobile operator', 'fiber',
+    'telekom', 'telekomünikasyon', 'iletişim', 'ağ',
+    'telekommunikation', 'telecomunicaciones', 'télécommunications', 'telecomunicazioni',
+  ]},
+];
+
+// UUID pattern: 8-4-4-4-12 hex chars
 const UUID_PATTERN = /[A-F0-9]{8}-?[A-F0-9]{4}-?[A-F0-9]{4}-?[A-F0-9]{4}-?[A-F0-9]{12,}/gi;
-
-// Long hex strings (8+ hex chars, possibly with dashes between)
 const HEX_GARBAGE_PATTERN = /[A-Fa-f0-9]{8,}(?:-[A-Fa-f0-9]{2,}){2,}/g;
-
-// Short hex segments with dashes (e.g., DC00-4049-891A from Altınyıldız)
 const SHORT_HEX_DASH_PATTERN = /-?[A-Fa-f0-9]{4}(?:-[A-Fa-f0-9]{4}){2,}/g;
-
-// Short hex garbage that follows brand names directly (e.g., "ClassicsC3239...")
 const INLINE_HEX_PATTERN = /(?<=[a-zışğüöç])[A-F][A-F0-9]{6,}[A-F0-9\-]*/gi;
 
-// Known garbage suffixes that appear after brand names
 const GARBAGE_SUFFIX_PATTERNS = [
-  /Anasayfa\s*Plan\s*de\s*travail\s*\d*/gi,   // Bioderma SVG artifact
-  /[A-Za-z]*-?key[A-Za-z0-9-]*/gi,             // Altınyıldız key artifacts (door-key, Boor-key, etc.)
-  /-{2,}[A-Z]$/g,                               // Trailing "--B" remnants
+  /Anasayfa\s*Plan\s*de\s*travail\s*\d*/gi,
+  /[A-Za-z]*-?key[A-Za-z0-9-]*/gi,
+  /-{2,}[A-Z]$/g,
   /#\s*site-main\s*$/i,
   /#\s*mobile-menu[A-Za-z0-9-]*/i,
   /#\s*main-content\s*$/i,
@@ -48,24 +297,17 @@ const GARBAGE_SUFFIX_PATTERNS = [
   /#\s*skippedLink\s*$/i,
 ];
 
-// Common brand suffix patterns in titles: "... | Brand Name", "... - Brand Name"
-const BRAND_SUFFIX_PATTERN = /\s*[|–—-]\s*(Audi|BMW|BYD|Allianz|Arçelik|Beko|LCW|BIODERMA|Bauhaus|Altınyıldız|Altinyildiz)\s*(Classics|Türkiye|Turkey|Sigorta|\.com\.tr)?\s*$/i;
-
-// Navigation/UI junk that gets concatenated into titles from SPA sites
 const NAV_JUNK_KEYWORDS = [
   'Facebook', 'Instagram', 'TikTok', 'YouTube', 'Twitter', 'Pinterest', 'LinkedIn', 'Snapchat',
   'Gear Card', 'Gift Card', 'Mobile', 'Phone', 'Account', 'Rewards', 'Help', 'Contact Us',
   'Cart', 'Sign In', 'Sign Up', 'Log In', 'Register', 'My Account', 'Wishlist',
   'Back to Top', 'Skip to Content', 'Skip to Main', 'Menu', 'Search', 'Close',
-  'titleBack', 'titleBack to Top',
 ];
-// Build regex that matches any of these keywords concatenated at end of title
 const NAV_JUNK_PATTERN = new RegExp(
   `(?:${NAV_JUNK_KEYWORDS.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})+\\s*$`,
   'i',
 );
 
-// Garbage description values
 const GARBAGE_DESCRIPTIONS = [
   'default description',
   'bu sitede çerez kullanıyoruz',
@@ -76,70 +318,222 @@ const GARBAGE_DESCRIPTIONS = [
   'cerez politikasi',
 ];
 
-// False positive discount contexts: these contain % but are NOT discounts
-const FALSE_DISCOUNT_PATTERNS = [
-  // Material/fabric composition (e.g., %100 Pamuklu, %95 Polyester)
-  /%\s*\d+\s*(pamuk|cotton|polyester|elastan|viskon|viscose|keten|linen|yün|wool|ipek|silk|naylon|nylon|akrilik|acrylic|sentetik|lycra|rayon|baumwolle|wolle|seide|leinen)/i,
-  /yüzde\s*\d+\s*(pamuk|polyester|elastan|viskon|keten|ipek|naylon|akrilik|sentetik|lycra)/i,
-  // German fabric: "100% Baumwolle", "95% Polyester"
-  /\d+\s*%\s*(baumwolle|wolle|seide|leinen|polyester|elastan|viskose|nylon|acryl|synthetik|lycra)/i,
-  // Portuguese fabric: "100% algodão", "95% poliéster"
-  /\d+\s*%\s*(algod[ãa]o|poli[ée]ster|elastano|viscose|linho|seda|l[ãa]|nylon|acr[ií]lico|lycra)/i,
-  /%\s*\d+\s*(algod[ãa]o|poli[ée]ster|elastano|viscose|linho|seda|l[ãa]|nylon|acr[ií]lico|lycra)/i,
-  // French fabric: "100% coton", "95% soie"
-  /\d+\s*%\s*(coton|soie|lin|laine|polyester|viscose|nylon|acrylique|lycra|élasthanne|elasthanne)/i,
-  // Italian fabric: "100% cotone", "95% seta"
-  /\d+\s*%\s*(cotone|seta|lana|lino|poliestere|viscosa|nylon|acrilico|lycra|elastan)/i,
-  // Spanish fabric: "100% algodón", "95% seda"
-  /\d+\s*%\s*(algod[oó]n|seda|lana|lino|poli[eé]ster|viscosa|nylon|acr[ií]lico|lycra|elastano)/i,
-  // Russian fabric: "100% хлопок"
-  /\d+\s*%\s*(хлопок|шёлк|шелк|шерсть|лён|лен|полиэстер|вискоза|нейлон|акрил|лайкра)/i,
-  // Indonesian fabric: "100% katun"
-  /\d+\s*%\s*(katun|sutra|wol|linen|poliester|nilon|akrilik|lycra)/i,
-  // Arabic fabric: "100% قطن" (cotton), "95% بوليستر" (polyester)
-  /\d+\s*%\s*(قطن|حرير|صوف|كتان|بوليستر|نايلون|اكريليك|لايكرا|فيسكوز)/i,
-  // Korean fabric: "100% 면" (cotton), "95% 폴리에스터"
-  /\d+\s*%\s*(면|실크|울|리넨|폴리에스터|나일론|아크릴|레이온|비스코스|라이크라)/i,
-  // Non-discount percentage contexts
-  /%\s*0\s*faiz/i,          // %0 faiz
-  /%\s*0\s*komisyon/i,      // %0 komisyon
-  /0\s*%\s*zinsen/i,        // 0% Zinsen (German: 0% interest)
-  // Product spec percentages (alcohol, battery, etc.)
-  /%\s*\d+\s*(alkol|alcohol|pil|batarya|battery|alkohol)/i,
-];
+// ─── Main Function ──────────────────────────────────────────────────
 
-export function normalizeCampaign(raw: RawCampaignData): NormalizedCampaign {
-  let title = cleanTitle(stripHtml(raw.title).trim());
-  let description = raw.description ? cleanDescription(stripHtml(raw.description).trim()) : null;
+export function normalizeJobListing(raw: RawJobData, market: Market = 'TR'): NormalizedJobListing {
+  const title = cleanTitle(stripHtml(raw.title).trim());
+  const description = raw.description ? cleanDescription(stripHtml(raw.description).trim()) : null;
+  const requirements = raw.requirements ? cleanDescription(stripHtml(raw.requirements).trim()) : null;
+  const benefits = raw.benefits ? cleanDescription(stripHtml(raw.benefits).trim()) : null;
   const sourceUrl = cleanUrl(raw.sourceUrl);
 
-  // Extract discount, handling false positives
-  // Always check false positives — scrapers may pass through fake discount rates
-  // (e.g., "%100 pamuklu" → 100% discount)
-  const isFalseDiscount = FALSE_DISCOUNT_PATTERNS.some((p) => p.test(raw.title) || p.test(title));
-  let discountRate = isFalseDiscount ? null : (raw.discountRate ?? extractDiscount(raw.title, title));
-  // Validate range: realistic discounts are 1-95%
-  if (discountRate !== null && discountRate !== undefined && (discountRate < 1 || discountRate > 95)) {
-    discountRate = null;
-  }
+  // Combine all text fields for extraction
+  const allText = [title, description, requirements, benefits, raw.salaryText, raw.jobTypeText, raw.workModeText, raw.experienceText]
+    .filter(Boolean).join(' ');
 
-  // Extract promo code: prefer raw (from scraper JSON), then regex from title/description
-  const promoCode = validatePromoCode(raw.promoCode) || extractPromoCode(title, description) || null;
+  const salary = extractSalary(raw.salaryText || allText, market);
+  const jobType = detectJobType(raw.jobTypeText || allText, market);
+  const workMode = detectWorkMode(raw.workModeText || allText, market);
+  const experienceLevel = detectExperienceLevel(raw.experienceText || allText);
+  const sector = detectSector(allText, market);
+  const location = parseLocation(raw.locationText);
 
   return {
     title,
     description,
+    requirements,
+    benefits,
     sourceUrl,
     canonicalUrl: canonicalizeUrl(sourceUrl),
     imageUrls: optimizeImageUrls((raw.imageUrls ?? []).filter(Boolean)),
-    startDate: parseDate(raw.startDate),
-    endDate: parseDate(raw.endDate),
-    discountRate,
-    promoCode,
+    deadline: parseDate(raw.deadline),
+    postedDate: parseDate(raw.postedDate),
+    salaryMin: salary?.min ?? null,
+    salaryMax: salary?.max ?? null,
+    salaryCurrency: salary?.currency ?? null,
+    salaryPeriod: salary?.period ?? null,
+    jobType,
+    workMode,
+    experienceLevel,
+    sector,
+    city: location?.city ?? null,
+    state: location?.state ?? null,
   };
 }
 
-function stripHtml(html: string): string {
+// ─── Salary Extraction ──────────────────────────────────────────────
+
+function extractSalary(text: string, market: Market): SalaryInfo | null {
+  if (!text) return null;
+
+  const curr = MARKET_CURRENCY[market];
+
+  // Try to find a number pattern that looks like salary
+  // Patterns: "15.000 - 20.000 TL/ay", "$18/hr", "€2,500/month", "₹25,000 - ₹35,000"
+  // Number formats: 15000, 15.000, 15,000, 15.000,00
+
+  // Find currency symbol/code in text to confirm this is salary
+  const hasCurrencySignal = curr.symbols.some(s => text.includes(s)) ||
+    /salary|wage|pay|maaş|ücret|maas|ucret|gehalt|salario|salaire|stipendio|зарплата|gaji|เงินเดือน|給与|급여|wynagrodzenie|gaji|salaris|lön/i.test(text);
+
+  if (!hasCurrencySignal) return null;
+
+  // Extract numbers (handle Turkish/European: 15.000,50 and US: 15,000.50)
+  const numbers = extractNumbers(text, market);
+  if (numbers.length === 0) return null;
+
+  const period = detectPeriod(text);
+
+  if (numbers.length >= 2) {
+    // Range: min - max
+    const sorted = numbers.sort((a, b) => a - b);
+    return { min: sorted[0], max: sorted[sorted.length - 1], currency: curr.code, period };
+  }
+
+  // Single number — could be min or exact
+  return { min: numbers[0], max: null, currency: curr.code, period };
+}
+
+function extractNumbers(text: string, market: Market): number[] {
+  // Markets that use dot as thousands separator (TR, DE, BR, IT, ES, PT, etc.)
+  const dotThousands = ['TR', 'DE', 'BR', 'IT', 'ES', 'PT', 'FR', 'NL', 'PL', 'AR', 'CO', 'ID', 'VN'];
+  const useDotThousands = dotThousands.includes(market);
+
+  const numbers: number[] = [];
+
+  if (useDotThousands) {
+    // Match: 15.000, 15.000,50, 1.500.000
+    const pattern = /\b(\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?|\d+(?:,\d{1,2})?)\b/g;
+    let match: RegExpExecArray | null;
+    while ((match = pattern.exec(text)) !== null) {
+      const numStr = match[1].replace(/\./g, '').replace(',', '.');
+      const num = parseFloat(numStr);
+      if (!isNaN(num) && num >= 10) numbers.push(num);
+    }
+  }
+
+  if (numbers.length === 0) {
+    // Match: 15,000, 15,000.50, 1,500,000
+    const pattern = /\b(\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)\b/g;
+    let match: RegExpExecArray | null;
+    while ((match = pattern.exec(text)) !== null) {
+      const numStr = match[1].replace(/,/g, '');
+      const num = parseFloat(numStr);
+      if (!isNaN(num) && num >= 10) numbers.push(num);
+    }
+  }
+
+  // Also try plain numbers without separators
+  if (numbers.length === 0) {
+    const pattern = /\b(\d{3,})\b/g;
+    let match: RegExpExecArray | null;
+    while ((match = pattern.exec(text)) !== null) {
+      const num = parseInt(match[1], 10);
+      if (!isNaN(num) && num >= 10) numbers.push(num);
+    }
+  }
+
+  return numbers;
+}
+
+function detectPeriod(text: string): SalaryPeriod {
+  const lower = text.toLowerCase();
+  for (const { period, keywords } of PERIOD_KEYWORDS) {
+    for (const kw of keywords) {
+      if (lower.includes(kw)) return period;
+    }
+  }
+  return 'MONTHLY'; // default
+}
+
+// ─── Job Type Detection ─────────────────────────────────────────────
+
+function detectJobType(text: string, _market: Market): JobType | null {
+  const lower = text.toLowerCase();
+  for (const { type, keywords } of JOB_TYPE_KEYWORDS) {
+    for (const kw of keywords) {
+      if (lower.includes(kw)) return type;
+    }
+  }
+  return null;
+}
+
+// ─── Work Mode Detection ────────────────────────────────────────────
+
+function detectWorkMode(text: string, _market: Market): WorkMode | null {
+  const lower = text.toLowerCase();
+  for (const { mode, keywords } of WORK_MODE_KEYWORDS) {
+    for (const kw of keywords) {
+      if (lower.includes(kw)) return mode;
+    }
+  }
+  return null;
+}
+
+// ─── Experience Level Detection ─────────────────────────────────────
+
+function detectExperienceLevel(text: string): ExperienceLevel | null {
+  const lower = text.toLowerCase();
+  for (const { level, keywords } of EXPERIENCE_KEYWORDS) {
+    for (const kw of keywords) {
+      if (lower.includes(kw)) return level;
+    }
+  }
+  return null;
+}
+
+// ─── Sector Detection ───────────────────────────────────────────────
+
+function detectSector(text: string, _market: Market): Sector | null {
+  const lower = text.toLowerCase();
+  let bestSector: Sector | null = null;
+  let bestScore = 0;
+
+  for (const { sector, keywords } of SECTOR_KEYWORDS) {
+    let score = 0;
+    for (const kw of keywords) {
+      if (lower.includes(kw)) score++;
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      bestSector = sector;
+    }
+  }
+
+  return bestSector;
+}
+
+// ─── Location Parsing ───────────────────────────────────────────────
+
+function parseLocation(text?: string): { city: string | null; state: string | null } | null {
+  if (!text) return null;
+  const cleaned = stripHtml(text).trim();
+  if (!cleaned || cleaned.length < 2) return null;
+
+  // Common format: "City, State" or "City / State" or "City - State"
+  const parts = cleaned.split(/[,\/\-–—]\s*/);
+  if (parts.length >= 2) {
+    return { city: parts[0].trim() || null, state: parts[1].trim() || null };
+  }
+
+  // Single location — assume city
+  return { city: cleaned, state: null };
+}
+
+// ─── Shared Utilities (kept from original) ──────────────────────────
+
+function canonicalizeUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    parsed.hash = '';
+    parsed.search = '';
+    return parsed.toString().replace(/\/+$/, '').toLowerCase();
+  } catch {
+    return url.toLowerCase();
+  }
+}
+
+export function stripHtml(html: string): string {
   return html
     .replace(/<[^>]*>/g, '')
     .replace(/&nbsp;/g, ' ')
@@ -152,27 +546,16 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-/** Clean title: remove UUID garbage, excessive brand suffixes */
 function cleanTitle(title: string): string {
-  // Remove unicode escape artifacts like \u0027
+  // Remove unicode escape artifacts
   title = title.replace(/\\u[0-9a-fA-F]{4}/g, (m) => {
-    try {
-      return JSON.parse(`"${m}"`);
-    } catch {
-      return m;
-    }
+    try { return JSON.parse(`"${m}"`); } catch { return m; }
   });
 
   // Remove UUID-like patterns
   title = title.replace(UUID_PATTERN, '').trim();
-
-  // Remove inline hex that follows brand names directly (e.g., "ClassicsC3239...")
   title = title.replace(INLINE_HEX_PATTERN, '').trim();
-
-  // Remove long hex garbage strings with dashes
   title = title.replace(HEX_GARBAGE_PATTERN, '').trim();
-
-  // Remove short hex-dash segments (e.g., DC00-4049-891A)
   title = title.replace(SHORT_HEX_DASH_PATTERN, '').trim();
 
   // Remove known garbage suffixes
@@ -180,77 +563,55 @@ function cleanTitle(title: string): string {
     title = title.replace(pattern, '').trim();
   }
 
-  // Clean trailing separators before brand suffix removal (hex cleanup may leave dashes)
+  // Clean trailing separators
   title = title.replace(/[-–—|]+\s*$/, '').trim();
 
-  // Remove common brand suffix like "| Audi Türkiye"
-  title = title.replace(BRAND_SUFFIX_PATTERN, '').trim();
-
-  // Remove navigation/UI junk concatenated from SPA sites
-  // e.g. "Guitar Deals | Guitar CenterGear CardMobileGift CardPhoneFacebookXYouTube..."
+  // Remove navigation/UI junk
   for (let i = 0; i < 3; i++) {
     title = title.replace(NAV_JUNK_PATTERN, '').trim();
   }
 
-  // Remove "title" prefix artifact from some scrapers (e.g. "titleBack to Top")
+  // Remove "title" prefix artifact
   title = title.replace(/\btitle\s*$/i, '').trim();
 
-  // If title still has concatenated junk after pipe, keep only the first meaningful part
-  // e.g. "HP Weekly Deals | HP StoreSome random nav text" → "HP Weekly Deals"
+  // If title has concatenated junk after pipe, keep first part
   const pipeMatch = title.match(/^(.{10,}?)\s*[|]\s*.{0,30}(?:Card|Mobile|Phone|Facebook|Store|Home|Shop)/i);
   if (pipeMatch) {
     title = pipeMatch[1].trim();
   }
 
-  // Collapse multiple spaces
+  // Collapse spaces, clean trailing separators
   title = title.replace(/\s+/g, ' ').trim();
-
-  // Remove trailing | or - with nothing after (or with just whitespace)
   title = title.replace(/\s*[-–—|]+\s*$/, '').trim();
 
-  // Remove leading/trailing quotes if they wrap the whole title
+  // Remove wrapping quotes
   if ((title.startsWith('"') && title.endsWith('"')) || (title.startsWith("'") && title.endsWith("'"))) {
     title = title.slice(1, -1).trim();
   }
-  // Remove mismatched leading/trailing special chars
-  if (title.startsWith('"') || title.startsWith('"') || title.startsWith('«')) {
-    title = title.slice(1).trim();
-  }
-  if (title.endsWith('"') || title.endsWith('"') || title.endsWith('»')) {
-    title = title.slice(0, -1).trim();
-  }
+  if (title.startsWith('\u201C') || title.startsWith('\u00AB')) title = title.slice(1).trim();
+  if (title.endsWith('\u201D') || title.endsWith('\u00BB')) title = title.slice(0, -1).trim();
 
   return title;
 }
 
-/** Clean description: remove garbage values */
 function cleanDescription(desc: string): string | null {
   if (!desc || desc.length < 5) return null;
 
   const lower = desc.toLowerCase().trim();
-  if (GARBAGE_DESCRIPTIONS.some((g) => lower === g || lower.startsWith(g))) {
-    return null;
-  }
+  if (GARBAGE_DESCRIPTIONS.some(g => lower === g || lower.startsWith(g))) return null;
 
   // Remove unicode escape artifacts
   desc = desc.replace(/\\u[0-9a-fA-F]{4}/g, (m) => {
-    try {
-      return JSON.parse(`"${m}"`);
-    } catch {
-      return m;
-    }
+    try { return JSON.parse(`"${m}"`); } catch { return m; }
   });
 
   return desc;
 }
 
-/** Clean URL: normalize fragments and tracking params */
 function cleanUrl(url: string): string {
   try {
     const parsed = new URL(url);
-    // Remove hash fragments (they don't affect the page)
     parsed.hash = '';
-    // Remove common tracking params
     for (const param of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'ref', '_encoding']) {
       parsed.searchParams.delete(param);
     }
@@ -267,219 +628,12 @@ function parseDate(dateStr?: string): Date | null {
 
   const now = new Date();
   const year = d.getFullYear();
-
-  // Reject dates that are clearly wrong
   if (year < 2020 || year > now.getFullYear() + 2) return null;
 
   return d;
 }
 
-function extractDiscount(rawTitle: string, cleanedTitle: string): number | null {
-  // Check false positive patterns first
-  if (FALSE_DISCOUNT_PATTERNS.some((p) => p.test(rawTitle) || p.test(cleanedTitle))) {
-    return null;
-  }
-
-  const text = `${cleanedTitle} ${rawTitle}`;
-
-  // Pattern: %50, % 50 (Turkish style)
-  const match = text.match(/%\s*(\d+)/);
-  if (match) {
-    const val = parseInt(match[1], 10);
-    if (val >= 1 && val <= 95) return val;
-  }
-
-  // Pattern: 50%, 50 % (universal)
-  const match2 = text.match(/(\d+)\s*%/);
-  if (match2) {
-    const val = parseInt(match2[1], 10);
-    if (val >= 1 && val <= 95) return val;
-  }
-
-  // US/EN patterns: "save 30%", "up to 50% off", "30% off"
-  const usPercentOff = text.match(/(?:save|up\s*to|get)\s+(\d+)\s*%\s*(?:off|savings?)?/i);
-  if (usPercentOff) {
-    const val = parseInt(usPercentOff[1], 10);
-    if (val >= 1 && val <= 95) return val;
-  }
-
-  // US/EN patterns: "X% off", "X% savings"
-  const percentOff = text.match(/(\d+)\s*%\s*(?:off|savings?|discount)/i);
-  if (percentOff) {
-    const val = parseInt(percentOff[1], 10);
-    if (val >= 1 && val <= 95) return val;
-  }
-
-  // German patterns: "spare 20%", "bis zu 50% sparen", "20% Rabatt", "20% reduziert"
-  const deSpare = text.match(/(?:spare?n?|bis\s+zu)\s+(\d+)\s*%/i);
-  if (deSpare) {
-    const val = parseInt(deSpare[1], 10);
-    if (val >= 1 && val <= 95) return val;
-  }
-
-  const deRabatt = text.match(/(\d+)\s*%\s*(?:rabatt|reduziert|ermäßigung|ermaessigung|nachlass|günstiger)/i);
-  if (deRabatt) {
-    const val = parseInt(deRabatt[1], 10);
-    if (val >= 1 && val <= 95) return val;
-  }
-
-  return null;
-}
-
-// --- Promo Code Extraction ---
-
-// Blacklisted words that look like codes but aren't
-const CODE_BLACKLIST = new Set([
-  'NULL', 'N/A', 'NONE', 'FALSE', 'TRUE', 'YES', 'NO', 'FREE', 'NEW', 'SALE', 'OFF',
-  'THE', 'AND', 'FOR', 'NOT', 'WITH', 'THIS', 'THAT', 'FROM', 'YOUR', 'CODE',
-  'PROMO', 'COUPON', 'DISCOUNT', 'OFFER', 'DEAL', 'SAVE', 'GET', 'BUY', 'NOW',
-  'HERE', 'CLICK', 'APPLY', 'ENTER', 'USE', 'TRY', 'SHOP', 'MORE', 'BEST',
-  'HTTP', 'HTTPS', 'HTML', 'JSON', 'JPEG', 'PNG', 'GIF', 'PDF', 'CSS',
-  'PRICE', 'SIZE', 'MULTIPLE', 'ALL', 'CATALOG', 'MANUFACTURER', 'FILTER',
-  'SORT', 'ORDER', 'VIEW', 'LIST', 'GRID', 'LOAD', 'LOADING', 'SEARCH',
-  // Turkish
-  'KODU', 'KUPON', 'INDIRIM', 'KAMPANYA', 'FIRSATI', 'FIRSAT',
-  // German
-  'GUTSCHEIN', 'RABATT', 'AKTION', 'ANGEBOT', 'KOPIERT',
-  // French
-  'REDUCTION', 'OFFRE', 'SOLDES',
-  // Spanish
-  'DESCUENTO', 'OFERTA', 'CUPÓN', 'CUPON', 'REBAJAS', 'PROMOCODE', 'PROMOCIONAL',
-  // Portuguese
-  'CUPOM', 'DESCONTO', 'OFERTA',
-  // Italian
-  'SCONTO', 'CODICE', 'OFFERTA',
-  // Indonesian
-  'UNTUK', 'DISKON',
-  // Polish
-  'WIOSNA', 'RABAT',
-  // UI elements & brand names scraped as codes
-  'EMAIL', 'PREMIUM', 'SAMSUNG', 'SONY',
-]);
-
-// Multi-language keyword patterns that signal a promo code is nearby
-const PROMO_KEYWORD_PATTERNS: RegExp[] = [
-  // TR
-  /(?:indirim\s*)?kod[u]?\s*[:：=]\s*["'「]?([A-Z0-9][A-Z0-9_\-]{2,29})["'」]?/i,
-  /kupon\s*[:：=]\s*["'「]?([A-Z0-9][A-Z0-9_\-]{2,29})["'」]?/i,
-  // EN (US, UK, IN, PH, CA, AU)
-  /(?:promo|coupon|discount|voucher)\s*code\s*[:：=]\s*["'「]?([A-Z0-9][A-Z0-9_\-]{2,29})["'」]?/i,
-  /(?:use|apply|enter|with)\s+(?:the\s+)?(?:code|coupon)\s+["'「]?([A-Z0-9][A-Z0-9_\-]{2,29})["'」]?/i,
-  /code\s*[:：=]\s*["'「]?([A-Z0-9][A-Z0-9_\-]{2,29})["'」]?/i,
-  // DE
-  /(?:gutschein|rabatt|aktions?)code\s*[:：=]\s*["'「]?([A-Z0-9][A-Z0-9_\-]{2,29})["'」]?/i,
-  /(?:mit|mit\s+dem)\s+code\s+["'「]?([A-Z0-9][A-Z0-9_\-]{2,29})["'」]?/i,
-  // FR
-  /code\s*(?:promo|de\s*réduction|de\s*reduction)\s*[:：=]\s*["'「]?([A-Z0-9][A-Z0-9_\-]{2,29})["'」]?/i,
-  /(?:avec|utilisez)\s+(?:le\s+)?code\s+["'「]?([A-Z0-9][A-Z0-9_\-]{2,29})["'」]?/i,
-  // IT
-  /codice\s*(?:sconto|promozionale)?\s*[:：=]\s*["'「]?([A-Z0-9][A-Z0-9_\-]{2,29})["'」]?/i,
-  /(?:usa|inserisci)\s+(?:il\s+)?codice\s+["'「]?([A-Z0-9][A-Z0-9_\-]{2,29})["'」]?/i,
-  // PT/BR
-  /(?:código|cupom|cupão)\s*[:：=]\s*["'「]?([A-Z0-9][A-Z0-9_\-]{2,29})["'」]?/i,
-  /(?:use|utilize)\s+o?\s*(?:código|cupom)\s+["'「]?([A-Z0-9][A-Z0-9_\-]{2,29})["'」]?/i,
-  // ES (ES, MX, AR)
-  /(?:código|cupón)\s*[:：=]\s*["'「]?([A-Z0-9][A-Z0-9_\-]{2,29})["'」]?/i,
-  /(?:usa|utiliza|aplica)\s+(?:el\s+)?(?:código|cupón)\s+["'「]?([A-Z0-9][A-Z0-9_\-]{2,29})["'」]?/i,
-  // ID
-  /(?:kode|voucher)\s*(?:promo)?\s*[:：=]\s*["'「]?([A-Z0-9][A-Z0-9_\-]{2,29})["'」]?/i,
-  /(?:gunakan|pakai)\s+(?:kode|voucher)\s+["'「]?([A-Z0-9][A-Z0-9_\-]{2,29})["'」]?/i,
-  // RU
-  /промокод\s*[:：=]\s*["'«]?([A-Z0-9А-ЯЁ][A-Z0-9А-ЯЁ_\-]{2,29})["'»]?/i,
-  /(?:используйте|введите)\s+(?:код|промокод)\s+["'«]?([A-Z0-9А-ЯЁ][A-Z0-9А-ЯЁ_\-]{2,29})["'»]?/i,
-  // JA
-  /(?:クーポンコード|プロモコード|クーポン|コード)\s*[:：=]\s*["'「]?([A-Z0-9]{3,29})["'」]?/i,
-  // TH
-  /(?:โค้ด|รหัส|คูปอง)\s*[:：=]\s*["'「]?([A-Z0-9]{3,29})["'」]?/i,
-  // AR (Arabic)
-  /(?:كود|رمز|كوبون)\s*[:：=]\s*["'「]?([A-Z0-9]{3,29})["'」]?/i,
-  /(?:استخدم|أدخل)\s+(?:الكود|الرمز)\s+["'「]?([A-Z0-9]{3,29})["'」]?/i,
-  // KO
-  /(?:코드|쿠폰|프로모\s*코드)\s*[:：=]\s*["'「]?([A-Z0-9]{3,29})["'」]?/i,
-];
-
-// Price patterns — currency symbols + digits (e.g. "12,99€", "₹1,149.00", "$29.99")
-const PRICE_PATTERNS = [
-  /[€$₺£¥₹₽₩฿]/,                // Any currency symbol
-  /^\d+[.,]\d{2}$/,               // Pure decimal: 12,99 or 29.99
-  /^\d{1,3}([.,]\d{3})+/,         // Thousands-separated: 1.299,99
-  /^R\$/i,                         // Brazilian Real
-  /^RP\s?\d/i,                     // Indonesian Rupiah
-  /^RM\s?\d/i,                     // Malaysian Ringgit
-  /^RS\.?\s?\d/i,                  // Pakistani/Indian Rupee
-  /^KR\s?\d/i,                     // Scandinavian Krone
-  /^SAR\s?\d/i,                    // Saudi Riyal
-  /^AED\s?\d/i,                    // UAE Dirham
-  /^FROM\s*[\d€$£₺¥₹]/i,         // "from $12.99"
-  /^DESDE\s+\d/i,                  // PT/ES "desde 12,99€"
-  /^AB\s+\d/i,                     // DE "ab 12,99€"
-  /^A\s+PARTIR/i,                  // PT "a partir de..."
-];
-
-// CSS/UI artifact patterns scraped from page elements
-const CSS_UI_JUNK_PATTERNS = [
-  /^QUICK[-_]?FILTER/i,
-  /^PRODUCT[-_]?LIST/i,
-  /^PRICE[-_]?(ASC|DESC)/i,
-  /^SILENT\d+LOADING/i,
-  /^INFO[-_]?BLOCK/i,
-  /^TEXT[-_]?BLOCK/i,
-  /[-_]FILTER$/i,
-  /[-_]ORDER$/i,
-  /[-_]BLOCK$/i,
-  /[-_]SORT$/i,
-  /[-_]LOADING$/i,
-];
-
-export function validatePromoCode(code?: string): string | null {
-  if (!code) return null;
-  const cleaned = code.trim().toUpperCase();
-  if (cleaned.length < 3 || cleaned.length > 30) return null;
-  // Must contain at least one alphanumeric char
-  if (!/[A-Z0-9]/.test(cleaned)) return null;
-  // No spaces allowed in codes
-  if (/\s/.test(cleaned)) return null;
-  // Reject if it's a blacklisted word
-  if (CODE_BLACKLIST.has(cleaned)) return null;
-  // Reject UUID-like patterns
-  if (UUID_PATTERN.test(cleaned)) return null;
-  // Reject pure hex garbage (8+ hex chars)
-  if (/^[A-Fa-f0-9]{8,}$/.test(cleaned)) return null;
-  // Reject price patterns (currency symbols + digits)
-  if (PRICE_PATTERNS.some(p => p.test(cleaned))) return null;
-  // Reject pure numeric values (product IDs, prices without currency symbol)
-  if (/^\d+([.,]\d+)*$/.test(cleaned)) return null;
-  // Reject comma-separated number lists (product ID lists)
-  if (/^\d{4,},\d{4,}/.test(cleaned)) return null;
-  // Reject CSS class / UI artifact patterns
-  if (CSS_UI_JUNK_PATTERNS.some(p => p.test(cleaned))) return null;
-  // Reject SKU-like codes: 2+ consonants + 4+ digits, no vowels (e.g. TB0A41DB, LV047D753G)
-  if (/^[A-Z]{2,}\d{4,}/.test(cleaned) && !/[AEIOU]/.test(cleaned.replace(/\d/g, ''))) return null;
-  // Reject long random strings (12+ chars, low readability = likely SKU/hash/session ID)
-  // Real promo codes are human-readable: SUMMER2026, BLACKFRIDAY, SAVE20
-  // Fake ones look random: PLSRQL0F24IYFCH9, M2026021909C2E686, PYAEVXDF19SKCLRSTD
-  if (cleaned.length >= 12) {
-    const letters = cleaned.replace(/[^A-Z]/g, '');
-    const consonants = letters.replace(/[AEIOU]/g, '').length;
-    const vowels = letters.length - consonants;
-    // If consonant-to-vowel ratio > 4:1 or no vowels at all → random gibberish
-    if (letters.length >= 4 && (vowels === 0 || consonants / vowels > 4)) return null;
-  }
-  return cleaned;
-}
-
-export function extractPromoCode(title: string, description: string | null): string | null {
-  const text = `${title} ${description || ''}`;
-
-  for (const pattern of PROMO_KEYWORD_PATTERNS) {
-    // Reset lastIndex for global-safe patterns
-    pattern.lastIndex = 0;
-    const match = text.match(pattern);
-    if (match && match[1]) {
-      const code = validatePromoCode(match[1]);
-      if (code) return code;
-    }
-  }
-
-  return null;
-}
+// ─── Backward-compatible aliases (Faz 2 geçiş — diğer dosyalar güncellenince kaldırılacak) ───
+export type NormalizedCampaign = NormalizedJobListing;
+export type RawCampaignData = RawJobData;
+export const normalizeCampaign = normalizeJobListing;

@@ -1,7 +1,7 @@
 import { MetadataRoute } from 'next';
 import { MARKETS } from '@/data/markets';
 
-const BASE_URL = 'https://kampanyasepeti.com';
+const BASE_URL = 'https://maviyaka.com';
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const marketPages = MARKETS.map(m => ({

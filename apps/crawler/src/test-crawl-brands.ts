@@ -15,10 +15,10 @@ async function main() {
   for (const brandName of testBrands) {
     const source = await prisma.crawlSource.findFirst({
       where: {
-        brand: { name: brandName },
+        company: { name: brandName },
         isActive: true,
       },
-      include: { brand: { select: { name: true, categoryId: true } } },
+      include: { company: { select: { name: true, sector: true } } },
     });
 
     if (!source) {
@@ -27,16 +27,16 @@ async function main() {
     }
 
     console.log(`\n${'='.repeat(60)}`);
-    console.log(`TESTING: ${source.brand.name} | ${source.seedUrls[0]}`);
-    console.log(`Category: ${source.brand.categoryId || 'NONE'}`);
+    console.log(`TESTING: ${source.company.name} | ${source.seedUrls[0]}`);
+    console.log(`Sector: ${source.company.sector || 'NONE'}`);
     console.log('='.repeat(60));
 
     try {
       const result = await crawlSource(prisma, source.id);
       console.log(`\nResult: ${result.status}`);
-      console.log(`  Found: ${result.campaignsFound}`);
-      console.log(`  New: ${result.campaignsNew}`);
-      console.log(`  Updated: ${result.campaignsUpdated}`);
+      console.log(`  Found: ${result.jobsFound}`);
+      console.log(`  New: ${result.jobsNew}`);
+      console.log(`  Updated: ${result.jobsUpdated}`);
       console.log(`  Duration: ${result.durationMs}ms`);
       if (result.errorMessage) console.log(`  Error: ${result.errorMessage}`);
     } catch (err) {
@@ -44,28 +44,25 @@ async function main() {
     }
   }
 
-  // Show saved campaigns with dates
-  console.log('\n\n========== SAVED CAMPAIGNS ==========');
-  const campaigns = await prisma.campaign.findMany({
+  // Show saved job listings
+  console.log('\n\n========== SAVED JOB LISTINGS ==========');
+  const listings = await prisma.jobListing.findMany({
     include: {
-      brand: { select: { name: true } },
-      category: { select: { name: true } },
+      company: { select: { name: true } },
     },
     orderBy: { createdAt: 'desc' },
     take: 20,
   });
 
-  for (const c of campaigns) {
-    console.log(`\n  [${c.brand.name}] ${c.title.substring(0, 60)}`);
-    console.log(`    Category: ${c.category?.name || 'YOK'}`);
-    console.log(`    StartDate: ${c.startDate?.toISOString() || 'YOK'}`);
-    console.log(`    EndDate: ${c.endDate?.toISOString() || 'YOK'}`);
-    console.log(`    Discount: ${c.discountRate ? '%' + c.discountRate : 'YOK'}`);
-    console.log(`    Images: ${c.imageUrls.length}`);
+  for (const c of listings) {
+    console.log(`\n  [${c.company.name}] ${c.title.substring(0, 60)}`);
+    console.log(`    Sector: ${c.sector || 'NONE'}`);
+    console.log(`    Deadline: ${c.deadline?.toISOString() || 'NONE'}`);
+    console.log(`    Image: ${c.imageUrl || 'NONE'}`);
     console.log(`    Status: ${c.status}`);
   }
 
-  console.log(`\nTotal campaigns in DB: ${await prisma.campaign.count()}`);
+  console.log(`\nTotal job listings in DB: ${await prisma.jobListing.count()}`);
 
   await closeBrowser();
 }

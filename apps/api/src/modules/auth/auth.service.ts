@@ -168,7 +168,7 @@ export class AuthService {
 
   private async verifyAppleToken(idToken: string) {
     try {
-      const bundleId = this.config.get('APPLE_BUNDLE_ID', 'com.kampanyasepeti.app');
+      const bundleId = this.config.get('APPLE_BUNDLE_ID', 'com.maviyaka.app');
       const payload = await appleSignIn.verifyIdToken(idToken, {
         audience: [bundleId, 'host.exp.Exponent'],
         ignoreExpiration: false,

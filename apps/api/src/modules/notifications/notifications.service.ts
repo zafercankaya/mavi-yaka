@@ -1,108 +1,108 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ExpoPushService } from './expo-push.service';
-import { SubStatus, Market } from '@prisma/client';
+import { SubStatus, Market, JobStatus, Sector } from '@prisma/client';
 
 /** Scheduled notification messages — 13 languages */
 const SCHEDULED_MESSAGES: Record<string, {
   winBack: { title: string; body: (count: number) => string };
   weeklyDigest: { title: string; body: (count: number) => string };
-  favoriteExpiring: { title: string; body: (campaignTitle: string) => string };
+  favoriteExpiring: { title: string; body: (jobTitle: string) => string };
 }> = {
   tr: {
-    winBack: { title: 'Sizi özledik!', body: (n) => `Siz yokken ${n} yeni kampanya eklendi. Fırsatları kaçırmayın!` },
-    weeklyDigest: { title: 'Haftalık Özet', body: (n) => `Bu hafta ${n} yeni kampanya eklendi. En iyi fırsatları keşfedin!` },
-    favoriteExpiring: { title: 'Favori Kampanyanız Bitiyor!', body: (t) => `"${t}" kampanyası yarın sona eriyor. Son fırsatınızı kaçırmayın!` },
+    winBack: { title: 'Sizi özledik!', body: (n) => `Siz yokken ${n} yeni iş ilanı eklendi. Fırsatları kaçırmayın!` },
+    weeklyDigest: { title: 'Haftalık Özet', body: (n) => `Bu hafta ${n} yeni iş ilanı eklendi. En iyi fırsatları keşfedin!` },
+    favoriteExpiring: { title: 'Kayıtlı İlanınız Sona Eriyor!', body: (t) => `"${t}" ilanı yarın sona eriyor. Son fırsatınızı kaçırmayın!` },
   },
   en: {
-    winBack: { title: 'We miss you!', body: (n) => `${n} new campaigns added while you were away. Don't miss out!` },
-    weeklyDigest: { title: 'Weekly Summary', body: (n) => `${n} new campaigns this week. Discover the best deals!` },
-    favoriteExpiring: { title: 'Favorite Expiring!', body: (t) => `"${t}" ends tomorrow. Don't miss your last chance!` },
+    winBack: { title: 'We miss you!', body: (n) => `${n} new job listings added while you were away. Don't miss out!` },
+    weeklyDigest: { title: 'Weekly Summary', body: (n) => `${n} new job listings this week. Discover the best opportunities!` },
+    favoriteExpiring: { title: 'Saved Job Expiring!', body: (t) => `"${t}" ends tomorrow. Don't miss your last chance!` },
   },
   de: {
-    winBack: { title: 'Wir vermissen Sie!', body: (n) => `${n} neue Kampagnen während Ihrer Abwesenheit. Nicht verpassen!` },
-    weeklyDigest: { title: 'Wochenübersicht', body: (n) => `${n} neue Kampagnen diese Woche. Entdecken Sie die besten Angebote!` },
-    favoriteExpiring: { title: 'Favorit läuft aus!', body: (t) => `„${t}" endet morgen. Letzte Chance!` },
+    winBack: { title: 'Wir vermissen Sie!', body: (n) => `${n} neue Stellenangebote während Ihrer Abwesenheit. Nicht verpassen!` },
+    weeklyDigest: { title: 'Wochenübersicht', body: (n) => `${n} neue Stellenangebote diese Woche. Entdecken Sie die besten Angebote!` },
+    favoriteExpiring: { title: 'Gespeichertes Angebot läuft aus!', body: (t) => `„${t}" endet morgen. Letzte Chance!` },
   },
   pt: {
-    winBack: { title: 'Sentimos sua falta!', body: (n) => `${n} novas campanhas enquanto você esteve fora. Não perca!` },
-    weeklyDigest: { title: 'Resumo Semanal', body: (n) => `${n} novas campanhas esta semana. Descubra as melhores ofertas!` },
-    favoriteExpiring: { title: 'Favorito expirando!', body: (t) => `"${t}" termina amanhã. Não perca!` },
+    winBack: { title: 'Sentimos sua falta!', body: (n) => `${n} novas vagas enquanto você esteve fora. Não perca!` },
+    weeklyDigest: { title: 'Resumo Semanal', body: (n) => `${n} novas vagas esta semana. Descubra as melhores ofertas!` },
+    favoriteExpiring: { title: 'Vaga salva expirando!', body: (t) => `"${t}" termina amanhã. Não perca!` },
   },
   id: {
-    winBack: { title: 'Kami merindukan Anda!', body: (n) => `${n} kampanye baru saat Anda pergi. Jangan lewatkan!` },
-    weeklyDigest: { title: 'Ringkasan Mingguan', body: (n) => `${n} kampanye baru minggu ini. Temukan penawaran terbaik!` },
-    favoriteExpiring: { title: 'Favorit akan berakhir!', body: (t) => `"${t}" berakhir besok. Jangan lewatkan!` },
+    winBack: { title: 'Kami merindukan Anda!', body: (n) => `${n} lowongan baru saat Anda pergi. Jangan lewatkan!` },
+    weeklyDigest: { title: 'Ringkasan Mingguan', body: (n) => `${n} lowongan baru minggu ini. Temukan penawaran terbaik!` },
+    favoriteExpiring: { title: 'Lowongan tersimpan akan berakhir!', body: (t) => `"${t}" berakhir besok. Jangan lewatkan!` },
   },
   ru: {
-    winBack: { title: 'Мы скучали!', body: (n) => `${n} новых акций за время вашего отсутствия. Не пропустите!` },
-    weeklyDigest: { title: 'Еженедельный обзор', body: (n) => `${n} новых акций на этой неделе. Откройте лучшие предложения!` },
-    favoriteExpiring: { title: 'Избранное истекает!', body: (t) => `«${t}» заканчивается завтра. Не пропустите!` },
+    winBack: { title: 'Мы скучали!', body: (n) => `${n} новых вакансий за время вашего отсутствия. Не пропустите!` },
+    weeklyDigest: { title: 'Еженедельный обзор', body: (n) => `${n} новых вакансий на этой неделе. Откройте лучшие предложения!` },
+    favoriteExpiring: { title: 'Сохранённая вакансия истекает!', body: (t) => `«${t}» заканчивается завтра. Не пропустите!` },
   },
   es: {
-    winBack: { title: '¡Te extrañamos!', body: (n) => `${n} nuevas campañas mientras no estabas. ¡No te las pierdas!` },
-    weeklyDigest: { title: 'Resumen Semanal', body: (n) => `${n} nuevas campañas esta semana. ¡Descubre las mejores ofertas!` },
-    favoriteExpiring: { title: '¡Tu favorito expira!', body: (t) => `"${t}" termina mañana. ¡No pierdas tu última oportunidad!` },
+    winBack: { title: '¡Te extrañamos!', body: (n) => `${n} nuevas vacantes mientras no estabas. ¡No te las pierdas!` },
+    weeklyDigest: { title: 'Resumen Semanal', body: (n) => `${n} nuevas vacantes esta semana. ¡Descubre las mejores ofertas!` },
+    favoriteExpiring: { title: '¡Tu vacante guardada expira!', body: (t) => `"${t}" termina mañana. ¡No pierdas tu última oportunidad!` },
   },
   ja: {
-    winBack: { title: 'お久しぶりです！', body: (n) => `お留守の間に${n}件の新キャンペーンが追加されました。お見逃しなく！` },
-    weeklyDigest: { title: '週間まとめ', body: (n) => `今週${n}件の新キャンペーン。ベストディールをチェック！` },
-    favoriteExpiring: { title: 'お気に入りが終了間近！', body: (t) => `「${t}」は明日終了します。最後のチャンスをお見逃しなく！` },
+    winBack: { title: 'お久しぶりです！', body: (n) => `お留守の間に${n}件の新しい求人が追加されました。お見逃しなく！` },
+    weeklyDigest: { title: '週間まとめ', body: (n) => `今週${n}件の新しい求人。ベストディールをチェック！` },
+    favoriteExpiring: { title: '保存した求人が終了間近！', body: (t) => `「${t}」は明日終了します。最後のチャンスをお見逃しなく！` },
   },
   th: {
-    winBack: { title: 'คิดถึงคุณ!', body: (n) => `มี ${n} แคมเปญใหม่ขณะที่คุณไม่อยู่ อย่าพลาด!` },
-    weeklyDigest: { title: 'สรุปประจำสัปดาห์', body: (n) => `${n} แคมเปญใหม่สัปดาห์นี้ ค้นพบดีลที่ดีที่สุด!` },
-    favoriteExpiring: { title: 'รายการโปรดใกล้หมดอายุ!', body: (t) => `"${t}" จะสิ้นสุดพรุ่งนี้ อย่าพลาดโอกาสสุดท้าย!` },
+    winBack: { title: 'คิดถึงคุณ!', body: (n) => `มี ${n} ตำแหน่งงานใหม่ขณะที่คุณไม่อยู่ อย่าพลาด!` },
+    weeklyDigest: { title: 'สรุปประจำสัปดาห์', body: (n) => `${n} ตำแหน่งงานใหม่สัปดาห์นี้ ค้นพบดีลที่ดีที่สุด!` },
+    favoriteExpiring: { title: 'งานที่บันทึกใกล้หมดอายุ!', body: (t) => `"${t}" จะสิ้นสุดพรุ่งนี้ อย่าพลาดโอกาสสุดท้าย!` },
   },
   fr: {
-    winBack: { title: 'Vous nous manquez !', body: (n) => `${n} nouvelles campagnes pendant votre absence. Ne les manquez pas !` },
-    weeklyDigest: { title: 'Résumé hebdomadaire', body: (n) => `${n} nouvelles campagnes cette semaine. Découvrez les meilleures offres !` },
-    favoriteExpiring: { title: 'Votre favori expire !', body: (t) => `« ${t} » se termine demain. Dernière chance !` },
+    winBack: { title: 'Vous nous manquez !', body: (n) => `${n} nouvelles offres d'emploi pendant votre absence. Ne les manquez pas !` },
+    weeklyDigest: { title: 'Résumé hebdomadaire', body: (n) => `${n} nouvelles offres d'emploi cette semaine. Découvrez les meilleures offres !` },
+    favoriteExpiring: { title: 'Votre offre sauvegardée expire !', body: (t) => `« ${t} » se termine demain. Dernière chance !` },
   },
   it: {
-    winBack: { title: 'Ci manchi!', body: (n) => `${n} nuove campagne mentre eri via. Non perderle!` },
-    weeklyDigest: { title: 'Riepilogo settimanale', body: (n) => `${n} nuove campagne questa settimana. Scopri le migliori offerte!` },
-    favoriteExpiring: { title: 'Il tuo preferito scade!', body: (t) => `"${t}" termina domani. Non perdere l'ultima occasione!` },
+    winBack: { title: 'Ci manchi!', body: (n) => `${n} nuove offerte di lavoro mentre eri via. Non perderle!` },
+    weeklyDigest: { title: 'Riepilogo settimanale', body: (n) => `${n} nuove offerte di lavoro questa settimana. Scopri le migliori offerte!` },
+    favoriteExpiring: { title: 'La tua offerta salvata scade!', body: (t) => `"${t}" termina domani. Non perdere l'ultima occasione!` },
   },
   ar: {
-    winBack: { title: 'افتقدناك!', body: (n) => `تمت إضافة ${n} عروض جديدة أثناء غيابك. لا تفوّتها!` },
-    weeklyDigest: { title: 'ملخص الأسبوع', body: (n) => `${n} عروض جديدة هذا الأسبوع. اكتشف أفضل الصفقات!` },
-    favoriteExpiring: { title: 'مفضلتك تنتهي!', body: (t) => `"${t}" ينتهي غداً. لا تفوّت الفرصة الأخيرة!` },
+    winBack: { title: 'افتقدناك!', body: (n) => `تمت إضافة ${n} وظائف جديدة أثناء غيابك. لا تفوّتها!` },
+    weeklyDigest: { title: 'ملخص الأسبوع', body: (n) => `${n} وظائف جديدة هذا الأسبوع. اكتشف أفضل الصفقات!` },
+    favoriteExpiring: { title: 'الوظيفة المحفوظة تنتهي!', body: (t) => `"${t}" ينتهي غداً. لا تفوّت الفرصة الأخيرة!` },
   },
   ko: {
-    winBack: { title: '보고 싶었어요!', body: (n) => `부재 중 ${n}개의 새 캠페인이 추가되었습니다. 놓치지 마세요!` },
-    weeklyDigest: { title: '주간 요약', body: (n) => `이번 주 ${n}개의 새 캠페인. 최고의 딜을 확인하세요!` },
-    favoriteExpiring: { title: '즐겨찾기 만료 임박!', body: (t) => `"${t}" 내일 종료됩니다. 마지막 기회를 놓치지 마세요!` },
+    winBack: { title: '보고 싶었어요!', body: (n) => `부재 중 ${n}개의 새 채용공고가 추가되었습니다. 놓치지 마세요!` },
+    weeklyDigest: { title: '주간 요약', body: (n) => `이번 주 ${n}개의 새 채용공고. 최고의 딜을 확인하세요!` },
+    favoriteExpiring: { title: '저장한 공고 만료 임박!', body: (t) => `"${t}" 내일 종료됩니다. 마지막 기회를 놓치지 마세요!` },
   },
   vi: {
-    winBack: { title: 'Chúng tôi nhớ bạn!', body: (n) => `${n} ưu đãi mới khi bạn vắng mặt. Đừng bỏ lỡ!` },
-    weeklyDigest: { title: 'Tổng kết tuần', body: (n) => `${n} ưu đãi mới tuần này. Khám phá ngay!` },
-    favoriteExpiring: { title: 'Ưu đãi yêu thích sắp hết!', body: (t) => `"${t}" kết thúc ngày mai. Đừng bỏ lỡ!` },
+    winBack: { title: 'Chúng tôi nhớ bạn!', body: (n) => `${n} việc làm mới khi bạn vắng mặt. Đừng bỏ lỡ!` },
+    weeklyDigest: { title: 'Tổng kết tuần', body: (n) => `${n} việc làm mới tuần này. Khám phá ngay!` },
+    favoriteExpiring: { title: 'Việc làm đã lưu sắp hết hạn!', body: (t) => `"${t}" kết thúc ngày mai. Đừng bỏ lỡ!` },
   },
   pl: {
-    winBack: { title: 'Tęsknimy za Tobą!', body: (n) => `${n} nowych ofert podczas Twojej nieobecności. Nie przegap!` },
-    weeklyDigest: { title: 'Podsumowanie tygodnia', body: (n) => `${n} nowych ofert w tym tygodniu. Odkryj najlepsze okazje!` },
-    favoriteExpiring: { title: 'Ulubiona oferta wygasa!', body: (t) => `"${t}" kończy się jutro. Nie przegap!` },
+    winBack: { title: 'Tęsknimy za Tobą!', body: (n) => `${n} nowych ofert pracy podczas Twojej nieobecności. Nie przegap!` },
+    weeklyDigest: { title: 'Podsumowanie tygodnia', body: (n) => `${n} nowych ofert pracy w tym tygodniu. Odkryj najlepsze okazje!` },
+    favoriteExpiring: { title: 'Zapisana oferta pracy wygasa!', body: (t) => `"${t}" kończy się jutro. Nie przegap!` },
   },
   ms: {
-    winBack: { title: 'Kami rindu anda!', body: (n) => `${n} tawaran baharu semasa anda tiada. Jangan lepaskan!` },
-    weeklyDigest: { title: 'Ringkasan mingguan', body: (n) => `${n} tawaran baharu minggu ini. Temui tawaran terbaik!` },
-    favoriteExpiring: { title: 'Kegemaran anda akan tamat!', body: (t) => `"${t}" tamat esok. Jangan lepaskan!` },
+    winBack: { title: 'Kami rindu anda!', body: (n) => `${n} jawatan kosong baharu semasa anda tiada. Jangan lepaskan!` },
+    weeklyDigest: { title: 'Ringkasan mingguan', body: (n) => `${n} jawatan kosong baharu minggu ini. Temui tawaran terbaik!` },
+    favoriteExpiring: { title: 'Jawatan tersimpan akan tamat!', body: (t) => `"${t}" tamat esok. Jangan lepaskan!` },
   },
   nl: {
-    winBack: { title: 'We missen je!', body: (n) => `${n} nieuwe aanbiedingen terwijl je weg was. Mis ze niet!` },
-    weeklyDigest: { title: 'Weekoverzicht', body: (n) => `${n} nieuwe aanbiedingen deze week. Ontdek de beste deals!` },
-    favoriteExpiring: { title: 'Favoriet verloopt!', body: (t) => `"${t}" eindigt morgen. Mis je laatste kans niet!` },
+    winBack: { title: 'We missen je!', body: (n) => `${n} nieuwe vacatures terwijl je weg was. Mis ze niet!` },
+    weeklyDigest: { title: 'Weekoverzicht', body: (n) => `${n} nieuwe vacatures deze week. Ontdek de beste deals!` },
+    favoriteExpiring: { title: 'Opgeslagen vacature verloopt!', body: (t) => `"${t}" eindigt morgen. Mis je laatste kans niet!` },
   },
   ur: {
-    winBack: { title: 'ہم نے آپ کو یاد کیا!', body: (n) => `آپ کی غیر موجودگی میں ${n} نئی ڈیلز شامل ہوئیں۔ موقع مت چھوڑیں!` },
-    weeklyDigest: { title: 'ہفتہ وار خلاصہ', body: (n) => `اس ہفتے ${n} نئی ڈیلز۔ بہترین آفرز دریافت کریں!` },
-    favoriteExpiring: { title: 'پسندیدہ ڈیل ختم ہو رہی ہے!', body: (t) => `"${t}" کل ختم ہو جائے گی۔ آخری موقع مت چھوڑیں!` },
+    winBack: { title: 'ہم نے آپ کو یاد کیا!', body: (n) => `آپ کی غیر موجودگی میں ${n} نئی نوکریاں شامل ہوئیں۔ موقع مت چھوڑیں!` },
+    weeklyDigest: { title: 'ہفتہ وار خلاصہ', body: (n) => `اس ہفتے ${n} نئی نوکریاں۔ بہترین آفرز دریافت کریں!` },
+    favoriteExpiring: { title: 'محفوظ نوکری ختم ہو رہی ہے!', body: (t) => `"${t}" کل ختم ہو جائے گی۔ آخری موقع مت چھوڑیں!` },
   },
   sv: {
-    winBack: { title: 'Vi saknar dig!', body: (n) => `${n} nya erbjudanden medan du var borta. Missa inte!` },
-    weeklyDigest: { title: 'Veckans sammanfattning', body: (n) => `${n} nya erbjudanden denna vecka. Upptäck de bästa dealsen!` },
-    favoriteExpiring: { title: 'Favorit löper ut!', body: (t) => `"${t}" slutar imorgon. Missa inte din sista chans!` },
+    winBack: { title: 'Vi saknar dig!', body: (n) => `${n} nya lediga jobb medan du var borta. Missa inte!` },
+    weeklyDigest: { title: 'Veckans sammanfattning', body: (n) => `${n} nya lediga jobb denna vecka. Upptäck de bästa dealsen!` },
+    favoriteExpiring: { title: 'Sparat jobb löper ut!', body: (t) => `"${t}" slutar imorgon. Missa inte din sista chans!` },
   },
 };
 
@@ -113,104 +113,104 @@ function getScheduledMessages(market?: Market | null) {
 
 /** Market → notification message translations */
 const NOTIF_MESSAGES: Record<string, {
-  newCampaigns: (count: number) => string;
-  discountOffer: (rate: number) => string;
+  newJobs: (count: number) => string;
+  salaryInfo: (text: string) => string;
   discover: string;
 }> = {
   tr: {
-    newCampaigns: (n) => `${n} yeni kampanya!`,
-    discountOffer: (r) => `%${r} indirim fırsatı`,
-    discover: 'Yeni kampanyayı keşfet',
+    newJobs: (n) => `${n} yeni iş ilanı!`,
+    salaryInfo: (t) => `Maaş: ${t}`,
+    discover: 'Yeni ilanı incele',
   },
   en: {
-    newCampaigns: (n) => `${n} new campaigns!`,
-    discountOffer: (r) => `${r}% off — don't miss it!`,
-    discover: 'Discover the new campaign',
+    newJobs: (n) => `${n} new job listings!`,
+    salaryInfo: (t) => `Salary: ${t}`,
+    discover: 'Check the new listing',
   },
   de: {
-    newCampaigns: (n) => `${n} neue Kampagnen!`,
-    discountOffer: (r) => `${r}% Rabatt — jetzt zuschlagen!`,
-    discover: 'Neue Kampagne entdecken',
+    newJobs: (n) => `${n} neue Stellenangebote!`,
+    salaryInfo: (t) => `Gehalt: ${t}`,
+    discover: 'Neues Angebot ansehen',
   },
   pt: {
-    newCampaigns: (n) => `${n} novas campanhas!`,
-    discountOffer: (r) => `${r}% de desconto — aproveite!`,
-    discover: 'Descubra a nova campanha',
+    newJobs: (n) => `${n} novas vagas!`,
+    salaryInfo: (t) => `Salário: ${t}`,
+    discover: 'Confira a nova vaga',
   },
   id: {
-    newCampaigns: (n) => `${n} kampanye baru!`,
-    discountOffer: (r) => `Diskon ${r}% — jangan lewatkan!`,
-    discover: 'Temukan kampanye baru',
+    newJobs: (n) => `${n} lowongan baru!`,
+    salaryInfo: (t) => `Gaji: ${t}`,
+    discover: 'Lihat lowongan baru',
   },
   ru: {
-    newCampaigns: (n) => `${n} новых акций!`,
-    discountOffer: (r) => `Скидка ${r}% — не пропустите!`,
-    discover: 'Откройте новую акцию',
+    newJobs: (n) => `${n} новых вакансий!`,
+    salaryInfo: (t) => `Зарплата: ${t}`,
+    discover: 'Посмотреть новую вакансию',
   },
   es: {
-    newCampaigns: (n) => `¡${n} nuevas campañas!`,
-    discountOffer: (r) => `${r}% de descuento — ¡no te lo pierdas!`,
-    discover: 'Descubre la nueva campaña',
+    newJobs: (n) => `¡${n} nuevas vacantes!`,
+    salaryInfo: (t) => `Sueldo: ${t}`,
+    discover: 'Ver la nueva vacante',
   },
   ja: {
-    newCampaigns: (n) => `新しいキャンペーンが${n}件！`,
-    discountOffer: (r) => `${r}%オフ — お見逃しなく！`,
-    discover: '新しいキャンペーンをチェック',
+    newJobs: (n) => `新しい求人が${n}件！`,
+    salaryInfo: (t) => `給与: ${t}`,
+    discover: '新しい求人をチェック',
   },
   th: {
-    newCampaigns: (n) => `${n} แคมเปญใหม่!`,
-    discountOffer: (r) => `ลด ${r}% — อย่าพลาด!`,
-    discover: 'ค้นพบแคมเปญใหม่',
+    newJobs: (n) => `${n} ตำแหน่งงานใหม่!`,
+    salaryInfo: (t) => `เงินเดือน: ${t}`,
+    discover: 'ดูตำแหน่งงานใหม่',
   },
   fr: {
-    newCampaigns: (n) => `${n} nouvelles campagnes !`,
-    discountOffer: (r) => `${r}% de réduction — profitez-en !`,
-    discover: 'Découvrez la nouvelle campagne',
+    newJobs: (n) => `${n} nouvelles offres d'emploi !`,
+    salaryInfo: (t) => `Salaire: ${t}`,
+    discover: 'Voir la nouvelle offre',
   },
   it: {
-    newCampaigns: (n) => `${n} nuove campagne!`,
-    discountOffer: (r) => `${r}% di sconto — non perderlo!`,
-    discover: 'Scopri la nuova campagna',
+    newJobs: (n) => `${n} nuove offerte di lavoro!`,
+    salaryInfo: (t) => `Stipendio: ${t}`,
+    discover: 'Scopri la nuova offerta',
   },
   ar: {
-    newCampaigns: (n) => `${n} عروض جديدة!`,
-    discountOffer: (r) => `خصم ${r}% — لا تفوّت الفرصة!`,
-    discover: 'اكتشف العرض الجديد',
+    newJobs: (n) => `${n} وظائف جديدة!`,
+    salaryInfo: (t) => `الراتب: ${t}`,
+    discover: 'اكتشف الوظيفة الجديدة',
   },
   ko: {
-    newCampaigns: (n) => `${n}개의 새로운 딜!`,
-    discountOffer: (r) => `${r}% 할인 — 놓치지 마세요!`,
-    discover: '새로운 딜 확인하기',
+    newJobs: (n) => `${n}개의 새 채용공고!`,
+    salaryInfo: (t) => `급여: ${t}`,
+    discover: '새 공고 확인하기',
   },
   vi: {
-    newCampaigns: (n) => `${n} ưu đãi mới!`,
-    discountOffer: (r) => `Giảm ${r}% — đừng bỏ lỡ!`,
-    discover: 'Khám phá ưu đãi mới',
+    newJobs: (n) => `${n} việc làm mới!`,
+    salaryInfo: (t) => `Lương: ${t}`,
+    discover: 'Xem việc làm mới',
   },
   pl: {
-    newCampaigns: (n) => `${n} nowych ofert!`,
-    discountOffer: (r) => `${r}% zniżki — nie przegap!`,
-    discover: 'Odkryj nową ofertę',
+    newJobs: (n) => `${n} nowych ofert pracy!`,
+    salaryInfo: (t) => `Wynagrodzenie: ${t}`,
+    discover: 'Zobacz nową ofertę',
   },
   ms: {
-    newCampaigns: (n) => `${n} tawaran baharu!`,
-    discountOffer: (r) => `Diskaun ${r}% — jangan lepaskan!`,
-    discover: 'Temui tawaran baharu',
+    newJobs: (n) => `${n} jawatan kosong baharu!`,
+    salaryInfo: (t) => `Gaji: ${t}`,
+    discover: 'Lihat jawatan baharu',
   },
   nl: {
-    newCampaigns: (n) => `${n} nieuwe aanbiedingen!`,
-    discountOffer: (r) => `${r}% korting — mis het niet!`,
-    discover: 'Ontdek de nieuwe aanbieding',
+    newJobs: (n) => `${n} nieuwe vacatures!`,
+    salaryInfo: (t) => `Salaris: ${t}`,
+    discover: 'Bekijk de nieuwe vacature',
   },
   ur: {
-    newCampaigns: (n) => `${n} نئی ڈیلز!`,
-    discountOffer: (r) => `${r}% ڈسکاؤنٹ — موقع مت چھوڑیں!`,
-    discover: 'نئی ڈیل دریافت کریں',
+    newJobs: (n) => `${n} نئی نوکریاں!`,
+    salaryInfo: (t) => `تنخواہ: ${t}`,
+    discover: 'نئی نوکری دیکھیں',
   },
   sv: {
-    newCampaigns: (n) => `${n} nya erbjudanden!`,
-    discountOffer: (r) => `${r}% rabatt — missa inte!`,
-    discover: 'Upptäck det nya erbjudandet',
+    newJobs: (n) => `${n} nya lediga jobb!`,
+    salaryInfo: (t) => `Lön: ${t}`,
+    discover: 'Se det nya jobbet',
   },
 };
 
@@ -229,79 +229,79 @@ const MARKET_LANG: Record<string, string> = {
 /** Referral notification messages — 13 languages */
 const REFERRAL_MESSAGES: Record<string, Record<'activated' | 'referred', { title: string; body: string }>> = {
   tr: {
-    activated: { title: 'Premium Deneme Aktif!', body: '7 gün Premium hediye! Tüm markalardan bildirim alın.' },
+    activated: { title: 'Premium Deneme Aktif!', body: '7 gün Premium hediye! Tüm firmalardan bildirim alın.' },
     referred: { title: 'Davet Ödülü!', body: 'Arkadaşınız katıldı! 7 gün Premium hediye kazandınız.' },
   },
   en: {
-    activated: { title: 'Premium Trial Active!', body: '7 days free Premium! Get notifications from all brands.' },
+    activated: { title: 'Premium Trial Active!', body: '7 days free Premium! Get notifications from all companies.' },
     referred: { title: 'Referral Reward!', body: 'Your friend joined! You earned 7 days free Premium.' },
   },
   de: {
-    activated: { title: 'Premium-Test aktiv!', body: '7 Tage Premium gratis! Benachrichtigungen von allen Marken.' },
+    activated: { title: 'Premium-Test aktiv!', body: '7 Tage Premium gratis! Benachrichtigungen von allen Firmen.' },
     referred: { title: 'Empfehlungsbonus!', body: 'Ihr Freund ist beigetreten! 7 Tage Premium erhalten.' },
   },
   pt: {
-    activated: { title: 'Teste Premium Ativo!', body: '7 dias de Premium grátis! Notificações de todas as marcas.' },
+    activated: { title: 'Teste Premium Ativo!', body: '7 dias de Premium grátis! Notificações de todas as empresas.' },
     referred: { title: 'Recompensa de Indicação!', body: 'Seu amigo entrou! Você ganhou 7 dias de Premium.' },
   },
   id: {
-    activated: { title: 'Uji Coba Premium Aktif!', body: '7 hari Premium gratis! Notifikasi dari semua merek.' },
+    activated: { title: 'Uji Coba Premium Aktif!', body: '7 hari Premium gratis! Notifikasi dari semua perusahaan.' },
     referred: { title: 'Hadiah Referral!', body: 'Teman Anda bergabung! 7 hari Premium untuk Anda.' },
   },
   ru: {
-    activated: { title: 'Пробный Premium активен!', body: '7 дней Premium бесплатно! Уведомления от всех брендов.' },
+    activated: { title: 'Пробный Premium активен!', body: '7 дней Premium бесплатно! Уведомления от всех компаний.' },
     referred: { title: 'Бонус за приглашение!', body: 'Ваш друг присоединился! 7 дней Premium для вас.' },
   },
   es: {
-    activated: { title: '¡Prueba Premium activa!', body: '7 días de Premium gratis. Notificaciones de todas las marcas.' },
+    activated: { title: '¡Prueba Premium activa!', body: '7 días de Premium gratis. Notificaciones de todas las empresas.' },
     referred: { title: '¡Recompensa por invitación!', body: 'Tu amigo se unió. 7 días de Premium para ti.' },
   },
   ja: {
-    activated: { title: 'プレミアム体験開始！', body: '7日間無料プレミアム！すべてのブランドから通知を受け取れます。' },
+    activated: { title: 'プレミアム体験開始！', body: '7日間無料プレミアム！すべての企業から通知を受け取れます。' },
     referred: { title: '紹介ボーナス！', body: 'お友達が参加しました！7日間無料プレミアムを獲得。' },
   },
   th: {
-    activated: { title: 'ทดลอง Premium เริ่มแล้ว!', body: 'Premium ฟรี 7 วัน! รับการแจ้งเตือนจากทุกแบรนด์' },
+    activated: { title: 'ทดลอง Premium เริ่มแล้ว!', body: 'Premium ฟรี 7 วัน! รับการแจ้งเตือนจากทุกบริษัท' },
     referred: { title: 'รางวัลแนะนำเพื่อน!', body: 'เพื่อนของคุณเข้าร่วมแล้ว! รับ Premium ฟรี 7 วัน' },
   },
   fr: {
-    activated: { title: 'Essai Premium activé !', body: '7 jours Premium gratuits ! Notifications de toutes les marques.' },
+    activated: { title: 'Essai Premium activé !', body: '7 jours Premium gratuits ! Notifications de toutes les entreprises.' },
     referred: { title: 'Récompense de parrainage !', body: 'Votre ami a rejoint ! 7 jours Premium offerts.' },
   },
   it: {
-    activated: { title: 'Prova Premium attiva!', body: '7 giorni di Premium gratis! Notifiche da tutti i brand.' },
+    activated: { title: 'Prova Premium attiva!', body: '7 giorni di Premium gratis! Notifiche da tutte le aziende.' },
     referred: { title: 'Premio referral!', body: 'Il tuo amico si è iscritto! 7 giorni Premium per te.' },
   },
   ar: {
-    activated: { title: 'تجربة Premium مفعّلة!', body: '7 أيام Premium مجاناً! إشعارات من جميع العلامات التجارية.' },
+    activated: { title: 'تجربة Premium مفعّلة!', body: '7 أيام Premium مجاناً! إشعارات من جميع الشركات.' },
     referred: { title: 'مكافأة الدعوة!', body: 'انضم صديقك! حصلت على 7 أيام Premium مجاناً.' },
   },
   ko: {
-    activated: { title: 'Premium 체험 시작!', body: '7일 무료 Premium! 모든 브랜드 알림을 받으세요.' },
+    activated: { title: 'Premium 체험 시작!', body: '7일 무료 Premium! 모든 기업 알림을 받으세요.' },
     referred: { title: '추천 보상!', body: '친구가 가입했습니다! 7일 무료 Premium 획득.' },
   },
   vi: {
-    activated: { title: 'Dùng thử Premium!', body: '7 ngày Premium miễn phí! Nhận thông báo từ tất cả thương hiệu.' },
+    activated: { title: 'Dùng thử Premium!', body: '7 ngày Premium miễn phí! Nhận thông báo từ tất cả công ty.' },
     referred: { title: 'Thưởng giới thiệu!', body: 'Bạn bè đã tham gia! Bạn nhận 7 ngày Premium miễn phí.' },
   },
   pl: {
-    activated: { title: 'Premium aktywny!', body: '7 dni Premium za darmo! Powiadomienia od wszystkich marek.' },
+    activated: { title: 'Premium aktywny!', body: '7 dni Premium za darmo! Powiadomienia od wszystkich firm.' },
     referred: { title: 'Nagroda za polecenie!', body: 'Twój znajomy dołączył! Otrzymujesz 7 dni Premium.' },
   },
   ms: {
-    activated: { title: 'Percubaan Premium aktif!', body: '7 hari Premium percuma! Notifikasi dari semua jenama.' },
+    activated: { title: 'Percubaan Premium aktif!', body: '7 hari Premium percuma! Notifikasi dari semua syarikat.' },
     referred: { title: 'Ganjaran rujukan!', body: 'Rakan anda menyertai! Anda mendapat 7 hari Premium.' },
   },
   nl: {
-    activated: { title: 'Premium proefperiode actief!', body: '7 dagen gratis Premium! Meldingen van alle merken.' },
+    activated: { title: 'Premium proefperiode actief!', body: '7 dagen gratis Premium! Meldingen van alle bedrijven.' },
     referred: { title: 'Verwijzingsbeloning!', body: 'Je vriend is lid geworden! 7 dagen gratis Premium voor jou.' },
   },
   ur: {
-    activated: { title: 'Premium ٹرائل فعال!', body: '7 دن مفت Premium! تمام برانڈز سے اطلاعات حاصل کریں۔' },
+    activated: { title: 'Premium ٹرائل فعال!', body: '7 دن مفت Premium! تمام کمپنیوں سے اطلاعات حاصل کریں۔' },
     referred: { title: 'ریفرل انعام!', body: 'آپ کا دوست شامل ہو گیا! آپ کو 7 دن مفت Premium ملا۔' },
   },
   sv: {
-    activated: { title: 'Premium-provperiod aktiv!', body: '7 dagars gratis Premium! Aviseringar från alla varumärken.' },
+    activated: { title: 'Premium-provperiod aktiv!', body: '7 dagars gratis Premium! Aviseringar från alla företag.' },
     referred: { title: 'Värvningsbelöning!', body: 'Din vän gick med! Du får 7 dagars gratis Premium.' },
   },
 };
@@ -327,32 +327,29 @@ export class NotificationsService {
   ) {}
 
   /**
-   * Crawl sonrası yeni bulunan kampanyalar için bildirim gönder.
-   * O kampanyanın marka veya kategorisini takip eden kullanıcılara push gönderir.
+   * Crawl sonrası yeni bulunan iş ilanları için bildirim gönder.
+   * O ilanın şirketi veya sektörünü takip eden kullanıcılara push gönderir.
    * Plan limitine göre günlük bildirim sayısını kontrol eder.
    */
-  async notifyNewCampaigns(
-    brandId: string,
-    categoryId: string | null,
-    campaigns: Array<{ id: string; title: string; discountRate?: number | null }>,
+  async notifyNewJobListings(
+    companyId: string,
+    sector: Sector | null,
+    jobListings: Array<{ id: string; title: string }>,
   ): Promise<void> {
-    if (!this.expoPush.isEnabled || campaigns.length === 0) return;
+    if (!this.expoPush.isEnabled || jobListings.length === 0) return;
 
-    // Get brand's market to determine notification language
-    const brand = await this.prisma.brand.findUnique({
-      where: { id: brandId },
+    // Get company's market to determine notification language
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyId },
       select: { market: true },
     });
-    const brandMarket = brand?.market ?? Market.TR;
+    const companyMarket = company?.market ?? Market.TR;
 
-    // Find users following this brand or category, include subscription info
-    const follows = await this.prisma.follow.findMany({
+    // Find users following this company, include subscription info
+    const companyFollows = await this.prisma.followedCompany.findMany({
       where: {
-        isFrozen: false, // Frozen takipler bildirim almaz
-        OR: [
-          { brandId },
-          ...(categoryId ? [{ categoryId }] : []),
-        ],
+        isFrozen: false,
+        companyId,
       },
       select: {
         userId: true,
@@ -364,7 +361,7 @@ export class NotificationsService {
               select: {
                 status: true,
                 currentPeriodEnd: true,
-                plan: { select: { dailyNotifLimit: true } },
+                plan: { select: { dailyViewLimit: true } },
               },
             },
           },
@@ -372,9 +369,51 @@ export class NotificationsService {
       },
     });
 
+    // Find users following this sector (if provided)
+    const sectorFollows = sector
+      ? await this.prisma.followedSector.findMany({
+          where: {
+            isFrozen: false,
+            sector,
+            market: companyMarket,
+          },
+          select: {
+            userId: true,
+            user: {
+              select: {
+                id: true,
+                market: true,
+                subscription: {
+                  select: {
+                    status: true,
+                    currentPeriodEnd: true,
+                    plan: { select: { dailyViewLimit: true } },
+                  },
+                },
+              },
+            },
+          },
+        })
+      : [];
+
+    type FollowWithUser = {
+      userId: string;
+      user: {
+        id: string;
+        market: Market;
+        subscription: {
+          status: SubStatus;
+          currentPeriodEnd: Date | null;
+          plan: { dailyViewLimit: number };
+        } | null;
+      };
+    };
+
+    const allFollows: FollowWithUser[] = [...companyFollows, ...sectorFollows];
+
     // Deduplicate users and build a map with their limits + market
     const userMap = new Map<string, { limit: number; market: Market }>();
-    for (const f of follows) {
+    for (const f of allFollows) {
       if (userMap.has(f.userId)) continue;
 
       const sub = f.user.subscription;
@@ -383,7 +422,7 @@ export class NotificationsService {
         (sub.status === SubStatus.ACTIVE || sub.status === SubStatus.GRACE_PERIOD) &&
         (!sub.currentPeriodEnd || sub.currentPeriodEnd > new Date());
 
-      const dailyLimit = isActive ? sub!.plan.dailyNotifLimit : 1; // Free: 1/gün
+      const dailyLimit = isActive ? sub!.plan.dailyViewLimit : 1; // Free: 1/gün
       userMap.set(f.userId, { limit: dailyLimit, market: f.user.market });
     }
 
@@ -394,7 +433,7 @@ export class NotificationsService {
       where: { userId: { in: Array.from(userMap.keys()) }, enabled: false },
       select: { userId: true },
     });
-    const disabledUsers = new Set(prefs.map((p) => p.userId));
+    const disabledUsers = new Set(prefs.map((p: { userId: string }) => p.userId));
 
     // Filter users who haven't exceeded their daily limit and have notifications enabled
     // DB-based daily count — survives API restarts
@@ -407,7 +446,7 @@ export class NotificationsService {
       },
       _count: { id: true },
     });
-    const countMap = new Map(todayCounts.map((c) => [c.userId, c._count.id]));
+    const countMap = new Map(todayCounts.map((c: { userId: string; _count: { id: number } }) => [c.userId, c._count.id]));
 
     const eligibleUserIds: string[] = [];
     for (const [userId, { limit }] of userMap) {
@@ -424,32 +463,32 @@ export class NotificationsService {
       return;
     }
 
-    // Dedup: filter out users who already received notification for these campaigns
-    const campaignIds = campaigns.map(c => c.id);
-    const alreadySent = await this.prisma.$queryRawUnsafe<{ user_id: string; campaign_id: string }[]>(
-      `SELECT DISTINCT user_id, data->>'campaignId' as campaign_id
+    // Dedup: filter out users who already received notification for these job listings
+    const jobListingIds = jobListings.map((j: { id: string }) => j.id);
+    const alreadySent = await this.prisma.$queryRawUnsafe<{ user_id: string; job_listing_id: string }[]>(
+      `SELECT DISTINCT user_id, data->>'jobListingId' as job_listing_id
        FROM notifications
        WHERE user_id = ANY($1::text[])
-       AND data->>'campaignId' = ANY($2::text[])`,
+       AND data->>'jobListingId' = ANY($2::text[])`,
       eligibleUserIds,
-      campaignIds,
+      jobListingIds,
     );
-    const sentSet = new Set(alreadySent.map(n => `${n.user_id}:${n.campaign_id}`));
+    const sentSet = new Set(alreadySent.map((n: { user_id: string; job_listing_id: string }) => `${n.user_id}:${n.job_listing_id}`));
 
-    // For single campaign: filter out users who already got it
-    // For multi campaign: we use first campaign's id as pushData key, so filter by that
-    const firstCampaignId = campaigns[0].id;
+    // For single job: filter out users who already got it
+    // For multi job: we use first job's id as pushData key, so filter by that
+    const firstJobListingId = jobListings[0].id;
     const dedupedUserIds = eligibleUserIds.filter(
-      uid => !sentSet.has(`${uid}:${firstCampaignId}`),
+      (uid: string) => !sentSet.has(`${uid}:${firstJobListingId}`),
     );
 
     if (dedupedUserIds.length === 0) {
-      this.logger.log('All users already notified for these campaigns (dedup)');
+      this.logger.log('All users already notified for these job listings (dedup)');
       return;
     }
 
     this.logger.log(
-      `Notifying ${dedupedUserIds.length}/${userMap.size} users about ${campaigns.length} new campaigns (${eligibleUserIds.length - dedupedUserIds.length} deduped)`,
+      `Notifying ${dedupedUserIds.length}/${userMap.size} users about ${jobListings.length} new job listings (${eligibleUserIds.length - dedupedUserIds.length} deduped)`,
     );
 
     // Get FCM tokens for eligible users
@@ -460,37 +499,35 @@ export class NotificationsService {
 
     if (fcmTokens.length === 0) return;
 
-    const campaign = campaigns[0];
+    const jobListing = jobListings[0];
     const pushData = {
-      type: 'new_campaign',
-      campaignId: campaign.id,
-      brandId,
+      type: 'new_job_listing',
+      jobListingId: jobListing.id,
+      companyId,
     };
 
-    // Use brand's market for notification language — ensures title+body are in the same language
-    const msg = getMessages(brandMarket);
-    const allTokens = fcmTokens.map((t) => t.token);
+    // Use company's market for notification language — ensures title+body are in the same language
+    const msg = getMessages(companyMarket);
+    const allTokens = fcmTokens.map((t: { token: string }) => t.token);
 
     const title =
-      campaigns.length === 1
-        ? campaign.title
-        : msg.newCampaigns(campaigns.length);
+      jobListings.length === 1
+        ? jobListing.title
+        : msg.newJobs(jobListings.length);
 
     const body =
-      campaigns.length === 1
-        ? campaign.discountRate
-          ? msg.discountOffer(Number(campaign.discountRate))
-          : msg.discover
-        : `${campaigns.map((c) => c.title).slice(0, 3).join(', ')}`;
+      jobListings.length === 1
+        ? msg.discover
+        : `${jobListings.map((j: { title: string }) => j.title).slice(0, 3).join(', ')}`;
 
     const result = await this.expoPush.sendToTokens(allTokens, title, body, pushData);
     const allInvalidTokens = [...result.invalidTokens];
 
     // Build in-app notification records
-    const notifRecords: Array<{ userId: string; title: string; body: string; data: any }> = [];
-    const allUserIds = new Set(fcmTokens.map((t) => t.userId));
+    const notifRecords: Array<{ userId: string; title: string; body: string; data: object }> = [];
+    const allUserIds = new Set(fcmTokens.map((t: { userId: string }) => t.userId));
     for (const uid of allUserIds) {
-      notifRecords.push({ userId: uid, title, body, data: pushData as any });
+      notifRecords.push({ userId: uid, title, body, data: pushData });
     }
 
     // Remove stale/invalid tokens from DB
@@ -528,14 +565,14 @@ export class NotificationsService {
     const lang = MARKET_LANG[user.market] ?? 'en';
     const msg = REFERRAL_MESSAGES[lang]?.[type] ?? REFERRAL_MESSAGES['en'][type];
 
-    const tokens = user.fcmTokens.map((t) => t.token);
+    const tokens = user.fcmTokens.map((t: { token: string }) => t.token);
     const pushData = { type: 'referral', action: type };
 
     await this.expoPush.sendToTokens(tokens, msg.title, msg.body, pushData);
 
     // Save in-app notification record
     await this.prisma.notification.create({
-      data: { userId, title: msg.title, body: msg.body, data: pushData as any },
+      data: { userId, title: msg.title, body: msg.body, data: pushData },
     });
   }
 
@@ -606,7 +643,7 @@ export class NotificationsService {
 
   /**
    * Win-back: 7 gün uygulamayı açmamış kullanıcılara bildirim gönder.
-   * "Sizi özledik, X yeni kampanya var"
+   * "Sizi özledik, X yeni iş ilanı var"
    */
   async sendWinBackNotifications(markets?: Market[]): Promise<{ sent: number }> {
     if (!this.expoPush.isEnabled) return { sent: 0 };
@@ -634,11 +671,11 @@ export class NotificationsService {
 
     let sent = 0;
     for (const user of inactiveUsers) {
-      // Count new campaigns in user's market since last activity
-      const newCount = await this.prisma.campaign.count({
+      // Count new job listings in user's market since last activity
+      const newCount = await this.prisma.jobListing.count({
         where: {
-          market: user.market,
-          status: 'ACTIVE',
+          country: user.market,
+          status: JobStatus.ACTIVE,
           createdAt: { gte: sevenDaysAgo },
         },
       });
@@ -647,7 +684,7 @@ export class NotificationsService {
       const msg = getScheduledMessages(user.market);
       const title = msg.winBack.title;
       const body = msg.winBack.body(newCount);
-      const tokens = user.fcmTokens.map(t => t.token);
+      const tokens = user.fcmTokens.map((t: { token: string }) => t.token);
       const pushData = { type: 'win_back' };
 
       const result = await this.expoPush.sendToTokens(tokens, title, body, pushData);
@@ -656,7 +693,7 @@ export class NotificationsService {
       }
 
       await this.prisma.notification.create({
-        data: { userId: user.id, title, body, data: pushData as any },
+        data: { userId: user.id, title, body, data: pushData },
       });
       sent++;
     }
@@ -666,7 +703,7 @@ export class NotificationsService {
   }
 
   /**
-   * Haftalık özet: Bu hafta eklenen kampanya sayısını bildir.
+   * Haftalık özet: Bu hafta eklenen iş ilanı sayısını bildir.
    * Premium kullanıcılara gönderilir (weeklyDigest: true).
    */
   async sendWeeklySummary(markets?: Market[]): Promise<{ sent: number }> {
@@ -699,17 +736,17 @@ export class NotificationsService {
 
     if (eligibleUsers.length === 0) return { sent: 0 };
 
-    // Count new campaigns per market this week
+    // Count new job listings per market this week
     const marketCounts = new Map<string, number>();
 
     let sent = 0;
     for (const user of eligibleUsers) {
       const marketKey = user.market;
       if (!marketCounts.has(marketKey)) {
-        const count = await this.prisma.campaign.count({
+        const count = await this.prisma.jobListing.count({
           where: {
-            market: user.market,
-            status: 'ACTIVE',
+            country: user.market,
+            status: JobStatus.ACTIVE,
             createdAt: { gte: oneWeekAgo },
           },
         });
@@ -722,7 +759,7 @@ export class NotificationsService {
       const msg = getScheduledMessages(user.market);
       const title = msg.weeklyDigest.title;
       const body = msg.weeklyDigest.body(newCount);
-      const tokens = user.fcmTokens.map(t => t.token);
+      const tokens = user.fcmTokens.map((t: { token: string }) => t.token);
       const pushData = { type: 'weekly_digest' };
 
       const result = await this.expoPush.sendToTokens(tokens, title, body, pushData);
@@ -731,7 +768,7 @@ export class NotificationsService {
       }
 
       await this.prisma.notification.create({
-        data: { userId: user.id, title, body, data: pushData as any },
+        data: { userId: user.id, title, body, data: pushData },
       });
       sent++;
     }
@@ -741,10 +778,10 @@ export class NotificationsService {
   }
 
   /**
-   * Favori kampanya bitiş bildirimi: endDate'e 1 gün kala bildirim gönder.
+   * Kayıtlı iş ilanı bitiş bildirimi: deadline'a 1 gün kala bildirim gönder.
    * Tüm kullanıcılara gönderilir (free + premium).
    */
-  async sendExpiringFavoriteNotifications(markets?: Market[]): Promise<{ sent: number }> {
+  async sendExpiringSavedJobNotifications(markets?: Market[]): Promise<{ sent: number }> {
     if (!this.expoPush.isEnabled) return { sent: 0 };
 
     // Tomorrow date range (start of tomorrow to end of tomorrow, UTC)
@@ -752,19 +789,19 @@ export class NotificationsService {
     const tomorrowStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
     const tomorrowEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 2));
 
-    // Find favorites where campaign endDate is tomorrow
-    const expiringFavorites = await this.prisma.favorite.findMany({
+    // Find saved jobs where job listing deadline is tomorrow
+    const expiringSavedJobs = await this.prisma.savedJob.findMany({
       where: {
         isFrozen: false,
-        campaign: {
-          status: 'ACTIVE',
-          endDate: { gte: tomorrowStart, lt: tomorrowEnd },
-          ...(markets ? { market: { in: markets } } : {}),
+        jobListing: {
+          status: JobStatus.ACTIVE,
+          deadline: { gte: tomorrowStart, lt: tomorrowEnd },
+          ...(markets ? { country: { in: markets } } : {}),
         },
       },
       select: {
         userId: true,
-        campaign: { select: { id: true, title: true } },
+        jobListing: { select: { id: true, title: true } },
         user: {
           select: {
             id: true,
@@ -776,38 +813,38 @@ export class NotificationsService {
       },
     });
 
-    if (expiringFavorites.length === 0) return { sent: 0 };
+    if (expiringSavedJobs.length === 0) return { sent: 0 };
 
-    // Dedup: check which (userId, campaignId) pairs already received expiring notification
-    const userCampaignPairs = expiringFavorites.map(f => ({ userId: f.userId, campaignId: f.campaign.id }));
-    const uniqueUserIds = [...new Set(userCampaignPairs.map(p => p.userId))];
-    const uniqueCampaignIds = [...new Set(userCampaignPairs.map(p => p.campaignId))];
+    // Dedup: check which (userId, jobListingId) pairs already received expiring notification
+    const userJobPairs = expiringSavedJobs.map((f: { userId: string; jobListing: { id: string } }) => ({ userId: f.userId, jobListingId: f.jobListing.id }));
+    const uniqueUserIds = [...new Set(userJobPairs.map((p: { userId: string }) => p.userId))];
+    const uniqueJobListingIds = [...new Set(userJobPairs.map((p: { jobListingId: string }) => p.jobListingId))];
 
-    const alreadySent = await this.prisma.$queryRawUnsafe<{ user_id: string; campaign_id: string }[]>(
-      `SELECT DISTINCT user_id, data->>'campaignId' as campaign_id
+    const alreadySent = await this.prisma.$queryRawUnsafe<{ user_id: string; job_listing_id: string }[]>(
+      `SELECT DISTINCT user_id, data->>'jobListingId' as job_listing_id
        FROM notifications
        WHERE user_id = ANY($1::text[])
-       AND data->>'campaignId' = ANY($2::text[])
-       AND data->>'type' = 'favorite_expiring'`,
+       AND data->>'jobListingId' = ANY($2::text[])
+       AND data->>'type' = 'saved_job_expiring'`,
       uniqueUserIds,
-      uniqueCampaignIds,
+      uniqueJobListingIds,
     );
-    const sentSet = new Set(alreadySent.map(n => `${n.user_id}:${n.campaign_id}`));
+    const sentSet = new Set(alreadySent.map((n: { user_id: string; job_listing_id: string }) => `${n.user_id}:${n.job_listing_id}`));
 
     let sent = 0;
-    for (const fav of expiringFavorites) {
+    for (const saved of expiringSavedJobs) {
       // Skip if user disabled notifications or has no tokens
-      if (fav.user.notifPref?.enabled === false) continue;
-      if (fav.user.fcmTokens.length === 0) continue;
+      if (saved.user.notifPref?.enabled === false) continue;
+      if (saved.user.fcmTokens.length === 0) continue;
 
-      // Skip if already sent expiring notification for this campaign to this user
-      if (sentSet.has(`${fav.userId}:${fav.campaign.id}`)) continue;
+      // Skip if already sent expiring notification for this job listing to this user
+      if (sentSet.has(`${saved.userId}:${saved.jobListing.id}`)) continue;
 
-      const msg = getScheduledMessages(fav.user.market);
+      const msg = getScheduledMessages(saved.user.market);
       const title = msg.favoriteExpiring.title;
-      const body = msg.favoriteExpiring.body(fav.campaign.title);
-      const tokens = fav.user.fcmTokens.map(t => t.token);
-      const pushData = { type: 'favorite_expiring', campaignId: fav.campaign.id };
+      const body = msg.favoriteExpiring.body(saved.jobListing.title);
+      const tokens = saved.user.fcmTokens.map((t: { token: string }) => t.token);
+      const pushData = { type: 'saved_job_expiring', jobListingId: saved.jobListing.id };
 
       const result = await this.expoPush.sendToTokens(tokens, title, body, pushData);
       if (result.invalidTokens.length > 0) {
@@ -815,12 +852,12 @@ export class NotificationsService {
       }
 
       await this.prisma.notification.create({
-        data: { userId: fav.userId, title, body, data: pushData as any },
+        data: { userId: saved.userId, title, body, data: pushData },
       });
       sent++;
     }
 
-    this.logger.log(`Expiring favorite notifications sent: ${sent}`);
+    this.logger.log(`Expiring saved job notifications sent: ${sent}`);
     return { sent };
   }
 

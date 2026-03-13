@@ -1,2692 +1,1274 @@
 import { Market } from '@prisma/client';
-import { NormalizedCampaign } from './normalize';
+import { NormalizedJobListing } from './normalize';
 import { classifyAndEnrich } from '../utils/ai-client';
 
-// ====== MARKET-SPECIFIC KEYWORD CONFIGURATION ======
+// ====== SCORING THRESHOLDS ======
 
-interface MarketKeywords {
-  strongCampaignKeywords: string[];        // +3 score — core campaign/deal terms
-  strongCampaignKeywordsWordBoundary: RegExp[];  // +3 score — word boundary
-  campaignKeywords: string[];              // +2 score — secondary campaign terms
-  campaignKeywordsWordBoundary: RegExp[];  // +2 score — word boundary
-  blacklistedTitles: string[];
-  campaignUrlPatterns: RegExp[];
-  nonCampaignUrlPatterns: RegExp[];
-  nonCampaignTitleKeywords: string[];
-  listingPageTitlePatterns: RegExp[];
-  listingPageUrlPatterns: RegExp[];
-  homepageCampaignCheck: RegExp;
-  productTypeRe?: RegExp;
-  categoryOnlyRe?: RegExp;
-  productListingPatterns?: RegExp[];
+const MIN_SCORE = 3;           // Minimum score to accept
+const AUTO_ACCEPT_SCORE = 6;   // Auto-accept without AI
+const AUTO_REJECT_SCORE = 0;   // Auto-reject without AI
+const AI_BORDERLINE_MIN = 3;   // Min score for AI borderline
+const AI_BORDERLINE_MAX = 5;   // Max score for AI borderline
+const AI_CONFIDENCE_THRESHOLD = 0.6;
+
+// ====== MARKET KEYWORD CONFIGURATION ======
+
+interface JobMarketKeywords {
+  blueCollarKeywords: string[];     // +3 score — core blue-collar job terms
+  jobPostingKeywords: string[];     // +2 score — job posting indicator terms
+  whiteCollarKeywords: string[];    // Hard reject — white-collar job terms
+  blacklistedTitles: string[];      // Hard reject — non-content pages
+  jobUrlPatterns: RegExp[];         // +2 score — job/career URL patterns
+  nonJobUrlPatterns: RegExp[];      // -2 score — non-job URL patterns
 }
 
-// ─── TR Market Keywords ───────────────────────────────────────
+// ─── Shared keyword blocks ──────────────────────────────────────
 
-const TR_KEYWORDS: MarketKeywords = {
-  strongCampaignKeywords: [
-    'kampanya', 'indirim', 'fırsat', 'firsat', 'promosyon', 'kupon', 'outlet',
+const SHARED_BLUE_COLLAR_EN = [
+  'driver', 'courier', 'delivery', 'technician', 'mechanic', 'electrician', 'plumber',
+  'welder', 'carpenter', 'painter', 'mason', 'security guard', 'janitor', 'cleaner',
+  'housekeeper', 'waiter', 'waitress', 'bartender', 'cook', 'chef', 'baker',
+  'cashier', 'stock clerk', 'warehouse', 'forklift', 'loader', 'packer', 'picker',
+  'assembly', 'operator', 'machinist', 'factory worker', 'production worker',
+  'construction worker', 'laborer', 'maintenance', 'installer', 'repair',
+  'truck driver', 'bus driver', 'taxi driver', 'dispatcher',
+  'security officer', 'patrol', 'guard',
+  'farmworker', 'harvest', 'landscaper', 'gardener',
+  'miner', 'driller', 'rigger', 'crane operator',
+  'tailor', 'seamstress', 'textile worker',
+  'receptionist', 'porter', 'bellboy', 'doorman',
+  'helper', 'assistant', 'attendant', 'handler',
+];
+
+const SHARED_JOB_POSTING_EN = [
+  'hiring', 'now hiring', 'we are hiring', 'job opening', 'vacancy', 'vacancies',
+  'career', 'careers', 'open position', 'apply now', 'job opportunity',
+  'join our team', 'recruitment', 'wanted', 'looking for', 'seeking',
+  'job description', 'responsibilities', 'qualifications', 'requirements',
+  'salary', 'compensation', 'benefits', 'shift', 'overtime',
+];
+
+const SHARED_WHITE_COLLAR = [
+  'ceo', 'cto', 'cfo', 'coo', 'cmo', 'cio', 'cpo',
+  'vice president', 'vp of', 'svp', 'evp',
+  'chief executive', 'chief technology', 'chief financial', 'chief operating',
+  'managing director', 'general manager', 'senior director', 'executive director',
+  'board member', 'board of directors',
+  'software engineer', 'software developer', 'frontend developer', 'backend developer',
+  'full stack developer', 'fullstack developer', 'web developer', 'mobile developer',
+  'data scientist', 'data analyst', 'data engineer', 'machine learning',
+  'product manager', 'product owner', 'project manager', 'program manager',
+  'business analyst', 'financial analyst', 'market analyst', 'research analyst',
+  'consultant', 'management consultant', 'strategy consultant',
+  'lawyer', 'attorney', 'solicitor', 'barrister', 'legal counsel',
+  'doctor', 'physician', 'surgeon', 'psychiatrist', 'dentist',
+  'professor', 'lecturer', 'researcher', 'academic',
+  'architect', 'solution architect', 'enterprise architect',
+  'investment banker', 'portfolio manager', 'hedge fund', 'venture capital',
+  'creative director', 'art director', 'design director',
+  'marketing manager', 'brand manager', 'digital marketing manager',
+  'hr manager', 'human resources manager', 'talent acquisition',
+];
+
+const SHARED_BLACKLISTED_TITLES = [
+  'home', 'homepage', 'main page', 'about', 'about us', 'contact', 'contact us',
+  'privacy policy', 'terms of service', 'terms and conditions', 'cookie policy',
+  'login', 'sign in', 'sign up', 'register', 'my account', 'dashboard',
+  'faq', 'help', 'support', 'sitemap', 'accessibility',
+  'press', 'media', 'blog', 'news', 'newsletter',
+  'investors', 'investor relations', 'annual report',
+  'our story', 'our team', 'leadership', 'mission', 'values',
+  'error', 'page not found', '404', 'not found', 'forbidden', '403',
+  'access denied', 'under construction', 'coming soon',
+];
+
+const SHARED_JOB_URL_PATTERNS: RegExp[] = [
+  /\/careers?\b/i, /\/jobs?\b/i, /\/hiring\b/i, /\/vacancies\b/i,
+  /\/openings?\b/i, /\/positions?\b/i, /\/recruitment\b/i,
+  /\/apply\b/i, /\/join-us\b/i, /\/work-with-us\b/i,
+];
+
+const SHARED_NON_JOB_URL_PATTERNS: RegExp[] = [
+  /\/about\b/i, /\/contact\b/i, /\/privacy/i, /\/terms/i, /\/legal\b/i,
+  /\/faq\b/i, /\/help\b/i, /\/support\b/i, /\/blog\b/i, /\/news\b/i,
+  /\/press\b/i, /\/media\b/i, /\/investors?\b/i, /\/annual-report/i,
+  /\/login\b/i, /\/signin\b/i, /\/signup\b/i, /\/register\b/i,
+  /\/account\b/i, /\/dashboard\b/i, /\/profile\b/i,
+  /\/warranty\b/i, /\/recall\b/i, /\/corporate\b/i,
+  /\/sitemap/i, /\/accessibility/i, /\/cookie/i,
+];
+
+// ─── TR Keywords ────────────────────────────────────────────────
+
+const TR_KEYWORDS: JobMarketKeywords = {
+  blueCollarKeywords: [
+    ...SHARED_BLUE_COLLAR_EN,
+    'şoför', 'sürücü', 'kurye', 'dağıtıcı', 'teslimatçı',
+    'teknisyen', 'tekniker', 'elektrikçi', 'tesisatçı', 'boyacı', 'badanacı',
+    'kaynakçı', 'tornacı', 'frezeci', 'tesviyeci', 'kalıpçı',
+    'marangoz', 'doğramacı', 'mobilyacı', 'döşemeci',
+    'usta', 'kalfa', 'çırak', 'işçi', 'amele', 'taşeron',
+    'garson', 'komi', 'aşçı', 'aşçıbaşı', 'bulaşıkçı', 'fırıncı',
+    'kasiyer', 'reyon görevlisi', 'depocu', 'raf düzenleyici',
+    'forklift operatörü', 'vinçci', 'beko operatörü', 'kepçe operatörü',
+    'güvenlik', 'güvenlik görevlisi', 'bekçi', 'koruma',
+    'temizlik', 'temizlik görevlisi', 'hizmetli', 'hademe',
+    'bakıcı', 'hasta bakıcı', 'yaşlı bakıcı', 'çocuk bakıcı',
+    'terzi', 'konfeksiyoncu', 'overlokçu', 'makineci',
+    'inşaat işçisi', 'kalıpçı', 'demirci', 'sıvacı', 'alçıcı',
+    'bahçıvan', 'çiftçi', 'hayvancı', 'çoban',
+    'kaptan', 'gemici', 'denizci', 'balıkçı',
+    'matbaacı', 'baskıcı', 'ambalajcı', 'paketçi',
+    'montajcı', 'döşemeci', 'cam ustası', 'seramikçi',
   ],
-  strongCampaignKeywordsWordBoundary: [],
-  campaignKeywords: [
-    'teklif', 'taksit', 'hediye', 'ücretsiz kargo', 'ucretsiz kargo',
-    'avantaj', 'özel fiyat', 'ozel fiyat', 'sezon sonu',
-    'black friday', 'ramazan', 'bayram', 'bonus', 'cashback',
-    'sepette', 'fiyatına', 'fiyatina', 'varan', 'kazan', 'bedava',
-    'al öde', 'al ode', '4 al 3 öde',
-    // Telekom
-    'tarife', 'paket kampanyası', 'hat kampanyası', 'numara taşıma',
-    'sınırsız internet', 'ek paket', 'mobil paket', 'fiber kampanya',
-    // Teknoloji & Yazılım
-    'abonelik fırsatı', 'ücretsiz deneme', 'premium üyelik', 'yazılım indirimi',
-    'lisans kampanyası', 'bulut depolama', 'teknoloji fırsatı',
+  jobPostingKeywords: [
+    ...SHARED_JOB_POSTING_EN,
+    'iş ilanı', 'eleman aranıyor', 'personel alınacaktır', 'personel aranıyor',
+    'açık pozisyon', 'iş başvurusu', 'başvuru', 'maaş', 'ücret',
+    'mesai', 'vardiya', 'sigorta', 'sgk', 'asgari ücret',
+    'bay-bayan', 'deneyimli', 'deneyimsiz', 'acil eleman',
+    'kadro', 'kadrolu', 'daimi', 'geçici', 'part-time',
   ],
-  campaignKeywordsWordBoundary: [
-    /\bpuan\b/i,    // "puan" but not "şampuan"
-    /\d+\s*%/,      // "20%", "50 %" — contextual discount (not bare %)
-    /%\s*\d+/,      // "%20", "% 50" — Turkish style discount
+  whiteCollarKeywords: [
+    ...SHARED_WHITE_COLLAR,
+    'genel müdür', 'genel müdür yardımcısı', 'direktör', 'başkan',
+    'yazılım geliştirici', 'yazılım mühendisi', 'frontend geliştirici',
+    'veri bilimci', 'veri analisti', 'iş analisti',
+    'ürün müdürü', 'proje müdürü', 'pazarlama müdürü',
+    'danışman', 'avukat', 'mali müşavir', 'mimar',
+    'akademisyen', 'araştırmacı', 'öğretim üyesi', 'profesör',
   ],
   blacklistedTitles: [
-    'anasayfa', 'ana sayfa', 'hakkimizda', 'hakkımızda',
-    'iletisim', 'iletişim', 'giris yap', 'giriş yap',
-    'uyelik', 'üyelik', 'kayit ol', 'kayıt ol',
-    'sepet', 'sepetim', 'odeme', 'ödeme',
-    'gizlilik', 'cerez', 'çerez', 'kvkk',
-    'sartlar', 'şartlar', 'kosullar', 'koşullar',
-    'sss', 'sikca sorulan', 'sıkça sorulan',
-    'yardim', 'yardım', 'destek merkezi',
-    'iade', 'iade politikası', 'kargo takip',
+    ...SHARED_BLACKLISTED_TITLES,
+    'anasayfa', 'ana sayfa', 'hakkımızda', 'hakkimizda', 'iletişim', 'iletisim',
+    'giriş yap', 'giris yap', 'kayıt ol', 'kayit ol',
+    'gizlilik politikası', 'gizlilik politikasi', 'kvkk',
+    'çerez politikası', 'cerez politikasi', 'kullanım şartları',
+    'sıkça sorulan sorular', 'yardım', 'destek',
+    'sayfa bulunamadı', 'sayfa bulunamadi',
   ],
-  campaignUrlPatterns: [
-    /\/kampanya/i, /\/indirim/i, /\/firsat/i, /\/outlet/i,
-    /\/sale/i, /\/deal/i, /\/offer/i, /\/promo/i,
-    /\/discount/i, /\/campaign/i, /\/special/i,
-    /\/firsatlar/i, /\/avantaj/i,
+  jobUrlPatterns: [
+    ...SHARED_JOB_URL_PATTERNS,
+    /\/kariyer/i, /\/is-ilanlari/i, /\/is-ilani/i, /\/basvuru/i,
+    /\/pozisyonlar/i, /\/acik-pozisyonlar/i, /\/ise-alim/i,
+    /\/eleman/i, /\/personel/i,
   ],
-  nonCampaignUrlPatterns: [
-    /\/warranty\b/i,
-    /\/hakkimizda/i, /\/about\b/i, /\/iletisim/i, /\/contact\b/i,
-    /\/kvkk/i, /\/gizlilik/i, /\/privacy/i, /\/terms\b/i,
-    /\/recycling/i, /\/geri-cagirma/i, /\/yardim/i, /\/help\b/i,
-    /\/faq\b/i, /\/sss\b/i,
-  ],
-  nonCampaignTitleKeywords: [
-    'satış sonrası', 'satis sonrasi', 'yetkili servis', 'yetkili satıcı',
-    'gönüllü geri çağırma', 'gonullu geri cagirma', 'recycling',
-    'motor yağı', 'motor yagi', 'garanti +', 'garanti güvence',
-    'garantiler', 'tasarlayın', 'tasarlayin', 'orijinal yedek',
-    'servis çözümleri', 'servis cozumleri', 'resmi web sitesi',
-    'plan de travail', 'anasayfaplan',
-  ],
-  listingPageTitlePatterns: [
-    /modelleri\s*(ve\s*)?(fiyat|ürün)/i,
-    /fırsat\s*ürünleri/i, /firsat\s*urunleri/i,
-    /^yeni\s*sezon\s*(indirim|ürün|koleksiyon)/i,
-  ],
-  listingPageUrlPatterns: [
-    /^\/kampanyalar?$/,
-    /^\/[a-z]{2}\/campaigns?$/,
-  ],
-  homepageCampaignCheck: /indirim|kampanya|fırsat|firsat|promosyon|teklif|bonus/i,
-  productTypeRe: /(?:^|\s|[-/])(şampuan|sampuan|kremi?\b|serumu?\b|losyonu?\b|parfüm|deodorant|roll[\s-]?on\b|temizleyici|maskesi?\b|toniği?\b|jeli?\b|peeling|ruj\b|allık|allik|fondöten|fondoten|maskara|eyeliner|pudra\b|oje\b|rimel|kapatıcı|aydınlatıcı|nemlendirici|güneş\s*krem|gunes\s*krem|saç\s*boyası|sac\s*boyasi|diş\s*macunu|dis\s*macunu|duş\s*jeli|dus\s*jeli|el\s*krem)/i,
-  categoryOnlyRe: /^(parfüm|parfum|kozmetik|makyaj|cilt\s*bakım[ıi]?|saç?\s*bakım[ıi]?|vücut|vucut|banyo|güzellik|guzellik|aksesuar|giyim|ayakkabı|ayakkabi|çanta|canta|saat|takı|taki|hırka|hirka|kazak|elbise|bluz|gömlek|gomlek|ceket|pantolon|etek|mont|triko|yelek|t-?shirt|şort|sort|jean|denim|pijama|iç\s*giyim|ic\s*giyim|mayo|bikini|eşofman|esofman|kaban|parka|sweatshirt|hoodie)(\s*[&+ve]\s*(banyo|bakım[ıi]?|bakim[ıi]?|güzellik|guzellik|aksesuar|giyim))?(\s*[-–—|]\s*.+)?$/i,
-  productListingPatterns: [
-    /modelleri\s*(ve\s*)?(fiyat|ürün)/i,
-    /^outlet\s*(erkek|kadın|kadin|çocuk|cocuk)?\s*(giyim|ayakkabı|ayakkabi)/i,
-    /^yeni\s*sezon\s*(indirim|ürün|koleksiyon)/i,
-    /^(erkek|kadın|kadin|çocuk|cocuk)\s*(giyim|ayakkabı|ayakkabi|aksesuar)/i,
-    /fırsat\s*ürünleri\s*(ve\s*indirimler?)?$/i,
-    /firsat\s*urunleri/i,
+  nonJobUrlPatterns: [
+    ...SHARED_NON_JOB_URL_PATTERNS,
+    /\/hakkimizda/i, /\/hakkımızda/i, /\/iletisim/i, /\/iletişim/i,
+    /\/kvkk/i, /\/gizlilik/i, /\/cerez/i,
   ],
 };
 
-// ─── US Market Keywords ───────────────────────────────────────
+// ─── US/UK/AU/CA/PH/ZA/PK/IN Keywords (English) ────────────────
 
-const US_KEYWORDS: MarketKeywords = {
-  strongCampaignKeywords: [
-    'campaign', 'sale', 'deal', 'deals', 'discount', 'promo', 'promotion',
-    'coupon', 'coupons', 'clearance', 'offer', 'offers',
+const EN_KEYWORDS: JobMarketKeywords = {
+  blueCollarKeywords: SHARED_BLUE_COLLAR_EN,
+  jobPostingKeywords: SHARED_JOB_POSTING_EN,
+  whiteCollarKeywords: SHARED_WHITE_COLLAR,
+  blacklistedTitles: SHARED_BLACKLISTED_TITLES,
+  jobUrlPatterns: SHARED_JOB_URL_PATTERNS,
+  nonJobUrlPatterns: SHARED_NON_JOB_URL_PATTERNS,
+};
+
+// ─── DE Keywords ────────────────────────────────────────────────
+
+const DE_KEYWORDS: JobMarketKeywords = {
+  blueCollarKeywords: [
+    ...SHARED_BLUE_COLLAR_EN,
+    'fahrer', 'lkw-fahrer', 'busfahrer', 'taxifahrer', 'kurier', 'zusteller',
+    'techniker', 'mechaniker', 'elektriker', 'klempner', 'installateur',
+    'schweißer', 'schlosser', 'dreher', 'fräser', 'werkzeugmacher',
+    'tischler', 'schreiner', 'zimmermann', 'dachdecker',
+    'maurer', 'fliesenleger', 'maler', 'lackierer', 'verputzer',
+    'koch', 'bäcker', 'konditor', 'küchenhilfe', 'kellner', 'servicekraft',
+    'kassierer', 'verkäufer', 'lagerist', 'kommissionierer', 'staplerfahrer',
+    'produktionshelfer', 'produktionsmitarbeiter', 'maschinenbediener',
+    'wachmann', 'sicherheitsdienst', 'pförtner',
+    'reinigungskraft', 'gebäudereiniger', 'raumpfleger', 'hauswirtschafter',
+    'altenpfleger', 'krankenpfleger', 'pflegehelfer',
+    'schneider', 'näher', 'textilarbeiter',
+    'gärtner', 'landwirt', 'erntehelfer',
+    'monteur', 'servicetechniker', 'wartungstechniker',
   ],
-  strongCampaignKeywordsWordBoundary: [],
-  campaignKeywords: [
-    // Secondary terms
-    'on sale', 'special', 'specials',
-    'flash sale', 'limited time', 'price drop',
-    'doorbuster', 'doorbusters', 'weekly ad',
-    "today's deals", 'today\'s deals',
-    // Aksiyon terimleri
-    'save', 'savings', '% off', 'off', 'free shipping',
-    'buy one get one', 'bogo', 'bonus', 'cashback', 'cash back',
-    'reward', 'rewards', 'rebate',
-    // Sezon / etkinlik
-    'black friday', 'cyber monday', 'prime day', 'memorial day sale',
-    'labor day sale', 'back to school',
-    // Fiyat / indirim
-    'half price', 'half off', 'extra',
-    // Telecom
-    'phone deal', 'wireless deal', 'unlimited data', 'data plan',
-    'internet bundle', 'broadband deal', 'mobile plan', 'switch and save',
-    // Tech & Software
-    'free trial', 'subscription deal', 'software discount', 'app deal',
-    'cloud storage', 'annual plan', 'premium plan',
+  jobPostingKeywords: [
+    ...SHARED_JOB_POSTING_EN,
+    'stellenangebot', 'stellenanzeige', 'jobangebot', 'wir suchen',
+    'offene stelle', 'freie stelle', 'mitarbeiter gesucht',
+    'bewerbung', 'bewerben', 'gehalt', 'vergütung', 'lohn',
+    'schichtarbeit', 'vollzeit', 'teilzeit', 'minijob',
   ],
-  campaignKeywordsWordBoundary: [
-    /\bfree\b/i,    // "free" but not "freestyle" etc.
-    /\d+\s*%/,      // "20%", "50 %" — contextual discount
-    /%\s*\d+/,      // "%20" style
+  whiteCollarKeywords: [
+    ...SHARED_WHITE_COLLAR,
+    'geschäftsführer', 'vorstand', 'direktor', 'abteilungsleiter',
+    'softwareentwickler', 'programmierer', 'datenanalyst',
+    'unternehmensberater', 'rechtsanwalt', 'wirtschaftsprüfer',
   ],
   blacklistedTitles: [
-    'home', 'homepage', 'about us', 'about', 'contact us', 'contact',
-    'login', 'log in', 'sign in', 'sign up', 'register', 'create account',
-    'cart', 'my cart', 'shopping cart', 'checkout', 'payment',
-    'privacy', 'privacy policy', 'cookie policy', 'cookies',
-    'terms', 'terms of service', 'terms and conditions', 'terms of use',
-    'faq', 'frequently asked questions', 'help', 'help center', 'support',
-    'return policy', 'returns', 'shipping', 'shipping info', 'track order',
-    'careers', 'jobs', 'press', 'investor relations', 'sitemap',
+    ...SHARED_BLACKLISTED_TITLES,
+    'startseite', 'über uns', 'kontakt', 'impressum',
+    'datenschutz', 'agb', 'nutzungsbedingungen',
+    'seite nicht gefunden', 'fehler',
   ],
-  campaignUrlPatterns: [
-    /\/deals?\b/i, /\/sale\b/i, /\/offers?\b/i, /\/promo/i,
-    /\/discount/i, /\/campaign/i, /\/specials?\b/i,
-    /\/clearance/i, /\/coupons?\b/i, /\/weekly-?ad/i,
-    /\/flash-?sale/i, /\/savings?\b/i, /\/outlet/i,
-    /\/today/i, /\/bargain/i,
+  jobUrlPatterns: [
+    ...SHARED_JOB_URL_PATTERNS,
+    /\/karriere/i, /\/stellenangebote/i, /\/stellen\b/i, /\/bewerbung/i,
+    /\/offene-stellen/i, /\/mitarbeiten/i,
   ],
-  nonCampaignUrlPatterns: [
-    /\/warranty\b/i, /\/about\b/i, /\/contact\b/i,
-    /\/privacy/i, /\/terms\b/i, /\/legal\b/i,
-    /\/help\b/i, /\/faq\b/i, /\/support\b/i,
-    /\/careers?\b/i, /\/jobs\b/i, /\/press\b/i,
-    /\/investor/i, /\/recycling/i, /\/recall\b/i,
-    /\/sitemap/i, /\/accessibility/i,
-  ],
-  nonCampaignTitleKeywords: [
-    'after sales', 'warranty service', 'authorized dealer',
-    'recall', 'product recall', 'safety notice',
-    'official website', 'corporate', 'investor relations',
-    'press release', 'careers', 'work with us',
-    'recycling program', 'sustainability',
-    // Fintech/payment non-campaign pages
-    'pay me on', 'send money', 'transfer money',
-    'download the app', 'get the app', 'create account',
-  ],
-  listingPageTitlePatterns: [
-    /^all\s*(deals|offers|sales|promotions|coupons)$/i,
-    /^(shop\s*)?all\s*products$/i,
-    /^browse\s*(all|our)\s*/i,
-  ],
-  listingPageUrlPatterns: [
-    /^\/deals?$/,
-    /^\/sale$/,
-    /^\/offers?$/,
-    /^\/specials?$/,
-  ],
-  homepageCampaignCheck: /deal|sale|offer|discount|promo|coupon|special|clearance|save/i,
-  productTypeRe: /(?:^|\s|[-/])(shampoo|cream\b|serum\b|lotion\b|perfume|deodorant|cleanser|mask\b|toner\b|gel\b|lipstick|blush|foundation|mascara|eyeliner|powder\b|nail\s*polish|concealer|highlighter|moisturizer|sunscreen|hair\s*dye|toothpaste|body\s*wash|hand\s*cream)/i,
-  categoryOnlyRe: /^(perfume|cosmetics|makeup|skincare|haircare|bodycare|beauty|accessories|clothing|shoes|bags|watches|jewelry|jackets?|coats?|sweaters?|cardigans?|dresses?|blouses?|shirts?|pants|trousers|skirts?|t-?shirts?|shorts|jeans?|denim|pajamas?|swimwear|bikini|hoodies?|sweatshirts?|activewear|loungewear|outerwear|underwear|lingerie|socks|sandals|boots|sneakers|heels|flats)(\s*[&+and]\s*(bath|care|beauty|accessories|clothing))?(\s*[-–—|]\s*.+)?$/i,
-  productListingPatterns: [
-    /^new\s*(arrivals?|season|collection)/i,
-    /^(men'?s?|women'?s?|kids?)\s*(clothing|shoes|accessories)/i,
-    /^shop\s*(men|women|kids|all)/i,
+  nonJobUrlPatterns: [
+    ...SHARED_NON_JOB_URL_PATTERNS,
+    /\/ueber-uns/i, /\/impressum/i, /\/datenschutz/i, /\/agb\b/i,
   ],
 };
 
-// ─── DE Market Keywords ───────────────────────────────────────
+// ─── BR/PT Keywords (Portuguese) ───────────────────────────────
 
-const DE_KEYWORDS: MarketKeywords = {
-  strongCampaignKeywords: [
-    'angebot', 'angebote', 'rabatt', 'aktion', 'aktionen', 'gutschein',
-    'sale', 'deal', 'deals', 'discount', 'promotion', 'promo', 'coupon', 'offer', 'offers', 'clearance',
+const PT_KEYWORDS: JobMarketKeywords = {
+  blueCollarKeywords: [
+    ...SHARED_BLUE_COLLAR_EN,
+    'motorista', 'caminhoneiro', 'entregador', 'motoboy',
+    'técnico', 'mecânico', 'eletricista', 'encanador', 'soldador',
+    'pedreiro', 'pintor', 'azulejista', 'marceneiro', 'carpinteiro',
+    'cozinheiro', 'padeiro', 'garçom', 'atendente', 'balconista',
+    'caixa', 'estoquista', 'repositor', 'operador de empilhadeira',
+    'operário', 'auxiliar de produção', 'operador de máquina',
+    'vigilante', 'porteiro', 'segurança',
+    'faxineiro', 'diarista', 'zelador', 'copeiro',
+    'costureira', 'tecelão',
+    'ajudante', 'servente', 'auxiliar',
   ],
-  strongCampaignKeywordsWordBoundary: [
-    /\bwsv\b/i, /\bssv\b/i, /\bgratis\b/i,
+  jobPostingKeywords: [
+    ...SHARED_JOB_POSTING_EN,
+    'vaga', 'vagas', 'vaga de emprego', 'contratando', 'estamos contratando',
+    'oportunidade', 'processo seletivo', 'candidatar', 'salário', 'remuneração',
+    'benefícios', 'clt', 'carteira assinada', 'temporário',
   ],
-  campaignKeywords: [
-    // Secondary German terms
-    'sonderangebot', 'sonderangebote', 'preisnachlass',
-    'schnäppchen', 'schnappchen', 'reduziert', 'spare', 'sparen',
-    'sparpreis', 'preissenkung', 'ermäßigung', 'ermaessigung',
-    'gutscheine', 'coupons',
-    'kostenloser versand', 'gratis versand', 'versandkostenfrei',
-    'prozent rabatt', 'tiefpreis', 'bestpreis', 'preisknaller',
-    'ausverkauf', 'räumungsverkauf', 'raeumungsverkauf',
-    'winterschlussverkauf', 'sommerschlussverkauf', 'schlussverkauf',
-    'saisonschlussverkauf', 'jetzt sparen', 'zeitlich begrenzt', 'nur für kurze zeit',
-    // Additional German deal terms
-    'restposten', 'lagerräumung', 'lagerraeumung',
-    'hammerpreis', 'knallerpreis', 'preishit', 'preiskracher',
-    'vorteilspreis', 'megadeal', 'super sale',
-    'tagesangebot', 'tagesangebote', 'wochenangebot', 'wochenangebote',
-    '2 für 1', '2-für-1', 'zwei für eins',
-    'zugabe', 'gratiszugabe', 'prozente',
-    'jubiläumsangebot', 'jubilaeumsangebot',
-    // Seasonal / events
-    'black friday', 'cyber monday', 'cyber week',
-    // English secondary terms on German sites
-    'special', 'flash sale', 'limited time',
-    'save', 'savings', '% off', 'off', 'free shipping',
-    'buy one get one', 'bogo', 'bonus', 'cashback', 'cash back',
-    // Telekom
-    'tarif', 'mobilfunk-angebot', 'handyvertrag', 'internet-aktion',
-    'datenpaket', 'flatrate', 'sim-karte', 'vertragsverlängerung',
-    // Technologie & Software
-    'software-angebot', 'abo-angebot', 'kostenlos testen', 'premium-abo',
-    'cloud-angebot', 'lizenz-rabatt', 'tech-deal',
-  ],
-  campaignKeywordsWordBoundary: [
-    /\bfrei\b/i,    // "frei" (free) but not "Freitag" etc.
-    /\bfree\b/i,
-    /\d+\s*%/,      // "20%" contextual discount
-    /%\s*\d+/,      // "%20" style
+  whiteCollarKeywords: [
+    ...SHARED_WHITE_COLLAR,
+    'diretor executivo', 'diretor geral', 'gerente geral',
+    'desenvolvedor', 'programador', 'analista de dados',
+    'consultor', 'advogado', 'contador', 'arquiteto',
   ],
   blacklistedTitles: [
-    // German navigation/info pages
-    'startseite', 'impressum', 'datenschutz', 'datenschutzerklärung',
-    'agb', 'allgemeine geschäftsbedingungen', 'kontakt', 'kontaktformular',
-    'über uns', 'ueber uns', 'karriere', 'presse', 'pressemitteilung',
-    'hilfe', 'hilfecenter', 'faq', 'häufige fragen',
-    'warenkorb', 'mein warenkorb', 'kasse', 'bezahlung',
-    'anmelden', 'registrieren', 'konto erstellen', 'mein konto',
-    'widerrufsrecht', 'widerrufsbelehrung', 'versandinformationen',
-    'rückgabe', 'rueckgabe', 'rücksendung',
-    'cookie-einstellungen', 'cookie einstellungen',
-    // English fallback
-    'home', 'homepage', 'about us', 'contact', 'login', 'sign in',
-    'cart', 'checkout', 'privacy', 'privacy policy', 'terms',
-    'faq', 'help', 'support', 'careers', 'sitemap',
+    ...SHARED_BLACKLISTED_TITLES,
+    'página inicial', 'sobre nós', 'contato', 'fale conosco',
+    'política de privacidade', 'termos de uso',
+    'página não encontrada',
   ],
-  campaignUrlPatterns: [
-    // German URL paths (user-specified)
-    /\/angebote?\b/i, /\/sale\b/i, /\/aktion/i, /\/deals?\b/i,
-    /\/gutschein/i, /\/rabatt/i,
-    // Extended German paths
-    /\/sonderangebot/i, /\/schnaeppchen/i, /\/schnäppchen/i,
-    /\/ausverkauf/i, /\/sparpreis/i, /\/aktionspreise/i,
-    /\/restposten/i, /\/lagerraeumung/i, /\/tagesangebot/i, /\/wochenangebot/i,
-    /\/preishit/i, /\/gratis/i,
-    // English paths common on German sites
-    /\/offers?\b/i, /\/promo/i, /\/discount/i, /\/specials?\b/i,
-    /\/clearance/i, /\/coupons?\b/i, /\/outlet/i, /\/savings?\b/i,
+  jobUrlPatterns: [
+    ...SHARED_JOB_URL_PATTERNS,
+    /\/carreiras/i, /\/vagas/i, /\/trabalhe-conosco/i, /\/oportunidades/i,
   ],
-  nonCampaignUrlPatterns: [
-    /\/impressum/i, /\/datenschutz/i, /\/agb\b/i, /\/kontakt/i,
-    /\/ueber-uns/i, /\/about\b/i, /\/hilfe/i, /\/help\b/i,
-    /\/faq\b/i, /\/karriere/i, /\/presse/i, /\/widerruf/i,
-    /\/ruecksendung/i, /\/rueckgabe/i, /\/versand\b/i,
-    /\/warranty\b/i, /\/terms\b/i, /\/privacy/i, /\/legal\b/i,
-    /\/support\b/i, /\/careers?\b/i, /\/sitemap/i,
-  ],
-  nonCampaignTitleKeywords: [
-    'kundenservice', 'kundendienst', 'reparaturservice',
-    'garantie', 'garantiebedingungen', 'rückrufaktion', 'rueckrufaktion',
-    'offizielle webseite', 'offizielle website',
-    'unternehmensinfo', 'investor relations', 'pressemitteilung',
-    'nachhaltigkeitsbericht', 'umweltschutz',
-    // English fallback
-    'after sales', 'warranty service', 'recall', 'official website',
-    'corporate', 'press release', 'sustainability',
-  ],
-  listingPageTitlePatterns: [
-    /^alle\s*(angebote|aktionen|deals|rabatte|gutscheine)$/i,
-    /^(shop\s*)?alle\s*produkte$/i,
-    /^(all\s*)?(deals|offers|sales|promotions)$/i,
-  ],
-  listingPageUrlPatterns: [
-    /^\/angebote?$/,
-    /^\/aktionen?$/,
-    /^\/deals?$/,
-    /^\/sale$/,
-    /^\/gutscheine?$/,
-  ],
-  homepageCampaignCheck: /angebot|aktion|rabatt|sale|deal|reduziert|spare|gutschein|schnäppchen|sonderangebot|discount|promo|offer/i,
-  productTypeRe: /(?:^|\s|[-/])(shampoo|creme\b|serum\b|lotion\b|parfüm|parfum|deodorant|reiniger|maske\b|toner\b|gel\b|lippenstift|rouge|foundation|mascara|eyeliner|puder\b|nagellack|concealer|highlighter|feuchtigkeitscreme|sonnencreme|haarfarbe|zahnpasta|duschgel|handcreme)/i,
-  categoryOnlyRe: /^(parfüm|parfum|kosmetik|make-?up|hautpflege|haarpflege|körperpflege|beauty|accessoires|bekleidung|schuhe|taschen|uhren|schmuck|jacken?|mäntel?|mantel|pullover|strickjacken?|kleider?|blusen?|hemden?|hosen?|röcke?|t-?shirts?|shorts|jeans?|denim|schlafanzüge?|bademode|bikini|hoodies?|sweatshirts?|sportbekleidung|unterwäsche|socken|sandalen|stiefel|sneakers?)(\s*[&+und]\s*(bad|pflege|beauty|accessoires|bekleidung))?(\s*[-–—|]\s*.+)?$/i,
-  productListingPatterns: [
-    /^neue?\s*(kollektion|saison|arrivals?)/i,
-    /^(herren|damen|kinder)\s*(bekleidung|schuhe|accessoires)/i,
-    /^(men'?s?|women'?s?|kids?)\s*(clothing|shoes|accessories)/i,
-    /^shop\s*(herren|damen|kinder|alle)/i,
+  nonJobUrlPatterns: [
+    ...SHARED_NON_JOB_URL_PATTERNS,
+    /\/sobre/i, /\/contato/i, /\/privacidade/i, /\/termos/i,
   ],
 };
 
-// UK market keywords (English, same as US with minor additions)
-const UK_KEYWORDS: MarketKeywords = {
-  ...US_KEYWORDS,
-  strongCampaignKeywords: [
-    ...US_KEYWORDS.strongCampaignKeywords,
-    'voucher', 'vouchers',
+// ─── ES/MX/AR/CO Keywords (Spanish) ────────────────────────────
+
+const ES_KEYWORDS: JobMarketKeywords = {
+  blueCollarKeywords: [
+    ...SHARED_BLUE_COLLAR_EN,
+    'conductor', 'chofer', 'chófer', 'repartidor', 'mensajero',
+    'técnico', 'mecánico', 'electricista', 'plomero', 'soldador',
+    'albañil', 'pintor', 'carpintero', 'herrero',
+    'cocinero', 'panadero', 'mesero', 'camarero', 'barista',
+    'cajero', 'almacenista', 'bodeguero', 'montacarguista',
+    'obrero', 'operario', 'operador de máquina', 'jornalero',
+    'vigilante', 'guardia', 'conserje', 'portero',
+    'limpiador', 'aseador', 'intendente',
+    'costurera', 'modista', 'textil',
+    'peón', 'ayudante', 'auxiliar',
   ],
-  campaignKeywords: [
-    ...US_KEYWORDS.campaignKeywords,
-    'bank holiday sale', 'boxing day sale',
-    'half term deals', 'january sale', 'summer sale',
-    'quid', 'pounds off', '£ off',
+  jobPostingKeywords: [
+    ...SHARED_JOB_POSTING_EN,
+    'vacante', 'vacantes', 'oferta de empleo', 'empleo', 'se busca',
+    'se solicita', 'se requiere', 'convocatoria', 'postular',
+    'sueldo', 'salario', 'prestaciones', 'nómina',
+    'turno', 'jornada', 'tiempo completo', 'medio tiempo',
+  ],
+  whiteCollarKeywords: [
+    ...SHARED_WHITE_COLLAR,
+    'director general', 'gerente general', 'director ejecutivo',
+    'desarrollador', 'programador', 'analista de datos',
+    'consultor', 'abogado', 'contador', 'arquitecto',
+  ],
+  blacklistedTitles: [
+    ...SHARED_BLACKLISTED_TITLES,
+    'inicio', 'página principal', 'acerca de', 'quiénes somos',
+    'contacto', 'contáctenos', 'aviso de privacidad', 'términos',
+    'página no encontrada',
+  ],
+  jobUrlPatterns: [
+    ...SHARED_JOB_URL_PATTERNS,
+    /\/carreras/i, /\/empleo/i, /\/vacantes/i, /\/trabaja-con-nosotros/i,
+    /\/bolsa-de-trabajo/i, /\/ofertas-de-empleo/i,
+  ],
+  nonJobUrlPatterns: [
+    ...SHARED_NON_JOB_URL_PATTERNS,
+    /\/acerca/i, /\/contacto/i, /\/privacidad/i, /\/aviso-legal/i,
   ],
 };
 
-// ─── IN (India) Market Keywords ──────────────────────────────
-// Indian market uses English + Hindi. Most e-commerce is in English.
+// ─── FR Keywords ────────────────────────────────────────────────
 
-const IN_KEYWORDS: MarketKeywords = {
-  strongCampaignKeywords: [
-    'deal', 'deals', 'sale', 'offer', 'offers', 'discount', 'promo', 'promotion',
-    'coupon', 'coupons', 'clearance', 'campaign', 'cashback',
-    // Hindi terms
-    'dhamaka', 'mela', 'utsav', 'loot',
+const FR_KEYWORDS: JobMarketKeywords = {
+  blueCollarKeywords: [
+    ...SHARED_BLUE_COLLAR_EN,
+    'chauffeur', 'routier', 'livreur', 'coursier',
+    'technicien', 'mécanicien', 'électricien', 'plombier', 'soudeur',
+    'maçon', 'peintre', 'menuisier', 'charpentier', 'couvreur',
+    'cuisinier', 'boulanger', 'pâtissier', 'serveur', 'commis',
+    'caissier', 'magasinier', 'préparateur', 'cariste',
+    'ouvrier', 'opérateur', 'agent de production', 'manoeuvre',
+    'agent de sécurité', 'vigile', 'gardien', 'concierge',
+    'agent d\'entretien', 'femme de ménage', 'nettoyeur',
+    'couturier', 'couturière',
+    'aide', 'auxiliaire', 'manutentionnaire',
   ],
-  strongCampaignKeywordsWordBoundary: [
-    /₹\s*\d+/,     // "₹999 off" rupee pattern
+  jobPostingKeywords: [
+    ...SHARED_JOB_POSTING_EN,
+    'offre d\'emploi', 'poste à pourvoir', 'recrutement', 'nous recrutons',
+    'candidature', 'postuler', 'salaire', 'rémunération',
+    'cdi', 'cdd', 'intérim', 'temps plein', 'temps partiel',
   ],
-  campaignKeywords: [
-    // Secondary terms
-    'on sale', 'special', 'specials', 'flash sale', 'limited time',
-    'price drop', 'doorbuster', 'doorbusters', 'weekly ad',
-    "today's deals",
-    'save', 'savings', '% off', 'off', 'free shipping', 'free delivery',
-    'buy one get one', 'bogo', 'bonus', 'cash back',
-    'reward', 'rewards', 'rebate',
-    'black friday', 'cyber monday',
-    'half price', 'half off', 'extra',
-    // India-specific English terms
-    'festive sale', 'festive offer', 'big billion', 'great indian',
-    'republic day sale', 'independence day sale', 'diwali sale',
-    'navratri offer', 'holi sale', 'raksha bandhan offer',
-    'ganesh chaturthi', 'onam', 'pongal', 'eid sale',
-    'christmas sale', 'new year sale', 'makar sankranti',
-    'emi', 'no cost emi', 'exchange offer', 'bank offer',
-    'supercoins', 'extra off', 'combo offer', 'mega deal',
-    'lowest price', 'best price', 'price slash', 'flat off',
-    'steal deal', 'loot deal', 'bumper offer', 'bonanza',
-    'price crash', 'lightning deal', 'midnight deal',
-    'big saving days', 'end of season sale', 'clearance sale',
-    // Hindi terms
-    'sasta', 'bachat', 'paisa vasool',
-    // Telecom
-    'recharge offer', 'prepaid plan', 'postpaid plan', 'data pack',
-    'unlimited calls', 'broadband plan', 'fiber plan', 'jio offer',
-    // Tech & Software
-    'free trial', 'subscription offer', 'app offer', 'premium plan',
-    'cloud deal', 'annual plan', 'tech deal',
-  ],
-  campaignKeywordsWordBoundary: [
-    /\bfree\b/i,
-    /\bflat\b/i,   // "flat 50% off" — common in India
-    /\d+\s*%/,      // "20%" contextual discount
-    /%\s*\d+/,      // "%20" style
+  whiteCollarKeywords: [
+    ...SHARED_WHITE_COLLAR,
+    'directeur général', 'directeur exécutif', 'directeur financier',
+    'développeur', 'analyste', 'consultant', 'avocat', 'architecte',
   ],
   blacklistedTitles: [
-    'home', 'homepage', 'about us', 'about', 'contact us', 'contact',
-    'login', 'log in', 'sign in', 'sign up', 'register', 'create account',
-    'cart', 'my cart', 'shopping cart', 'checkout', 'payment',
-    'privacy', 'privacy policy', 'cookie policy', 'cookies',
-    'terms', 'terms of service', 'terms and conditions', 'terms of use',
-    'faq', 'frequently asked questions', 'help', 'help center', 'support',
-    'return policy', 'returns', 'shipping', 'shipping info', 'track order',
-    'careers', 'jobs', 'press', 'investor relations', 'sitemap',
-    'grievance', 'legal', 'compliance',
+    ...SHARED_BLACKLISTED_TITLES,
+    'accueil', 'à propos', 'qui sommes-nous', 'contact', 'nous contacter',
+    'politique de confidentialité', 'conditions générales',
+    'page non trouvée',
   ],
-  campaignUrlPatterns: [
-    /\/deals?\b/i, /\/sale\b/i, /\/offers?\b/i, /\/promo/i,
-    /\/discount/i, /\/campaign/i, /\/specials?\b/i,
-    /\/clearance/i, /\/coupons?\b/i, /\/weekly-?ad/i,
-    /\/flash-?sale/i, /\/savings?\b/i, /\/outlet/i,
-    /\/today/i, /\/bargain/i,
-    // India-specific URL patterns
-    /\/festive/i, /\/diwali/i, /\/republic-day/i,
-    /\/independence-day/i, /\/bank-offer/i, /\/emi\b/i,
-    /\/exchange/i, /\/cashback/i, /\/combo/i,
-    /\/lightning/i, /\/loot/i, /\/bumper/i, /\/bonanza/i, /\/steal/i,
+  jobUrlPatterns: [
+    ...SHARED_JOB_URL_PATTERNS,
+    /\/carrieres/i, /\/emplois/i, /\/recrutement/i, /\/offres-d-emploi/i,
+    /\/rejoignez-nous/i, /\/postuler/i,
   ],
-  nonCampaignUrlPatterns: [
-    /\/warranty\b/i, /\/about\b/i, /\/contact\b/i,
-    /\/privacy/i, /\/terms\b/i, /\/legal\b/i,
-    /\/help\b/i, /\/faq\b/i, /\/support\b/i,
-    /\/careers?\b/i, /\/jobs\b/i, /\/press\b/i,
-    /\/investor/i, /\/grievance/i, /\/compliance/i,
-    /\/sitemap/i, /\/accessibility/i, /\/recycling/i, /\/recall\b/i,
-  ],
-  nonCampaignTitleKeywords: [
-    'after sales', 'warranty service', 'authorized dealer',
-    'recall', 'product recall', 'safety notice',
-    'official website', 'corporate', 'investor relations',
-    'press release', 'careers', 'work with us',
-    'grievance officer', 'compliance',
-    'recycling program', 'sustainability',
-    'pay me on', 'send money', 'transfer money',
-    'download the app', 'get the app', 'create account',
-  ],
-  listingPageTitlePatterns: [
-    /^all\s*(deals|offers|sales|promotions|coupons)$/i,
-    /^(shop\s*)?all\s*products$/i,
-    /^browse\s*(all|our)\s*/i,
-  ],
-  listingPageUrlPatterns: [
-    /^\/deals?$/, /^\/sale$/, /^\/offers?$/, /^\/specials?$/,
-  ],
-  homepageCampaignCheck: /deal|sale|offer|discount|promo|coupon|special|clearance|save|festive|diwali|cashback/i,
-  productTypeRe: /(?:^|\s|[-/])(shampoo|cream\b|serum\b|lotion\b|perfume|deodorant|cleanser|mask\b|toner\b|gel\b|lipstick|blush|foundation|mascara|eyeliner|powder\b|nail\s*polish|concealer|highlighter|moisturizer|sunscreen|hair\s*dye|toothpaste|body\s*wash|hand\s*cream)/i,
-  categoryOnlyRe: /^(perfume|cosmetics|makeup|skincare|haircare|bodycare|beauty|accessories|clothing|shoes|bags|watches|jewelry|jackets?|coats?|sweaters?|cardigans?|dresses?|blouses?|shirts?|pants|trousers|skirts?|t-?shirts?|shorts|jeans?|denim|pajamas?|swimwear|bikini|hoodies?|sweatshirts?|activewear|loungewear|outerwear|underwear|lingerie|socks|sandals|boots|sneakers|heels|flats)(\s*[&+and]\s*(bath|care|beauty|accessories|clothing))?(\s*[-–—|]\s*.+)?$/i,
-  productListingPatterns: [
-    /^new\s*(arrivals?|season|collection)/i,
-    /^(men'?s?|women'?s?|kids?)\s*(clothing|shoes|accessories)/i,
-    /^shop\s*(men|women|kids|all)/i,
+  nonJobUrlPatterns: [
+    ...SHARED_NON_JOB_URL_PATTERNS,
+    /\/a-propos/i, /\/nous-contacter/i, /\/confidentialite/i, /\/mentions-legales/i,
   ],
 };
 
-// ─── BR (Brazil) Market Keywords ─────────────────────────────
-// Brazilian market uses Portuguese.
+// ─── IT Keywords ────────────────────────────────────────────────
 
-const BR_KEYWORDS: MarketKeywords = {
-  strongCampaignKeywords: [
-    'oferta', 'ofertas', 'promoção', 'promoçao', 'promocao', 'desconto', 'descontos',
-    'liquidação', 'liquidacao', 'cupom', 'cupons', 'imperdível', 'imperdivel',
-    'ofertão', 'ofertao',
-    'sale', 'deal', 'deals', 'discount', 'promo', 'coupon', 'clearance', 'offer',
+const IT_KEYWORDS: JobMarketKeywords = {
+  blueCollarKeywords: [
+    ...SHARED_BLUE_COLLAR_EN,
+    'autista', 'camionista', 'corriere', 'fattorino',
+    'tecnico', 'meccanico', 'elettricista', 'idraulico', 'saldatore',
+    'muratore', 'imbianchino', 'falegname', 'carpentiere',
+    'cuoco', 'panettiere', 'cameriere', 'barista',
+    'cassiere', 'magazziniere', 'carrellista',
+    'operaio', 'addetto alla produzione', 'macchinista',
+    'guardia', 'vigilante', 'portiere',
+    'addetto alle pulizie', 'bidello',
+    'sarto', 'sarta', 'operaio tessile',
+    'manovale', 'aiutante',
   ],
-  strongCampaignKeywordsWordBoundary: [],
-  campaignKeywords: [
-    // Secondary Portuguese terms
-    'promoções', 'voucher', 'frete grátis', 'frete gratis',
-    'frete gratuito', 'cashback', 'reembolso',
-    'queima de estoque', 'outlet', 'pechincha', 'barganha',
-    'economize', 'poupe', 'parcele', 'parcelamento',
-    'sem juros', 'à vista', 'a vista', 'pix',
-    'compre e ganhe', 'leve 2 pague 1', 'leve 3 pague 2',
-    'preço especial', 'preco especial',
-    'condições especiais', 'condicoes especiais',
-    'últimas unidades', 'ultimas unidades',
-    'tempo limitado', 'exclusivo', 'exclusiva',
-    'aproveite', 'brinde', 'brindes', 'relâmpago', 'relampago',
-    'desconto no pix', 'desconto pix',
-    'compre mais pague menos', 'combo', 'kit',
-    'vale-compras', 'vale compras',
-    'código promocional', 'codigo promocional',
-    'melhor preço', 'menor preço',
-    'super oferta', 'mega desconto',
-    // Brazil-specific campaigns/seasons
-    'black friday', 'cyber monday', 'dia do consumidor',
-    'dia das mães', 'dia das maes', 'dia dos pais',
-    'dia dos namorados', 'natal', 'ano novo', 'carnaval',
-    'semana do cliente', 'esquenta', 'mega oferta',
-    'dia do frete grátis', 'dia do frete gratis',
-    'semana brasil', 'semana do consumidor',
-    // English secondary terms
-    'off', '% off',
-    'flash sale', 'limited', 'special',
-    // Telecom
-    'plano de celular', 'recarga', 'pacote de dados', 'internet fibra',
-    'plano pós-pago', 'plano pré-pago', 'banda larga',
-    // Tecnologia & Software
-    'teste grátis', 'assinatura', 'plano premium', 'desconto software',
+  jobPostingKeywords: [
+    ...SHARED_JOB_POSTING_EN,
+    'offerta di lavoro', 'posizione aperta', 'ricerca personale', 'cerchiamo',
+    'candidatura', 'stipendio', 'retribuzione', 'contratto',
+    'tempo indeterminato', 'tempo determinato', 'turni',
   ],
-  campaignKeywordsWordBoundary: [
-    /\bgrátis\b/i, /\bgratis\b/i,
-    /\bfree\b/i,
-    /\d+\s*%/,      // "20%" contextual discount
-    /%\s*\d+/,      // "%20" style
-    /\baté\s+\d+\s*%/i,  // "até 50% off"
-    /R\$\s*\d+\s*off\b/i, // "R$ 50 off"
+  whiteCollarKeywords: [
+    ...SHARED_WHITE_COLLAR,
+    'direttore generale', 'amministratore delegato',
+    'sviluppatore', 'analista', 'consulente', 'avvocato', 'architetto',
   ],
   blacklistedTitles: [
-    // Portuguese
-    'página inicial', 'pagina inicial', 'início', 'inicio',
-    'sobre nós', 'sobre nos', 'quem somos', 'contato', 'fale conosco',
-    'entrar', 'login', 'cadastro', 'criar conta', 'registrar',
-    'carrinho', 'meu carrinho', 'finalizar compra', 'pagamento',
-    'privacidade', 'política de privacidade', 'politica de privacidade',
-    'cookies', 'termos', 'termos de uso', 'termos e condições',
-    'perguntas frequentes', 'ajuda', 'central de ajuda', 'suporte',
-    'trocas e devoluções', 'devolução', 'rastrear pedido',
-    'trabalhe conosco', 'vagas', 'imprensa', 'mapa do site',
-    // English fallback
-    'home', 'about', 'contact', 'login', 'sign in', 'cart', 'checkout',
-    'privacy', 'terms', 'faq', 'help', 'support', 'careers', 'sitemap',
+    ...SHARED_BLACKLISTED_TITLES,
+    'home', 'chi siamo', 'contatti', 'contattaci',
+    'informativa sulla privacy', 'termini e condizioni',
+    'pagina non trovata',
   ],
-  campaignUrlPatterns: [
-    /\/ofertas?\b/i, /\/promocao/i, /\/promoção/i, /\/promoc/i,
-    /\/descontos?\b/i, /\/liquidacao/i, /\/liquidação/i,
-    /\/cupom/i, /\/cupons\b/i, /\/outlet/i,
-    /\/queima/i, /\/black-?friday/i, /\/cyber-?monday/i,
-    /\/dia-d/i, /\/mega/i, /\/flash/i, /\/relampago/i,
-    /\/desconto-?pix/i, /\/cupom-?de-?desconto/i, /\/esquenta/i,
-    // English paths
-    /\/deals?\b/i, /\/sale\b/i, /\/promo/i, /\/specials?\b/i,
-    /\/clearance/i, /\/savings?\b/i,
+  jobUrlPatterns: [
+    ...SHARED_JOB_URL_PATTERNS,
+    /\/carriere/i, /\/lavora-con-noi/i, /\/posizioni-aperte/i, /\/offerte-lavoro/i,
   ],
-  nonCampaignUrlPatterns: [
-    /\/sobre\b/i, /\/contato\b/i, /\/fale-conosco/i,
-    /\/privacidade/i, /\/termos\b/i, /\/lgpd\b/i,
-    /\/ajuda\b/i, /\/perguntas/i, /\/suporte\b/i,
-    /\/trabalhe/i, /\/vagas\b/i, /\/imprensa/i,
-    /\/mapa-do-site/i, /\/ouvidoria/i,
-    // English fallback
-    /\/about\b/i, /\/contact\b/i, /\/privacy/i, /\/terms\b/i,
-    /\/help\b/i, /\/faq\b/i, /\/careers?\b/i, /\/sitemap/i,
-  ],
-  nonCampaignTitleKeywords: [
-    'pós-venda', 'pos-venda', 'garantia', 'assistência técnica',
-    'assistencia tecnica', 'recall', 'site oficial',
-    'institucional', 'relações com investidores',
-    'comunicado de imprensa', 'trabalhe conosco',
-    'sustentabilidade', 'ouvidoria',
-    // English fallback
-    'after sales', 'warranty service', 'recall', 'official website',
-    'corporate', 'press release', 'sustainability',
-    'pay me on', 'send money', 'transfer money',
-    'download the app', 'get the app', 'create account',
-  ],
-  listingPageTitlePatterns: [
-    /^todas?\s*(as\s*)?(ofertas|promoções|promoçoes|descontos|cupons)$/i,
-    /^(ver\s*)?todos?\s*(os\s*)?produtos$/i,
-    /^all\s*(deals|offers|sales|promotions)$/i,
-  ],
-  listingPageUrlPatterns: [
-    /^\/ofertas?$/, /^\/promocoes?$/, /^\/descontos?$/,
-    /^\/deals?$/, /^\/sale$/,
-  ],
-  homepageCampaignCheck: /oferta|promoção|promocao|desconto|liquidação|liquidacao|cupom|cashback|deal|sale|promo|queima/i,
-  productTypeRe: /(?:^|\s|[-/])(shampoo|cream\b|creme\b|serum\b|sérum\b|lotion\b|loção\b|perfume|desodorante|deodorant|cleanser|limpador|mask\b|máscara\b|toner\b|gel\b|batom|lipstick|blush|base\b|foundation|mascara|rímel|eyeliner|powder\b|pó\b|esmalte|nail\s*polish|concealer|corretivo|highlighter|iluminador|hidratante|moisturizer|protetor\s*solar|sunscreen|tintura|hair\s*dye|pasta\s*de\s*dente|toothpaste|sabonete|body\s*wash|creme\s*para\s*mãos|hand\s*cream)/i,
-  categoryOnlyRe: /^(perfume|cosméticos|cosmeticos|maquiagem|makeup|skincare|cuidados|beleza|beauty|acessórios|acessorios|accessories|roupas|clothing|calçados|calcados|shoes|bolsas|bags|relógios|relogios|watches|joias|jewelry|jaquetas?|casacos?|suéteres?|sueteres?|cardigãs?|cardigas?|vestidos?|blusas?|camisas?|calças|calcas|saias?|camisetas?|t-?shirts?|shorts|jeans?|denim|pijamas?|biquíni|biquini|moletons?|cuecas?|calcinhas?|meias|sandálias|sandalias|botas|tênis|tenis)(\s*[&+e]\s*(banho|cuidados|beleza|acessórios|acessorios|roupas))?(\s*[-–—|]\s*.+)?$/i,
-  productListingPatterns: [
-    /^nov(os?|as?)\s*(chegadas?|coleção|colecao|temporada)/i,
-    /^(masculin[oa]|feminin[oa]|infantil)\s*(roupas|calçados|calcados|acessórios|acessorios)/i,
-    /^(compre|ver)\s*(masculin|feminin|infantil|tudo|todos)/i,
-    /^new\s*(arrivals?|season|collection)/i,
-    /^shop\s*(men|women|kids|all)/i,
+  nonJobUrlPatterns: [
+    ...SHARED_NON_JOB_URL_PATTERNS,
+    /\/chi-siamo/i, /\/contatti/i, /\/privacy/i,
   ],
 };
 
-// ─── ID (Indonesia) Market Keywords ──────────────────────────
-// Indonesian market uses Bahasa Indonesia + English.
+// ─── RU Keywords ────────────────────────────────────────────────
 
-const ID_KEYWORDS: MarketKeywords = {
-  strongCampaignKeywords: [
-    'diskon', 'promo', 'promosi', 'penawaran', 'obral', 'voucher', 'kupon',
-    'sale', 'deal', 'deals', 'discount', 'coupon', 'clearance', 'offer', 'campaign',
+const RU_KEYWORDS: JobMarketKeywords = {
+  blueCollarKeywords: [
+    ...SHARED_BLUE_COLLAR_EN,
+    'водитель', 'шофёр', 'курьер', 'экспедитор',
+    'техник', 'механик', 'электрик', 'сантехник', 'сварщик',
+    'слесарь', 'токарь', 'фрезеровщик', 'наладчик',
+    'каменщик', 'маляр', 'штукатур', 'плотник', 'столяр',
+    'повар', 'пекарь', 'кондитер', 'официант', 'бармен',
+    'кассир', 'кладовщик', 'грузчик', 'комплектовщик', 'упаковщик',
+    'оператор', 'рабочий', 'разнорабочий', 'подсобный',
+    'охранник', 'вахтёр', 'контролёр',
+    'уборщик', 'уборщица', 'дворник',
+    'швея', 'закройщик',
+    'монтажник', 'стропальщик', 'крановщик',
   ],
-  strongCampaignKeywordsWordBoundary: [],
-  campaignKeywords: [
-    // Secondary Bahasa Indonesia terms
-    'penawaran khusus', 'flash sale', 'cashback', 'gratis ongkir',
-    'hemat', 'murah', 'potongan harga', 'cicilan', 'cicilan 0%',
-    // Indonesian seasonal/events
-    'harbolnas', 'ramadan sale', 'lebaran', 'idul fitri',
-    'imlek', 'tahun baru',
-    // English secondary terms
-    '% off', 'off', 'special', 'bonus', 'hadiah', 'reward', 'ekstra',
-    // Telekomunikasi
-    'paket data', 'kuota internet', 'unlimited', 'prabayar', 'pascabayar',
-    'isi ulang', 'internet rumah',
-    // Teknologi
-    'uji coba gratis', 'langganan', 'paket premium',
+  jobPostingKeywords: [
+    ...SHARED_JOB_POSTING_EN,
+    'вакансия', 'вакансии', 'ищем', 'требуется', 'набор персонала',
+    'заработная плата', 'зарплата', 'оклад', 'график работы',
+    'полная занятость', 'частичная занятость', 'вахта', 'смена',
   ],
-  campaignKeywordsWordBoundary: [
-    /\bgratis\b/i,
-    /\bfree\b/i,
-    /\d+\s*%/,      // "20%" contextual discount
-    /%\s*\d+/,      // "%20" style
+  whiteCollarKeywords: [
+    ...SHARED_WHITE_COLLAR,
+    'генеральный директор', 'директор', 'заместитель директора',
+    'разработчик', 'программист', 'аналитик данных',
+    'консультант', 'юрист', 'адвокат', 'бухгалтер', 'архитектор',
   ],
   blacklistedTitles: [
-    // Bahasa Indonesia
-    'beranda', 'tentang kami', 'hubungi kami', 'kontak', 'masuk',
-    'daftar', 'buat akun', 'keranjang', 'pembayaran',
-    'kebijakan privasi', 'syarat dan ketentuan', 'faq', 'bantuan',
-    'pusat bantuan', 'karier', 'lowongan', 'peta situs',
-    // English fallback
-    'home', 'homepage', 'about', 'contact', 'login', 'sign in',
-    'cart', 'checkout', 'privacy', 'terms', 'help', 'support',
-    'careers', 'sitemap',
-  ],
-  campaignUrlPatterns: [
-    /\/promo/i, /\/diskon/i, /\/penawaran/i, /\/flash-?sale/i,
-    /\/voucher/i, /\/kupon/i, /\/obral/i,
-    /\/sale\b/i, /\/deals?\b/i, /\/offers?\b/i,
-    /\/cashback/i, /\/hemat/i,
-  ],
-  nonCampaignUrlPatterns: [
-    /\/tentang/i, /\/kontak/i, /\/hubungi/i,
-    /\/kebijakan/i, /\/syarat/i, /\/bantuan/i,
-    /\/faq\b/i, /\/karier/i, /\/lowongan/i,
-    /\/about\b/i, /\/contact\b/i, /\/privacy/i,
-    /\/terms\b/i, /\/help\b/i, /\/careers?\b/i, /\/sitemap/i,
-  ],
-  nonCampaignTitleKeywords: [
-    'layanan pelanggan', 'pusat servis', 'garansi', 'penarikan produk',
-    'situs resmi', 'hubungan investor', 'siaran pers', 'keberlanjutan',
-    'customer service', 'warranty', 'official website', 'corporate',
-    'press release',
-  ],
-  listingPageTitlePatterns: [
-    /^semua\s*(promo|penawaran|diskon|deals?|produk)$/i,
-    /^(all\s*)?(deals|offers|sales|promotions)$/i,
-  ],
-  listingPageUrlPatterns: [
-    /^\/promo$/, /^\/diskon$/, /^\/deals?$/, /^\/sale$/,
-  ],
-  homepageCampaignCheck: /diskon|promo|penawaran|obral|sale|deal|cashback|voucher|hemat|flash/i,
-};
-
-// ─── RU (Russia) Market Keywords ─────────────────────────────
-// Russian market uses Russian language.
-
-const RU_KEYWORDS: MarketKeywords = {
-  strongCampaignKeywords: [
-    'акция', 'акции', 'скидка', 'скидки', 'распродажа', 'купон', 'купоны', 'промокод',
-    'sale', 'deal', 'deals', 'discount', 'promo', 'coupon', 'clearance', 'offer', 'campaign',
-  ],
-  strongCampaignKeywordsWordBoundary: [],
-  campaignKeywords: [
-    // Secondary Russian terms
-    'предложение', 'спецпредложение', 'промокоды', 'бесплатная доставка',
-    'кешбэк', 'кэшбэк', 'бонус', 'бонусы',
-    'выгода', 'экономия', 'подарок', 'рассрочка',
-    'беспроцентная рассрочка',
-    'скидка дня', 'товар дня', 'суперцена', 'хит продаж',
-    // Russian seasonal/events
-    'чёрная пятница', 'черная пятница', 'новый год',
-    '8 марта', '23 февраля', 'киберпонедельник',
-    // Телеком
-    'тариф', 'тарифный план', 'безлимитный', 'мобильный интернет',
-    'подключение', 'сим-карта', 'оптоволокно',
-    // Технологии и ПО
-    'бесплатный пробный', 'подписка', 'лицензия', 'облако',
-    // English secondary terms
-    '% off', 'off',
-  ],
-  campaignKeywordsWordBoundary: [
-    /\bбесплатно\b/i,
-    /\bfree\b/i,
-    /\d+\s*%/,
-    /%\s*\d+/,
-  ],
-  blacklistedTitles: [
-    // Russian
-    'главная', 'о нас', 'о компании', 'контакты', 'связаться',
-    'войти', 'вход', 'регистрация', 'создать аккаунт',
-    'корзина', 'оплата', 'оформление заказа',
+    ...SHARED_BLACKLISTED_TITLES,
+    'главная', 'о компании', 'о нас', 'контакты',
     'политика конфиденциальности', 'пользовательское соглашение',
-    'условия использования', 'вопросы и ответы',
-    'помощь', 'центр помощи', 'служба поддержки',
-    'вакансии', 'карьера', 'карта сайта',
-    // English fallback
-    'home', 'about', 'contact', 'login', 'cart', 'checkout',
-    'privacy', 'terms', 'faq', 'help', 'careers', 'sitemap',
+    'страница не найдена',
   ],
-  campaignUrlPatterns: [
-    /\/aktsii/i, /\/akcii/i, /\/skidki/i, /\/rasprodazha/i,
-    /\/promokod/i, /\/kupon/i,
-    /\/sale\b/i, /\/deals?\b/i, /\/offers?\b/i,
-    /\/promo/i, /\/discount/i, /\/specials?\b/i, /\/bonus/i,
+  jobUrlPatterns: [
+    ...SHARED_JOB_URL_PATTERNS,
+    /\/vakansii/i, /\/kariera/i, /\/rabota/i, /\/trudoustrojstvo/i,
   ],
-  nonCampaignUrlPatterns: [
-    /\/o-nas/i, /\/kontakty/i, /\/pomoshch/i, /\/pomosch/i,
-    /\/vakansii/i, /\/karera/i, /\/usloviya/i, /\/politika/i,
-    /\/about\b/i, /\/contact\b/i, /\/privacy/i,
-    /\/terms\b/i, /\/help\b/i, /\/faq\b/i,
-    /\/careers?\b/i, /\/sitemap/i,
+  nonJobUrlPatterns: [
+    ...SHARED_NON_JOB_URL_PATTERNS,
+    /\/o-kompanii/i, /\/o-nas/i, /\/kontakty/i,
   ],
-  nonCampaignTitleKeywords: [
-    'служба поддержки', 'гарантийное обслуживание', 'гарантия',
-    'отзыв товара', 'официальный сайт', 'пресс-релиз',
-    'устойчивое развитие',
-    'customer service', 'warranty', 'official website', 'corporate',
-    'press release',
-  ],
-  listingPageTitlePatterns: [
-    /^все\s*(акции|скидки|предложения|купоны|промокоды)$/i,
-    /^(all\s*)?(deals|offers|sales)$/i,
-  ],
-  listingPageUrlPatterns: [
-    /^\/aktsii$/, /^\/skidki$/, /^\/rasprodazha$/, /^\/deals?$/, /^\/sale$/,
-  ],
-  homepageCampaignCheck: /акция|скидка|распродажа|промокод|купон|бонус|sale|deal|discount|promo/i,
 };
 
-// ─── MX (Mexico) Market Keywords ─────────────────────────────
-// Mexican market uses Spanish.
+// ─── JP Keywords ────────────────────────────────────────────────
 
-const MX_KEYWORDS: MarketKeywords = {
-  strongCampaignKeywords: [
-    'oferta', 'ofertas', 'promoción', 'promocion', 'descuento', 'descuentos',
-    'cupón', 'cupon', 'liquidación', 'liquidacion',
-    'sale', 'deal', 'deals', 'discount', 'promo', 'coupon', 'clearance', 'offer', 'campaign',
+const JP_KEYWORDS: JobMarketKeywords = {
+  blueCollarKeywords: [
+    ...SHARED_BLUE_COLLAR_EN,
+    'ドライバー', '運転手', '配達員', '配送', 'トラック運転手',
+    '技術者', '整備士', '電気工事', '配管工', '溶接工',
+    '大工', '左官', '鳶', '塗装工',
+    '調理師', 'コック', 'パン職人', 'ウェイター', 'ホールスタッフ',
+    'レジ', '倉庫', 'フォークリフト', 'ピッキング', '仕分け',
+    '製造', '工場', '組立', 'オペレーター', '作業員',
+    '警備員', 'ガードマン', '守衛',
+    '清掃', 'ハウスクリーニング', 'ビルメンテナンス',
+    '縫製', '裁縫',
+    '土木', '建設', '現場作業',
   ],
-  strongCampaignKeywordsWordBoundary: [],
-  campaignKeywords: [
-    // Secondary Spanish terms
-    'promociones', 'cupones', 'envío gratis', 'envio gratis',
-    'rebaja', 'rebajas', 'venta', 'venta especial',
-    'ahorro', 'meses sin intereses', '2x1', '3x2',
-    'cashback', 'bonus', 'precio especial', 'última oportunidad',
-    // Mexican seasonal/events
-    'hot sale', 'buen fin', 'el buen fin', 'black friday',
-    'cyber monday', 'navidad', 'día de reyes', 'dia de reyes',
-    // Telecomunicaciones
-    'plan de celular', 'recarga', 'paquete de datos', 'fibra óptica',
-    'internet ilimitado', 'portabilidad', 'prepago', 'pospago',
-    // Tecnología y Software
-    'prueba gratuita', 'suscripción', 'plan premium', 'licencia',
-    // English secondary terms
-    '% off', 'off',
+  jobPostingKeywords: [
+    ...SHARED_JOB_POSTING_EN,
+    '求人', '募集', '採用', '応募', '正社員', 'パート', 'アルバイト',
+    '給与', '時給', '日給', '月給', '年収',
+    'シフト', '勤務時間', '交通費', '福利厚生',
   ],
-  campaignKeywordsWordBoundary: [
-    /\bgratis\b/i,
-    /\bfree\b/i,
-    /\d+\s*%/,      // "20%" contextual discount
-    /%\s*\d+/,      // "%20" style
+  whiteCollarKeywords: [
+    ...SHARED_WHITE_COLLAR,
+    '社長', '取締役', '部長', '課長', 'ディレクター',
+    'エンジニア', 'プログラマー', 'データサイエンティスト',
+    'コンサルタント', '弁護士', '会計士', '建築家',
   ],
   blacklistedTitles: [
-    // Spanish
-    'inicio', 'acerca de', 'sobre nosotros', 'contacto', 'contáctanos',
-    'iniciar sesión', 'registrarse', 'crear cuenta',
-    'carrito', 'pago', 'política de privacidad', 'aviso de privacidad',
-    'términos y condiciones', 'preguntas frecuentes', 'ayuda',
-    'centro de ayuda', 'empleos', 'bolsa de trabajo', 'mapa del sitio',
-    // English fallback
-    'home', 'about', 'contact', 'login', 'cart', 'checkout',
-    'privacy', 'terms', 'faq', 'help', 'careers', 'sitemap',
+    ...SHARED_BLACKLISTED_TITLES,
+    'トップページ', '会社概要', 'お問い合わせ',
+    'プライバシーポリシー', '利用規約',
+    'ページが見つかりません',
   ],
-  campaignUrlPatterns: [
-    /\/ofertas?\b/i, /\/promocion/i, /\/descuento/i, /\/cupon/i,
-    /\/rebaja/i, /\/liquidacion/i, /\/venta/i,
-    /\/sale\b/i, /\/deals?\b/i, /\/promo/i, /\/discount/i,
-    /\/hot-?sale/i, /\/buen-?fin/i, /\/ahorro/i,
+  jobUrlPatterns: [
+    ...SHARED_JOB_URL_PATTERNS,
+    /\/saiyou/i, /\/boshu/i, /\/kyujin/i, /\/recruit/i,
   ],
-  nonCampaignUrlPatterns: [
-    /\/acerca/i, /\/contacto/i, /\/ayuda\b/i,
-    /\/aviso/i, /\/privacidad/i, /\/terminos/i,
-    /\/empleos/i, /\/bolsa/i,
-    /\/about\b/i, /\/contact\b/i, /\/privacy/i,
-    /\/terms\b/i, /\/help\b/i, /\/faq\b/i,
-    /\/careers?\b/i, /\/sitemap/i,
+  nonJobUrlPatterns: [
+    ...SHARED_NON_JOB_URL_PATTERNS,
+    /\/company/i, /\/gaiyou/i,
   ],
-  nonCampaignTitleKeywords: [
-    'servicio al cliente', 'atención al cliente', 'garantía',
-    'retiro de producto', 'sitio oficial', 'relaciones con inversionistas',
-    'comunicado de prensa', 'sustentabilidad',
-    'customer service', 'warranty', 'official website', 'corporate',
-    'press release',
-  ],
-  listingPageTitlePatterns: [
-    /^todas?\s*las?\s*(ofertas|promociones|descuentos|cupones)$/i,
-    /^(all\s*)?(deals|offers|sales)$/i,
-  ],
-  listingPageUrlPatterns: [
-    /^\/ofertas?$/, /^\/promociones?$/, /^\/descuentos?$/, /^\/deals?$/, /^\/sale$/,
-  ],
-  homepageCampaignCheck: /oferta|promoción|promocion|descuento|cupón|cupon|rebaja|sale|deal|discount|promo|ahorro/i,
 };
 
-// ─── JP (Japan) Market Keywords ──────────────────────────────
-// Japanese market uses Japanese language.
+// ─── ID Keywords ────────────────────────────────────────────────
 
-const JP_KEYWORDS: MarketKeywords = {
-  strongCampaignKeywords: [
-    'セール', 'キャンペーン', '割引', 'クーポン', '送料無料',
-    'sale', 'deal', 'deals', 'discount', 'promo', 'coupon', 'clearance', 'offer', 'campaign',
+const ID_KEYWORDS: JobMarketKeywords = {
+  blueCollarKeywords: [
+    ...SHARED_BLUE_COLLAR_EN,
+    'sopir', 'pengemudi', 'kurir', 'pengantar',
+    'teknisi', 'mekanik', 'tukang listrik', 'tukang las',
+    'tukang batu', 'tukang cat', 'tukang kayu',
+    'koki', 'juru masak', 'pelayan', 'barista',
+    'kasir', 'gudang', 'forklift', 'picker',
+    'operator', 'buruh', 'pekerja pabrik', 'karyawan produksi',
+    'satpam', 'security', 'penjaga',
+    'cleaning service', 'office boy', 'ob',
+    'penjahit', 'tukang jahit',
+    'kuli', 'pembantu', 'asisten',
   ],
-  strongCampaignKeywordsWordBoundary: [],
-  campaignKeywords: [
-    // Secondary Japanese terms
-    'お買い得', '特価', '特別価格', '限定', '期間限定',
-    'ポイント', 'ポイントアップ', 'タイムセール', '値下げ',
-    '半額', '初売り', '福袋',
-    // Japanese seasonal/events
-    'ゴールデンウィーク', 'お中元', 'お歳暮',
-    'ブラックフライデー', 'サイバーマンデー',
-    'アウトレット', '在庫処分', 'バーゲン', 'まとめ買い',
-    // 通信
-    '料金プラン', 'データ通信', '乗り換え', '格安sim', 'プラン変更',
-    '光回線', 'ブロードバンド',
-    // テクノロジー
-    '無料体験', 'サブスクリプション', 'プレミアムプラン', 'ライセンス',
-    // English secondary terms
-    '% off', 'off', 'flash sale', 'SALE', 'OFF',
+  jobPostingKeywords: [
+    ...SHARED_JOB_POSTING_EN,
+    'lowongan', 'lowongan kerja', 'dibutuhkan', 'dicari',
+    'lamaran', 'melamar', 'gaji', 'upah', 'tunjangan',
+    'shift', 'full time', 'part time', 'kontrak',
   ],
-  campaignKeywordsWordBoundary: [
-    /\b無料\b/,
-    /\bfree\b/i,
-    /\d+\s*%/,      // "20%" contextual discount
-    /%\s*\d+/,      // "%20" style
+  whiteCollarKeywords: [
+    ...SHARED_WHITE_COLLAR,
+    'direktur utama', 'direktur', 'manajer umum',
+    'developer', 'programmer', 'analis data',
+    'konsultan', 'pengacara', 'akuntan', 'arsitek',
   ],
   blacklistedTitles: [
-    // Japanese
-    'ホーム', 'トップページ', '会社概要', '会社情報',
-    'お問い合わせ', 'ログイン', '新規登録', 'アカウント作成',
-    'カート', 'お支払い', 'プライバシーポリシー', '利用規約',
-    'よくある質問', 'ヘルプ', 'サポート', '採用情報', '求人',
-    'サイトマップ',
-    // English fallback
-    'home', 'about', 'contact', 'login', 'cart', 'checkout',
-    'privacy', 'terms', 'faq', 'help', 'careers', 'sitemap',
+    ...SHARED_BLACKLISTED_TITLES,
+    'beranda', 'tentang kami', 'hubungi kami', 'kontak',
+    'kebijakan privasi', 'syarat dan ketentuan',
+    'halaman tidak ditemukan',
   ],
-  campaignUrlPatterns: [
-    /\/sale\b/i, /\/campaign/i, /\/coupon/i, /\/deal/i,
-    /\/tokka/i, /\/outlet/i, /\/bargain/i,
-    /\/offers?\b/i, /\/promo/i, /\/discount/i,
-    /\/specials?\b/i, /\/clearance/i, /\/timesale/i,
+  jobUrlPatterns: [
+    ...SHARED_JOB_URL_PATTERNS,
+    /\/karir/i, /\/lowongan/i, /\/rekrutmen/i, /\/bergabung/i,
   ],
-  nonCampaignUrlPatterns: [
-    /\/company/i, /\/about\b/i, /\/contact\b/i, /\/inquiry/i,
-    /\/privacy/i, /\/terms\b/i, /\/legal\b/i,
-    /\/help\b/i, /\/faq\b/i, /\/support\b/i,
-    /\/careers?\b/i, /\/recruit/i, /\/sitemap/i,
+  nonJobUrlPatterns: [
+    ...SHARED_NON_JOB_URL_PATTERNS,
+    /\/tentang/i, /\/hubungi/i, /\/privasi/i,
   ],
-  nonCampaignTitleKeywords: [
-    'カスタマーサービス', 'アフターサービス', '保証', 'リコール',
-    '公式サイト', 'IR情報', 'プレスリリース', 'サステナビリティ',
-    'customer service', 'warranty', 'official website', 'corporate',
-    'press release',
-  ],
-  listingPageTitlePatterns: [
-    /^(すべての|全)(セール|キャンペーン|クーポン|割引)$/i,
-    /^(all\s*)?(deals|offers|sales)$/i,
-  ],
-  listingPageUrlPatterns: [
-    /^\/sale$/, /^\/campaign$/, /^\/deals?$/, /^\/outlet$/,
-  ],
-  homepageCampaignCheck: /セール|キャンペーン|割引|クーポン|特価|お買い得|限定|sale|deal|discount|promo|OFF|off/i,
 };
 
-// ─── PH (Philippines) Market Keywords ────────────────────────
-// Philippine market uses English + Tagalog. Based on US keywords with local additions.
+// ─── TH Keywords ────────────────────────────────────────────────
 
-const PH_KEYWORDS: MarketKeywords = {
-  ...US_KEYWORDS,
-  strongCampaignKeywords: [
-    ...US_KEYWORDS.strongCampaignKeywords,
-    'voucher', 'diskwento',
+const TH_KEYWORDS: JobMarketKeywords = {
+  blueCollarKeywords: [
+    ...SHARED_BLUE_COLLAR_EN,
+    'คนขับ', 'คนส่งของ', 'ไรเดอร์',
+    'ช่าง', 'ช่างเทคนิค', 'ช่างไฟฟ้า', 'ช่างประปา', 'ช่างเชื่อม',
+    'ช่างก่อสร้าง', 'ช่างทาสี', 'ช่างไม้',
+    'พ่อครัว', 'แม่ครัว', 'พนักงานเสิร์ฟ', 'บาริสต้า',
+    'แคชเชียร์', 'พนักงานคลังสินค้า', 'โฟล์คลิฟท์',
+    'พนักงานผลิต', 'โอเปอเรเตอร์', 'คนงาน',
+    'รปภ', 'เจ้าหน้าที่รักษาความปลอดภัย',
+    'แม่บ้าน', 'พนักงานทำความสะอาด',
   ],
-  campaignKeywords: [
-    ...US_KEYWORDS.campaignKeywords,
-    'GCash', 'PayMaya', 'libreng pagpapadala',
-    'benta', 'promo',
-    '9.9', '10.10', '11.11', '12.12',
-    'payday sale', 'mega sale', 'mid-year sale',
-    'anniversary sale', 'Pasko',
+  jobPostingKeywords: [
+    ...SHARED_JOB_POSTING_EN,
+    'รับสมัคร', 'สมัครงาน', 'ตำแหน่งว่าง', 'เปิดรับสมัคร',
+    'เงินเดือน', 'ค่าจ้าง', 'สวัสดิการ', 'กะ', 'เวร',
+  ],
+  whiteCollarKeywords: [
+    ...SHARED_WHITE_COLLAR,
+    'กรรมการผู้จัดการ', 'ผู้อำนวยการ',
+    'นักพัฒนา', 'โปรแกรมเมอร์', 'นักวิเคราะห์',
+    'ที่ปรึกษา', 'ทนายความ', 'สถาปนิก',
   ],
   blacklistedTitles: [
-    ...US_KEYWORDS.blacklistedTitles,
-    'tahanan', 'tungkol sa amin', 'makipag-ugnayan',
+    ...SHARED_BLACKLISTED_TITLES,
+    'หน้าแรก', 'เกี่ยวกับเรา', 'ติดต่อเรา',
+    'นโยบายความเป็นส่วนตัว', 'ข้อกำหนด',
+    'ไม่พบหน้า',
   ],
-  campaignUrlPatterns: [
-    ...US_KEYWORDS.campaignUrlPatterns,
-    /\/voucher/i,
+  jobUrlPatterns: [
+    ...SHARED_JOB_URL_PATTERNS,
+    /\/career/i, /\/jobs?-th/i, /\/สมัครงาน/i,
   ],
-  homepageCampaignCheck: /deal|sale|offer|discount|promo|coupon|special|clearance|save|voucher|payday|mega/i,
+  nonJobUrlPatterns: SHARED_NON_JOB_URL_PATTERNS,
 };
 
-// ─── TH (Thailand) Market Keywords ───────────────────────────
-// Thai market uses Thai language.
+// ─── KR Keywords ────────────────────────────────────────────────
 
-const TH_KEYWORDS: MarketKeywords = {
-  strongCampaignKeywords: [
-    'ลดราคา', 'โปรโมชั่น', 'โปรโมชัน', 'ส่วนลด', 'คูปอง', 'ดีล',
-    'sale', 'deal', 'deals', 'discount', 'promo', 'coupon', 'clearance', 'offer', 'campaign',
+const KR_KEYWORDS: JobMarketKeywords = {
+  blueCollarKeywords: [
+    ...SHARED_BLUE_COLLAR_EN,
+    '운전기사', '배달원', '택배기사', '라이더',
+    '기술자', '정비사', '전기기사', '배관공', '용접공',
+    '목수', '미장이', '도장공', '타일공',
+    '요리사', '주방장', '조리사', '서빙', '바리스타',
+    '캐셔', '창고관리', '지게차', '물류',
+    '생산직', '공장', '제조', '조립', '오퍼레이터',
+    '경비원', '보안요원',
+    '청소', '미화원', '관리원',
+    '재봉사', '봉제',
+    '현장', '노무', '인부',
   ],
-  strongCampaignKeywordsWordBoundary: [],
-  campaignKeywords: [
-    // Secondary Thai terms
-    'ส่งฟรี', 'จัดส่งฟรี', 'ราคาพิเศษ', 'Flash Sale',
-    'ของแถม', 'เงินคืน', 'แคชแบ็ค', 'คืนเงิน', 'สิทธิพิเศษ',
-    'ช้อปดีมีคืน', 'ลดสูงสุด', 'ลดกระหน่ำ', 'โปรดี',
-    // Thai seasonal/events
-    'สงกรานต์', 'ลอยกระทง', 'ปีใหม่',
-    '11.11', '12.12', '9.9', '10.10', 'Black Friday',
-    // โทรคมนาคม
-    'แพ็กเกจ', 'โปรเน็ต', 'เน็ตไม่อั้น', 'ซิมการ์ด',
-    'ย้ายค่าย', 'ไฟเบอร์', 'เติมเงิน',
-    // เทคโนโลยี
-    'ทดลองใช้ฟรี', 'สมัครสมาชิก', 'แพลนพรีเมียม',
-    // English secondary terms
-    '% off', 'off', 'cashback', 'voucher',
-    'free shipping',
+  jobPostingKeywords: [
+    ...SHARED_JOB_POSTING_EN,
+    '채용', '구인', '모집', '구직', '일자리', '지원',
+    '급여', '월급', '시급', '일당', '연봉',
+    '교대', '주간', '야간', '복리후생',
   ],
-  campaignKeywordsWordBoundary: [
-    /\bฟรี\b/,
-    /\bfree\b/i,
-    /\d+\s*%/,      // "20%" contextual discount
-    /%\s*\d+/,      // "%20" style
+  whiteCollarKeywords: [
+    ...SHARED_WHITE_COLLAR,
+    '대표이사', '이사', '부장', '차장',
+    '개발자', '프로그래머', '데이터분석가',
+    '컨설턴트', '변호사', '회계사', '건축가',
   ],
   blacklistedTitles: [
-    // Thai
-    'หน้าแรก', 'เกี่ยวกับเรา', 'ติดต่อเรา', 'เข้าสู่ระบบ',
-    'สมัครสมาชิก', 'ตะกร้าสินค้า', 'ชำระเงิน',
-    'นโยบายความเป็นส่วนตัว', 'ข้อกำหนดการใช้งาน',
-    'คำถามที่พบบ่อย', 'ช่วยเหลือ', 'ศูนย์ช่วยเหลือ',
-    'ร่วมงานกับเรา', 'แผนผังเว็บไซต์',
-    // English fallback
-    'home', 'about', 'contact', 'login', 'cart', 'checkout',
-    'privacy', 'terms', 'faq', 'help', 'careers', 'sitemap',
+    ...SHARED_BLACKLISTED_TITLES,
+    '홈', '회사소개', '문의', '연락처',
+    '개인정보처리방침', '이용약관',
+    '페이지를 찾을 수 없습니다',
   ],
-  campaignUrlPatterns: [
-    /\/promotion/i, /\/sale\b/i, /\/deal/i, /\/coupon/i,
-    /\/voucher/i, /\/discount/i, /\/offers?\b/i,
-    /\/promo/i, /\/specials?\b/i, /\/clearance/i, /\/flash-?sale/i,
+  jobUrlPatterns: [
+    ...SHARED_JOB_URL_PATTERNS,
+    /\/chaeyang/i, /\/recruit/i, /\/채용/i,
   ],
-  nonCampaignUrlPatterns: [
-    /\/about\b/i, /\/contact\b/i, /\/privacy/i,
-    /\/terms\b/i, /\/help\b/i, /\/faq\b/i,
-    /\/support\b/i, /\/careers?\b/i, /\/sitemap/i,
-  ],
-  nonCampaignTitleKeywords: [
-    'บริการลูกค้า', 'ศูนย์บริการ', 'การรับประกัน', 'เรียกคืนสินค้า',
-    'เว็บไซต์ทางการ', 'ข่าวประชาสัมพันธ์', 'ความยั่งยืน',
-    'customer service', 'warranty', 'official website', 'corporate',
-    'press release',
-  ],
-  listingPageTitlePatterns: [
-    /^(ทั้งหมด|รวม)(โปรโมชั่น|ส่วนลด|ดีล|คูปอง)$/,
-    /^(all\s*)?(deals|offers|sales)$/i,
-  ],
-  listingPageUrlPatterns: [
-    /^\/promotion$/, /^\/sale$/, /^\/deals?$/, /^\/discount$/,
-  ],
-  homepageCampaignCheck: /ลดราคา|โปรโมชั่น|ส่วนลด|คูปอง|ดีล|ราคาพิเศษ|sale|deal|discount|promo|voucher|cashback/i,
+  nonJobUrlPatterns: SHARED_NON_JOB_URL_PATTERNS,
 };
 
-// ─── CA (Canada) Market Keywords ─────────────────────────────
-// Canadian market uses English + French. Based on US keywords with French additions.
+// ─── AR/EG/SA/AE Keywords (Arabic) ─────────────────────────────
 
-const CA_KEYWORDS: MarketKeywords = {
-  ...US_KEYWORDS,
-  strongCampaignKeywords: [
-    ...US_KEYWORDS.strongCampaignKeywords,
-    'rabais', 'réduction', 'solde',  // French strong terms
+const AR_KEYWORDS: JobMarketKeywords = {
+  blueCollarKeywords: [
+    ...SHARED_BLUE_COLLAR_EN,
+    'سائق', 'مندوب توصيل', 'ساعي',
+    'فني', 'ميكانيكي', 'كهربائي', 'سباك', 'لحام',
+    'بناء', 'نقاش', 'نجار', 'حداد',
+    'طباخ', 'خباز', 'نادل', 'باريستا',
+    'كاشير', 'أمين مخزن', 'فورك لفت', 'عامل مستودع',
+    'عامل إنتاج', 'مشغل آلات', 'عامل مصنع',
+    'حارس أمن', 'أمن', 'بواب',
+    'عامل نظافة', 'منظف',
+    'خياط', 'عامل نسيج',
+    'عامل', 'مساعد',
   ],
-  campaignKeywords: [
-    ...US_KEYWORDS.campaignKeywords,
-    // French secondary terms
-    'aubaine', 'offre spéciale', 'livraison gratuite', 'vente éclair',
+  jobPostingKeywords: [
+    ...SHARED_JOB_POSTING_EN,
+    'وظيفة', 'وظائف', 'فرصة عمل', 'مطلوب', 'توظيف',
+    'تقديم', 'راتب', 'مرتب', 'دوام', 'نوبات',
   ],
-  campaignKeywordsWordBoundary: [
-    ...US_KEYWORDS.campaignKeywordsWordBoundary,
-    /\bBoxing Day\b/i, /\bCanada Day\b/i, /\bCyber Monday\b/i, /\bVictoria Day\b/i,
-  ],
-};
-
-// ─── AU (Australia) Market Keywords ──────────────────────────
-// Australian market uses English. Based on US keywords with AU-specific additions.
-
-const AU_KEYWORDS: MarketKeywords = {
-  ...US_KEYWORDS,
-  campaignKeywords: [
-    ...US_KEYWORDS.campaignKeywords,
-    // Australia-specific terms
-    'Click Frenzy', 'Afterpay', 'EOFY', 'end of financial year',
-  ],
-  campaignKeywordsWordBoundary: [
-    ...US_KEYWORDS.campaignKeywordsWordBoundary,
-    /\bBoxing Day\b/i, /\bEOFY Sale\b/i, /\bClick Frenzy\b/i, /\bAfterpay Day\b/i,
-  ],
-};
-
-// ─── FR (France) Market Keywords ─────────────────────────────
-// French market uses French language.
-
-const FR_KEYWORDS: MarketKeywords = {
-  strongCampaignKeywords: [
-    'soldes', 'promotion', 'réduction', 'rabais', 'offre', 'promo', 'remise',
-    'sale', 'deal', 'discount', 'coupon', 'clearance', 'offer', 'campaign',
-  ],
-  strongCampaignKeywordsWordBoundary: [],
-  campaignKeywords: [
-    // Secondary French terms
-    'bon plan', 'code promo', 'livraison gratuite', 'cashback',
-    'vente flash', 'déstockage', 'prix cassé', 'braderie',
-    'destockage', 'affaire', 'bons plans', 'réductions',
-    'offre spéciale', 'offre exclusive', 'code de réduction',
-    'bon de réduction', 'vente privée', 'outlet',
-    // English secondary terms
-    'free shipping',
-    // Télécom
-    'forfait mobile', 'offre box', 'fibre optique', 'forfait internet',
-    'renouvellement', 'carte sim', 'data illimité',
-    // Technologie & Logiciels
-    'essai gratuit', 'abonnement', 'plan premium', 'licence',
-  ],
-  campaignKeywordsWordBoundary: [
-    /\bsoldes d'hiver\b/i, /\bsoldes d'été\b/i,
-    /\bfrench days\b/i, /\bblack friday\b/i, /\bcyber monday\b/i,
-    /\bnoël\b/i, /\bjours flash\b/i,
-    /\bfree\b/i,
-    /\d+\s*%/,      // "20%" contextual discount
-    /%\s*\d+/,      // "%20" style
+  whiteCollarKeywords: [
+    ...SHARED_WHITE_COLLAR,
+    'مدير عام', 'مدير تنفيذي', 'نائب رئيس',
+    'مطور برمجيات', 'مبرمج', 'محلل بيانات',
+    'مستشار', 'محامي', 'محاسب', 'مهندس معماري',
   ],
   blacklistedTitles: [
-    // French
-    'politique de confidentialité', 'conditions générales', 'mentions légales',
-    'à propos', 'contactez-nous', 'cookies', 'error 404', 'page introuvable',
-    'access denied',
-    // French navigation/info pages
-    'accueil', 'mon compte', 'panier', 'connexion', 'inscription',
-    'créer un compte', 'paiement', 'aide', 'centre d\'aide',
-    'faq', 'questions fréquentes', 'plan du site',
-    'retours', 'politique de retour', 'livraison', 'suivi de commande',
-    'carrières', 'recrutement', 'presse', 'investisseurs',
-    // English fallback
-    'home', 'about', 'contact', 'login', 'cart', 'checkout',
-    'privacy', 'terms', 'help', 'support', 'careers', 'sitemap',
+    ...SHARED_BLACKLISTED_TITLES,
+    'الرئيسية', 'من نحن', 'اتصل بنا', 'تواصل معنا',
+    'سياسة الخصوصية', 'الشروط والأحكام',
+    'الصفحة غير موجودة',
   ],
-  campaignUrlPatterns: [
-    /\/soldes\b/i, /\/promotion/i, /\/promo/i, /\/offres?\b/i,
-    /\/remise/i, /\/destockage/i, /\/vente-?flash/i,
-    /\/bon-?plan/i, /\/bons-?plans/i, /\/code-?promo/i,
-    /\/vente-?privee/i, /\/braderie/i, /\/outlet/i,
-    // English paths
-    /\/deals?\b/i, /\/sale\b/i, /\/discount/i, /\/specials?\b/i,
-    /\/clearance/i, /\/coupons?\b/i, /\/savings?\b/i,
+  jobUrlPatterns: [
+    ...SHARED_JOB_URL_PATTERNS,
+    /\/wazaif/i, /\/tawzif/i, /\/careers-ar/i,
   ],
-  nonCampaignUrlPatterns: [
-    /\/a-propos/i, /\/contact\b/i, /\/aide\b/i,
-    /\/mentions-legales/i, /\/confidentialite/i, /\/cgv\b/i,
-    /\/cgu\b/i, /\/faq\b/i, /\/recrutement/i, /\/carrieres/i,
-    /\/presse\b/i, /\/plan-du-site/i,
-    // English fallback
-    /\/about\b/i, /\/privacy/i, /\/terms\b/i, /\/legal\b/i,
-    /\/help\b/i, /\/support\b/i, /\/careers?\b/i, /\/sitemap/i,
-  ],
-  nonCampaignTitleKeywords: [
-    'service client', 'service après-vente', 'garantie',
-    'rappel de produit', 'site officiel', 'relations investisseurs',
-    'communiqué de presse', 'développement durable',
-    // English fallback
-    'after sales', 'warranty service', 'recall', 'official website',
-    'corporate', 'press release', 'sustainability',
-  ],
-  listingPageTitlePatterns: [
-    /^(toutes?\s*les?\s*)?(soldes|promotions|offres|réductions|bons?\s*plans?)$/i,
-    /^(tous?\s*les?\s*)?produits$/i,
-    /^(all\s*)?(deals|offers|sales|promotions)$/i,
-  ],
-  listingPageUrlPatterns: [
-    /^\/soldes?$/, /^\/promotions?$/, /^\/offres?$/,
-    /^\/bons?-?plans?$/, /^\/deals?$/, /^\/sale$/,
-  ],
-  homepageCampaignCheck: /soldes|promotion|réduction|rabais|offre|remise|promo|destockage|vente\s*flash|bon\s*plan|deal|sale|discount/i,
-  productTypeRe: /(?:^|\s|[-/])(shampooing|crème\b|creme\b|sérum\b|serum\b|lotion\b|parfum|déodorant|deodorant|nettoyant|masque\b|tonique\b|gel\b|rouge\s*à\s*lèvres|blush|fond\s*de\s*teint|mascara|eyeliner|poudre\b|vernis|correcteur|enlumineur|hydratant|crème\s*solaire|coloration|dentifrice|gel\s*douche|crème\s*mains)/i,
-  categoryOnlyRe: /^(parfum|cosmétiques|cosmetiques|maquillage|soin|soins|beauté|beaute|accessoires|vêtements|vetements|chaussures|sacs|montres|bijoux|vestes?|manteaux?|pulls?|gilets?|robes?|chemises?|chemisiers?|pantalons?|jupes?|t-?shirts?|shorts|jeans?|denim|pyjamas?|maillots?\s*de\s*bain|bikini|sweat-?shirts?|sous-?vêtements?|chaussettes|sandales|bottes|baskets)(\s*[&+et]\s*(bain|soin|beauté|beaute|accessoires|vêtements|vetements))?(\s*[-–—|]\s*.+)?$/i,
-  productListingPatterns: [
-    /^nouvelles?\s*(arrivées?|collection|saison)/i,
-    /^(homme|femme|enfant)s?\s*(vêtements|vetements|chaussures|accessoires)/i,
-    /^(shop|boutique)\s*(homme|femme|enfant|tout)/i,
-    /^new\s*(arrivals?|season|collection)/i,
-  ],
+  nonJobUrlPatterns: SHARED_NON_JOB_URL_PATTERNS,
 };
 
-// ─── IT (Italy) Market Keywords ──────────────────────────────
-// Italian market uses Italian language.
+// ─── VN Keywords ────────────────────────────────────────────────
 
-const IT_KEYWORDS: MarketKeywords = {
-  strongCampaignKeywords: [
-    'offerta', 'offerte', 'promozione', 'sconto', 'sconti', 'saldi', 'coupon', 'promo',
-    'sale', 'deal', 'discount', 'clearance', 'offer', 'campaign',
+const VN_KEYWORDS: JobMarketKeywords = {
+  blueCollarKeywords: [
+    ...SHARED_BLUE_COLLAR_EN,
+    'tài xế', 'lái xe', 'shipper', 'giao hàng',
+    'kỹ thuật viên', 'thợ máy', 'thợ điện', 'thợ hàn', 'thợ ống nước',
+    'thợ xây', 'thợ sơn', 'thợ mộc',
+    'đầu bếp', 'phụ bếp', 'phục vụ', 'pha chế',
+    'thu ngân', 'kho', 'bốc xếp',
+    'công nhân', 'thợ may', 'lao động',
+    'bảo vệ', 'vệ sĩ',
+    'tạp vụ', 'lao công', 'vệ sinh',
   ],
-  strongCampaignKeywordsWordBoundary: [],
-  campaignKeywords: [
-    // Secondary Italian terms
-    'svendita', 'codice sconto', 'spedizione gratuita', 'cashback',
-    'affare', 'occasione', 'sottocosto', 'fuori tutto', 'outlet',
-    'promozioni', 'risparmia', 'gratis', 'omaggio', 'buono sconto', 'volantino',
-    // Telecomunicazioni
-    'piano tariffario', 'offerta mobile', 'fibra ottica', 'sim card',
-    'internet illimitato', 'ricarica', 'portabilità',
-    // Tecnologia e Software
-    'prova gratuita', 'abbonamento', 'piano premium', 'licenza',
-    // English secondary terms
-    'free shipping',
+  jobPostingKeywords: [
+    ...SHARED_JOB_POSTING_EN,
+    'tuyển dụng', 'việc làm', 'cần tuyển', 'tuyển gấp',
+    'ứng tuyển', 'lương', 'mức lương', 'phúc lợi', 'ca làm',
   ],
-  campaignKeywordsWordBoundary: [
-    /\bsaldi invernali\b/i, /\bsaldi estivi\b/i,
-    /\bblack friday\b/i, /\bcyber monday\b/i,
-    /\bnatale\b/i, /\bpasqua\b/i, /\bsan valentino\b/i,
-    /\bfree\b/i,
-    /\d+\s*%/,      // "20%" contextual discount
-    /%\s*\d+/,      // "%20" style
+  whiteCollarKeywords: [
+    ...SHARED_WHITE_COLLAR,
+    'giám đốc', 'tổng giám đốc', 'phó giám đốc',
+    'lập trình viên', 'chuyên viên phân tích',
+    'tư vấn viên', 'luật sư', 'kế toán', 'kiến trúc sư',
   ],
   blacklistedTitles: [
-    // Italian
-    'informativa sulla privacy', 'termini e condizioni', 'chi siamo',
-    'contattaci', 'cookie policy', 'error 404', 'pagina non trovata',
-    'access denied',
-    // Italian navigation/info pages
-    'home', 'il mio account', 'carrello', 'accedi', 'registrati',
-    'crea account', 'pagamento', 'aiuto', 'centro assistenza',
-    'faq', 'domande frequenti', 'mappa del sito',
-    'resi', 'politica di reso', 'spedizione', 'traccia ordine',
-    'lavora con noi', 'stampa', 'investitori',
-    // English fallback
-    'homepage', 'about', 'contact', 'login', 'cart', 'checkout',
-    'privacy', 'terms', 'help', 'support', 'careers', 'sitemap',
+    ...SHARED_BLACKLISTED_TITLES,
+    'trang chủ', 'giới thiệu', 'liên hệ',
+    'chính sách bảo mật', 'điều khoản',
+    'không tìm thấy trang',
   ],
-  campaignUrlPatterns: [
-    /\/offert[ae]\b/i, /\/promozioni?\b/i, /\/sconti?\b/i,
-    /\/saldi\b/i, /\/svendita/i, /\/outlet/i,
-    /\/codice-?sconto/i, /\/sottocosto/i, /\/fuori-?tutto/i,
-    /\/volantino/i, /\/occasioni?\b/i,
-    // English paths
-    /\/deals?\b/i, /\/sale\b/i, /\/promo/i, /\/discount/i,
-    /\/specials?\b/i, /\/clearance/i, /\/coupons?\b/i, /\/savings?\b/i,
+  jobUrlPatterns: [
+    ...SHARED_JOB_URL_PATTERNS,
+    /\/tuyen-dung/i, /\/viec-lam/i, /\/ung-tuyen/i,
   ],
-  nonCampaignUrlPatterns: [
-    /\/chi-siamo/i, /\/contatti?\b/i, /\/aiuto\b/i,
-    /\/informativa/i, /\/privacy/i, /\/termini/i,
-    /\/condizioni/i, /\/faq\b/i, /\/lavora-con-noi/i,
-    /\/stampa\b/i, /\/mappa-del-sito/i,
-    // English fallback
-    /\/about\b/i, /\/contact\b/i, /\/terms\b/i, /\/legal\b/i,
-    /\/help\b/i, /\/support\b/i, /\/careers?\b/i, /\/sitemap/i,
-  ],
-  nonCampaignTitleKeywords: [
-    'servizio clienti', 'assistenza clienti', 'garanzia',
-    'richiamo prodotto', 'sito ufficiale', 'relazioni con investitori',
-    'comunicato stampa', 'sostenibilità',
-    // English fallback
-    'after sales', 'warranty service', 'recall', 'official website',
-    'corporate', 'press release', 'sustainability',
-  ],
-  listingPageTitlePatterns: [
-    /^(tutt[ei]\s*l[ea]\s*)?(offerte|promozioni|sconti|saldi|occasioni)$/i,
-    /^(tutti?\s*i?\s*)?prodotti$/i,
-    /^(all\s*)?(deals|offers|sales|promotions)$/i,
-  ],
-  listingPageUrlPatterns: [
-    /^\/offerte?$/, /^\/promozioni?$/, /^\/sconti?$/,
-    /^\/saldi$/, /^\/deals?$/, /^\/sale$/,
-  ],
-  homepageCampaignCheck: /offerta|promozione|sconto|saldi|svendita|promo|outlet|sottocosto|fuori\s*tutto|deal|sale|discount/i,
-  productTypeRe: /(?:^|\s|[-/])(shampoo|crema\b|siero\b|lozione\b|profumo|deodorante|detergente|maschera\b|tonico\b|gel\b|rossetto|fard|fondotinta|mascara|eyeliner|cipria\b|smalto|correttore|illuminante|idratante|crema\s*solare|tinta|dentifricio|bagnoschiuma|crema\s*mani)/i,
-  categoryOnlyRe: /^(profumo|cosmetici|trucco|makeup|skincare|cura|bellezza|beauty|accessori|abbigliamento|scarpe|borse|orologi|gioielli|giacche?|cappotti?|maglion[ie]|cardigan|vestit[io]|camici[ae]|pantalon[ie]|gonn[ae]|t-?shirt|shorts|jeans?|denim|pigiami?|costum[ie]\s*da\s*bagno|bikini|felp[ae]|intimo|biancheria|calzini|sandali|stivali|sneakers?)(\s*[&+e]\s*(bagno|cura|bellezza|accessori|abbigliamento))?(\s*[-–—|]\s*.+)?$/i,
-  productListingPatterns: [
-    /^nuov[ieao]\s*(arrivi|collezione|stagione)/i,
-    /^(uomo|donna|bambin[oi])\s*(abbigliamento|scarpe|accessori)/i,
-    /^(shop|negozio)\s*(uomo|donna|bambin[oi]|tutto|tutti)/i,
-    /^new\s*(arrivals?|season|collection)/i,
-  ],
+  nonJobUrlPatterns: SHARED_NON_JOB_URL_PATTERNS,
 };
 
-// ─── ES Market Keywords (Spain - Spanish) ────────────────────
+// ─── PL Keywords ────────────────────────────────────────────────
 
-const ES_KEYWORDS: MarketKeywords = {
-  strongCampaignKeywords: [
-    'oferta', 'ofertas', 'promoción', 'promocion', 'descuento', 'descuentos',
-    'cupón', 'cupon', 'rebajas', 'rebaja', 'liquidación', 'liquidacion',
-    'sale', 'deal', 'deals', 'discount', 'promo', 'coupon', 'clearance', 'offer', 'campaign',
+const PL_KEYWORDS: JobMarketKeywords = {
+  blueCollarKeywords: [
+    ...SHARED_BLUE_COLLAR_EN,
+    'kierowca', 'kurier', 'dostawca',
+    'technik', 'mechanik', 'elektryk', 'hydraulik', 'spawacz',
+    'murarz', 'malarz', 'stolarz', 'cieśla', 'dekarz',
+    'kucharz', 'piekarz', 'kelner', 'barman',
+    'kasjer', 'magazynier', 'operator wózka',
+    'operator', 'pracownik produkcji', 'robotnik',
+    'ochroniarz', 'portier',
+    'sprzątaczka', 'sprzątacz',
+    'krawiec', 'szwaczka',
+    'pomocnik', 'pracownik fizyczny',
   ],
-  strongCampaignKeywordsWordBoundary: [],
-  campaignKeywords: [
-    'promociones', 'cupones', 'envío gratis', 'envio gratis',
-    'cashback', 'precio especial', 'precio reducido', 'saldo', 'saldos',
-    'cheque regalo', 'código descuento', 'codigo descuento',
-    'ahorro', 'sin intereses', '2x1', '3x2',
-    'rebajas de verano', 'rebajas de invierno', 'rebajas enero',
-    'black friday', 'cyber monday', 'día sin iva', 'dia sin iva',
-    'navidad', 'día de reyes', 'dia de reyes', 'semana santa',
-    '% off', 'off', 'special', 'bonus',
+  jobPostingKeywords: [
+    ...SHARED_JOB_POSTING_EN,
+    'oferta pracy', 'praca', 'zatrudnimy', 'poszukujemy',
+    'aplikuj', 'wynagrodzenie', 'pensja', 'zmiana', 'etat',
   ],
-  campaignKeywordsWordBoundary: [
-    /\bgratis\b/i, /\bfree\b/i,
-    /\d+\s*%/, /%\s*\d+/,
+  whiteCollarKeywords: [
+    ...SHARED_WHITE_COLLAR,
+    'dyrektor generalny', 'dyrektor zarządzający', 'prezes',
+    'programista', 'analityk danych',
+    'konsultant', 'prawnik', 'księgowy', 'architekt',
   ],
   blacklistedTitles: [
-    'inicio', 'página de inicio', 'sobre nosotros', 'quiénes somos', 'contacto',
-    'iniciar sesión', 'registrarse', 'crear cuenta', 'mi cuenta',
-    'carrito', 'cesta', 'proceso de pago', 'pago',
-    'política de privacidad', 'aviso legal', 'términos y condiciones',
-    'preguntas frecuentes', 'ayuda', 'centro de ayuda', 'atención al cliente',
-    'devoluciones', 'seguimiento de pedido',
-    'trabaja con nosotros', 'empleo', 'mapa del sitio',
-    'home', 'about', 'contact', 'login', 'cart', 'checkout',
-    'privacy', 'terms', 'faq', 'help', 'careers', 'sitemap',
+    ...SHARED_BLACKLISTED_TITLES,
+    'strona główna', 'o nas', 'kontakt',
+    'polityka prywatności', 'regulamin',
+    'nie znaleziono strony',
   ],
-  campaignUrlPatterns: [
-    /\/ofertas?\b/i, /\/promocion/i, /\/descuento/i,
-    /\/rebaja/i, /\/rebajas/i, /\/liquidaci[oó]n/i, /\/saldo/i, /\/saldos/i,
-    /\/cup[oó]n/i, /\/outlet/i, /\/venta\b/i,
-    /\/deals?\b/i, /\/sale\b/i, /\/promo/i, /\/discount/i, /\/clearance/i,
-    /\/ahorro/i, /\/flash/i,
+  jobUrlPatterns: [
+    ...SHARED_JOB_URL_PATTERNS,
+    /\/kariera/i, /\/praca/i, /\/oferty-pracy/i, /\/rekrutacja/i,
   ],
-  nonCampaignUrlPatterns: [
-    /\/sobre\b/i, /\/contacto\b/i, /\/aviso-legal/i,
-    /\/privacidad/i, /\/terminos\b/i, /\/condiciones/i,
-    /\/ayuda\b/i, /\/faq\b/i, /\/atencion/i,
-    /\/about\b/i, /\/contact\b/i, /\/privacy/i, /\/terms\b/i,
-    /\/help\b/i, /\/careers?\b/i, /\/sitemap/i,
+  nonJobUrlPatterns: [
+    ...SHARED_NON_JOB_URL_PATTERNS,
+    /\/o-nas/i, /\/kontakt/i, /\/regulamin/i,
   ],
-  nonCampaignTitleKeywords: [
-    'servicio postventa', 'servicio técnico', 'garantía',
-    'aviso legal', 'sitio oficial',
-    'after sales', 'warranty service', 'official website',
-  ],
-  listingPageTitlePatterns: [
-    /^todas?\s*(las\s*)?(ofertas|promociones|descuentos|cupones)$/i,
-    /^all\s*(deals|offers|sales)$/i,
-  ],
-  listingPageUrlPatterns: [
-    /^\/ofertas?$/, /^\/promociones?$/, /^\/descuentos?$/, /^\/rebajas?$/,
-    /^\/deals?$/, /^\/sale$/,
-  ],
-  homepageCampaignCheck: /oferta|promoci[oó]n|descuento|rebaja|liquidaci[oó]n|cup[oó]n|cashback|deal|sale|promo|outlet|saldo/i,
 };
 
-// ─── AR Market Keywords (Argentina - Spanish, extends ES) ────
+// ─── MY Keywords ────────────────────────────────────────────────
 
-const AR_KEYWORDS: MarketKeywords = {
-  ...ES_KEYWORDS,
-  campaignKeywords: [
-    ...ES_KEYWORDS.campaignKeywords,
-    'hot sale', 'cybermonday', 'cyber monday', 'día de la madre', 'dia de la madre',
-    'día del padre', 'dia del padre', 'día del amor', 'dia del amor',
-    'cuotas sin interés', 'cuotas sin interes', 'cuotas',
+const MY_KEYWORDS: JobMarketKeywords = {
+  blueCollarKeywords: [
+    ...SHARED_BLUE_COLLAR_EN,
+    'pemandu', 'penghantar', 'kurier',
+    'juruteknik', 'mekanik', 'juruelektrik', 'tukang paip', 'pengimpal',
+    'tukang batu', 'tukang cat', 'tukang kayu',
+    'tukang masak', 'pelayan', 'barista',
+    'juruwang', 'penjaga stor', 'forklift',
+    'operator', 'pekerja kilang', 'buruh',
+    'pengawal keselamatan', 'jaga',
+    'pembersih', 'cleaner',
+    'tukang jahit',
+    'pekerja am', 'pembantu',
   ],
-  campaignKeywordsWordBoundary: [
-    ...ES_KEYWORDS.campaignKeywordsWordBoundary,
-    /\$\s*\d+\s*off\b/i,
+  jobPostingKeywords: [
+    ...SHARED_JOB_POSTING_EN,
+    'jawatan kosong', 'kekosongan', 'pengambilan', 'diperlukan',
+    'mohon', 'gaji', 'elaun', 'syif',
   ],
-  homepageCampaignCheck: /oferta|promoci[oó]n|descuento|rebaja|cup[oó]n|hot.?sale|cybermonday|cashback|sale|promo|cuotas/i,
-};
-
-// ─── EG Market Keywords (Egypt - Arabic) ─────────────────────
-
-const EG_KEYWORDS: MarketKeywords = {
-  strongCampaignKeywords: [
-    'عروض', 'عرض', 'تخفيضات', 'تخفيض', 'خصم', 'خصومات', 'كوبون', 'كوبونات',
-    'أوكازيون', 'تنزيلات',
-    'sale', 'deal', 'deals', 'discount', 'promo', 'coupon', 'offer', 'offers', 'clearance',
-  ],
-  strongCampaignKeywordsWordBoundary: [],
-  campaignKeywords: [
-    'شحن مجاني', 'توصيل مجاني', 'كاش باك', 'نقاط',
-    'سعر خاص', 'عرض خاص', 'عرض محدود', 'عرض لفترة محدودة',
-    'اشتر وفر', 'وفر', 'ادخر', 'تسوق',
-    'رمضان', 'عيد', 'نهاية الموسم', 'تخفيضات الصيف', 'تخفيضات الشتاء',
-    'جمعة البيضاء', 'الجمعة البيضاء',
-    'بلاك فرايداي', 'سايبر مانداي',
-    'black friday', 'cyber monday',
-    // اتصالات
-    'باقة', 'باقات', 'باقة بيانات', 'إنترنت لا محدود', 'شريحة',
-    'فايبر', 'نقل رقم',
-    // تقنية
-    'تجربة مجانية', 'اشتراك', 'خطة بريميوم', 'ترخيص',
-    '% off', 'off', 'free shipping',
-  ],
-  campaignKeywordsWordBoundary: [
-    /\d+\s*%/, /%\s*\d+/,
-  ],
+  whiteCollarKeywords: SHARED_WHITE_COLLAR,
   blacklistedTitles: [
-    'الرئيسية', 'الصفحة الرئيسية', 'من نحن', 'اتصل بنا', 'تواصل معنا',
-    'تسجيل الدخول', 'إنشاء حساب', 'سجل الآن',
-    'سلة التسوق', 'الدفع', 'إتمام الشراء',
-    'سياسة الخصوصية', 'الشروط والأحكام', 'سياسة الاستخدام',
-    'الأسئلة الشائعة', 'مساعدة', 'الدعم', 'خدمة العملاء',
-    'سياسة الإرجاع', 'تتبع الطلب',
-    'وظائف', 'انضم إلينا', 'خريطة الموقع',
-    'home', 'about', 'contact', 'login', 'cart', 'checkout',
-    'privacy', 'terms', 'faq', 'help', 'careers', 'sitemap',
+    ...SHARED_BLACKLISTED_TITLES,
+    'laman utama', 'tentang kami', 'hubungi kami',
+    'dasar privasi', 'terma dan syarat',
   ],
-  campaignUrlPatterns: [
-    /\/offers?\b/i, /\/deals?\b/i, /\/sale\b/i, /\/promo/i, /\/discount/i,
-    /\/coupon/i, /\/clearance/i, /\/outlet/i,
-    /\/ar\/offers?/i, /\/ar\/deals?/i,
-    /\/ramadan/i, /\/eid/i, /\/white-friday/i, /\/friday/i,
+  jobUrlPatterns: [
+    ...SHARED_JOB_URL_PATTERNS,
+    /\/kerjaya/i, /\/jawatan/i,
   ],
-  nonCampaignUrlPatterns: [
-    /\/about\b/i, /\/contact\b/i, /\/privacy/i, /\/terms\b/i,
-    /\/help\b/i, /\/faq\b/i, /\/support\b/i, /\/careers?\b/i,
-    /\/sitemap/i, /\/legal\b/i,
-  ],
-  nonCampaignTitleKeywords: [
-    'خدمة ما بعد البيع', 'الضمان', 'استدعاء المنتج',
-    'الموقع الرسمي', 'عن الشركة',
-    'after sales', 'warranty', 'recall', 'official website', 'corporate',
-  ],
-  listingPageTitlePatterns: [
-    /^كل\s*(العروض|التخفيضات|الكوبونات)$/i,
-    /^all\s*(deals|offers|sales|promotions)$/i,
-  ],
-  listingPageUrlPatterns: [
-    /^\/offers?$/, /^\/deals?$/, /^\/sale$/, /^\/promo$/,
-  ],
-  homepageCampaignCheck: /عروض|تخفيضات|خصم|كوبون|أوكازيون|offer|deal|sale|discount|promo|ramadan|eid|friday/i,
+  nonJobUrlPatterns: SHARED_NON_JOB_URL_PATTERNS,
 };
 
-// ─── SA Market Keywords (Saudi Arabia - Arabic, extends EG) ──
+// ─── NL Keywords ────────────────────────────────────────────────
 
-const SA_KEYWORDS: MarketKeywords = {
-  ...EG_KEYWORDS,
-  campaignKeywords: [
-    ...EG_KEYWORDS.campaignKeywords,
-    'وايت فرايداي', 'الوايت فرايداي',
-    'اليوم الوطني', 'اليوم الوطني السعودي',
-    'موسم الرياض', 'موسم جدة',
+const NL_KEYWORDS: JobMarketKeywords = {
+  blueCollarKeywords: [
+    ...SHARED_BLUE_COLLAR_EN,
+    'chauffeur', 'vrachtwagenchauffeur', 'koerier', 'bezorger',
+    'monteur', 'monteur', 'elektricien', 'loodgieter', 'lasser',
+    'metselaar', 'schilder', 'timmerman', 'dakdekker',
+    'kok', 'bakker', 'ober', 'serveerster', 'barista',
+    'kassamedewerker', 'magazijnmedewerker', 'heftruckchauffeur',
+    'productiemedewerker', 'operator', 'fabrieksarbeider',
+    'beveiliger', 'portier',
+    'schoonmaker', 'schoonmaakster',
+    'naaister', 'kleermaker',
+    'hulp', 'medewerker',
   ],
-  homepageCampaignCheck: /عروض|تخفيضات|خصم|كوبون|أوكازيون|وايت|offer|deal|sale|discount|promo|friday|ramadan|eid|national/i,
-};
-
-// ─── KR Market Keywords (South Korea - Korean) ──────────────
-
-const KR_KEYWORDS: MarketKeywords = {
-  strongCampaignKeywords: [
-    '세일', '할인', '특가', '쿠폰', '프로모션', '이벤트', '혜택',
-    'sale', 'deal', 'deals', 'discount', 'promo', 'coupon', 'offer', 'clearance',
+  jobPostingKeywords: [
+    ...SHARED_JOB_POSTING_EN,
+    'vacature', 'vacatures', 'wij zoeken', 'gezocht',
+    'solliciteer', 'salaris', 'loon', 'ploegendienst',
+    'fulltime', 'parttime', 'tijdelijk',
   ],
-  strongCampaignKeywordsWordBoundary: [],
-  campaignKeywords: [
-    '무료배송', '포인트 적립', '타임세일', '기간 한정',
-    '특별 할인', '최저가', '품절 임박', '구매 혜택',
-    '1+1', '2+1', '증정', '선물',
-    '캐시백', '적립금', '쿠폰 다운로드',
-    '블랙 프라이데이', '사이버 먼데이', '설날 세일', '추석 세일',
-    '어버이날 선물', '크리스마스 세일', '연말 세일',
-    '블프', '빼빼로데이',
-    // 통신
-    '요금제', '데이터 무제한', '알뜰폰', '번호이동', '인터넷 결합',
-    '유심', '기기변경',
-    // 기술·소프트웨어
-    '무료 체험', '구독', '프리미엄 플랜', '라이선스',
-    '% off', 'off', 'flash sale', 'limited time', 'black friday', 'cyber monday',
-  ],
-  campaignKeywordsWordBoundary: [
-    /\d+\s*%/, /%\s*\d+/,
-  ],
+  whiteCollarKeywords: SHARED_WHITE_COLLAR,
   blacklistedTitles: [
-    '홈', '홈페이지', '회사소개', '소개', '문의하기', '연락처',
-    '로그인', '회원가입', '계정 만들기',
-    '장바구니', '결제', '주문 완료',
-    '개인정보처리방침', '이용약관', '쿠키 정책',
-    '자주 묻는 질문', '고객센터', '도움말',
-    '반품정책', '교환 및 반품', '주문 조회',
-    '채용', '인재채용', '사이트맵',
-    'home', 'about', 'contact', 'login', 'cart', 'checkout',
-    'privacy', 'terms', 'faq', 'help', 'careers', 'sitemap',
+    ...SHARED_BLACKLISTED_TITLES,
+    'home', 'over ons', 'contact', 'neem contact op',
+    'privacybeleid', 'algemene voorwaarden',
+    'pagina niet gevonden',
   ],
-  campaignUrlPatterns: [
-    /\/sale\b/i, /\/deals?\b/i, /\/event\b/i, /\/promo/i, /\/discount/i,
-    /\/coupon/i, /\/offer/i, /\/specials?\b/i, /\/clearance/i, /\/outlet/i,
+  jobUrlPatterns: [
+    ...SHARED_JOB_URL_PATTERNS,
+    /\/vacatures/i, /\/werken-bij/i, /\/carriere/i,
   ],
-  nonCampaignUrlPatterns: [
-    /\/about\b/i, /\/contact\b/i, /\/privacy/i, /\/terms\b/i,
-    /\/help\b/i, /\/faq\b/i, /\/support\b/i, /\/careers?\b/i,
-    /\/sitemap/i, /\/legal\b/i,
+  nonJobUrlPatterns: [
+    ...SHARED_NON_JOB_URL_PATTERNS,
+    /\/over-ons/i,
   ],
-  nonCampaignTitleKeywords: [
-    'AS 서비스', '품질 보증', '고객센터', '리콜',
-    '공식 웹사이트', '기업 소개', '채용 공고',
-    'after sales', 'warranty', 'recall', 'official website',
-  ],
-  listingPageTitlePatterns: [
-    /^전체\s*(세일|할인|이벤트|쿠폰)$/i,
-    /^all\s*(deals|offers|sales|events)$/i,
-  ],
-  listingPageUrlPatterns: [
-    /^\/sale$/, /^\/deals?$/, /^\/event$/, /^\/promo$/, /^\/coupon$/,
-  ],
-  homepageCampaignCheck: /세일|할인|특가|쿠폰|프로모션|이벤트|혜택|sale|deal|discount|promo|coupon|offer/i,
 };
 
-const AE_KEYWORDS: MarketKeywords = {
-  ...EG_KEYWORDS,
-  campaignKeywords: [
-    ...EG_KEYWORDS.campaignKeywords,
-    'مهرجان دبي للتسوق', 'دبي سمر سربرايز',
-    'وايت فرايداي', 'الوايت فرايداي',
-    'يلو فرايداي',
-  ],
-  homepageCampaignCheck: /عروض|تخفيضات|خصم|كوبون|أوكازيون|وايت|offer|deal|sale|discount|promo|friday|ramadan|eid|festival/i,
-};
+// ─── SE Keywords ────────────────────────────────────────────────
 
-const VN_KEYWORDS: MarketKeywords = {
-  strongCampaignKeywords: [
-    'khuyến mãi', 'giảm giá', 'ưu đãi', 'sale', 'deal', 'flash sale',
-    'coupon', 'mã giảm giá', 'voucher',
-    'deals', 'discount', 'promo', 'offer', 'offers', 'clearance',
+const SE_KEYWORDS: JobMarketKeywords = {
+  blueCollarKeywords: [
+    ...SHARED_BLUE_COLLAR_EN,
+    'chaufför', 'lastbilschaufför', 'bud', 'brevbärare',
+    'tekniker', 'mekaniker', 'elektriker', 'rörmokare', 'svetsare',
+    'murare', 'målare', 'snickare', 'takläggare',
+    'kock', 'bagare', 'servitör', 'servitris', 'barista',
+    'kassör', 'lagerarbetare', 'truckförare',
+    'produktionsarbetare', 'maskinoperatör', 'fabriksarbetare',
+    'väktare', 'ordningsvakt',
+    'städare', 'lokalvårdare',
+    'sömmerska', 'skräddare',
+    'byggnadsarbetare', 'hantverkare',
   ],
-  strongCampaignKeywordsWordBoundary: [],
-  campaignKeywords: [
-    'miễn phí vận chuyển', 'freeship', 'hoàn tiền', 'cashback',
-    'giá sốc', 'giá tốt', 'siêu giảm', 'đại hạ giá',
-    'mua 1 tặng 1', 'combo', 'quà tặng',
-    'black friday', 'cyber monday', 'ngày đôi', 'ngày vàng',
-    '11.11', '12.12', 'tết', 'lễ',
-    // Viễn thông
-    'gói cước', 'nạp tiền', 'data không giới hạn', 'chuyển mạng',
-    'sim số đẹp', 'internet cáp quang',
-    // Công nghệ
-    'dùng thử miễn phí', 'đăng ký', 'gói premium',
-    '% off', 'off', 'free shipping',
+  jobPostingKeywords: [
+    ...SHARED_JOB_POSTING_EN,
+    'ledigt jobb', 'ledig tjänst', 'vi söker', 'sökes',
+    'ansök', 'lön', 'skift', 'heltid', 'deltid', 'vikariat',
   ],
-  campaignKeywordsWordBoundary: [/\d+\s*%/, /%\s*\d+/],
+  whiteCollarKeywords: SHARED_WHITE_COLLAR,
   blacklistedTitles: [
-    'trang chủ', 'giới thiệu', 'liên hệ', 'đăng nhập', 'đăng ký',
-    'giỏ hàng', 'thanh toán', 'chính sách bảo mật', 'điều khoản',
-    'câu hỏi thường gặp', 'hỗ trợ', 'tuyển dụng', 'sơ đồ trang',
-    'home', 'about', 'contact', 'login', 'cart', 'checkout',
-    'privacy', 'terms', 'faq', 'help', 'careers', 'sitemap',
+    ...SHARED_BLACKLISTED_TITLES,
+    'startsida', 'om oss', 'kontakt', 'kontakta oss',
+    'integritetspolicy', 'villkor',
+    'sidan hittades inte',
   ],
-  campaignUrlPatterns: [
-    /\/khuyen-mai\b/i, /\/giam-gia\b/i, /\/uu-dai\b/i,
-    /\/sale\b/i, /\/deals?\b/i, /\/promo/i, /\/discount/i,
-    /\/flash-sale/i, /\/voucher/i, /\/coupon/i,
+  jobUrlPatterns: [
+    ...SHARED_JOB_URL_PATTERNS,
+    /\/karriar/i, /\/lediga-jobb/i, /\/jobba-hos-oss/i,
   ],
-  nonCampaignUrlPatterns: [
-    /\/gioi-thieu\b/i, /\/lien-he\b/i, /\/about\b/i, /\/contact\b/i,
-    /\/privacy/i, /\/terms\b/i, /\/help\b/i, /\/faq\b/i,
-    /\/support\b/i, /\/careers?\b/i, /\/sitemap/i,
-  ],
-  nonCampaignTitleKeywords: [
-    'chính sách bảo hành', 'bảo hành', 'dịch vụ sau bán hàng',
-    'trang chính thức', 'giới thiệu công ty',
-    'after sales', 'warranty', 'recall', 'official website',
-  ],
-  listingPageTitlePatterns: [
-    /^tất cả\s*(khuyến mãi|ưu đãi|giảm giá)$/i,
-    /^all\s*(deals|offers|sales|promotions)$/i,
-  ],
-  listingPageUrlPatterns: [/^\/khuyen-mai$/, /^\/sale$/, /^\/deals?$/, /^\/promo$/],
-  homepageCampaignCheck: /khuyến mãi|giảm giá|ưu đãi|sale|deal|discount|promo|voucher|flash/i,
+  nonJobUrlPatterns: SHARED_NON_JOB_URL_PATTERNS,
 };
 
-const PL_KEYWORDS: MarketKeywords = {
-  strongCampaignKeywords: [
-    'promocja', 'wyprzedaż', 'rabat', 'okazja', 'zniżka', 'kupon',
-    'sale', 'deal', 'deals', 'discount', 'promo', 'coupon', 'offer', 'clearance',
-  ],
-  strongCampaignKeywordsWordBoundary: [],
-  campaignKeywords: [
-    'darmowa dostawa', 'cashback', 'zwrot gotówki',
-    'cena specjalna', 'okazja dnia', 'ostatnie sztuki',
-    'kup teraz', 'oszczędź', 'taniej',
-    'black friday', 'cyber monday', 'dzień kobiet', 'dzień matki',
-    'mikołajki', 'święta', 'wyprzedaż sezonowa',
-    // Telekomunikacja
-    'plan taryfowy', 'abonament', 'internet mobilny', 'światłowód',
-    'przeniesienie numeru', 'karta sim', 'pakiet danych',
-    // Technologia
-    'darmowy okres próbny', 'subskrypcja', 'plan premium', 'licencja',
-    '% off', 'off', 'free shipping', 'gratis',
-  ],
-  campaignKeywordsWordBoundary: [/\d+\s*%/, /%\s*\d+/],
-  blacklistedTitles: [
-    'strona główna', 'o nas', 'kontakt', 'logowanie', 'rejestracja',
-    'koszyk', 'płatność', 'polityka prywatności', 'regulamin',
-    'faq', 'pomoc', 'kariera', 'mapa strony',
-    'home', 'about', 'contact', 'login', 'cart', 'checkout',
-    'privacy', 'terms', 'help', 'careers', 'sitemap',
-  ],
-  campaignUrlPatterns: [
-    /\/promocje\b/i, /\/wyprzedaz\b/i, /\/okazje\b/i, /\/rabaty\b/i,
-    /\/sale\b/i, /\/deals?\b/i, /\/promo/i, /\/discount/i,
-    /\/kupon/i, /\/outlet\b/i,
-  ],
-  nonCampaignUrlPatterns: [
-    /\/o-nas\b/i, /\/kontakt\b/i, /\/about\b/i, /\/contact\b/i,
-    /\/privacy/i, /\/terms\b/i, /\/regulamin\b/i,
-    /\/help\b/i, /\/faq\b/i, /\/support\b/i, /\/kariera\b/i, /\/sitemap/i,
-  ],
-  nonCampaignTitleKeywords: [
-    'serwis posprzedażowy', 'gwarancja', 'reklamacja',
-    'oficjalna strona', 'o firmie',
-    'after sales', 'warranty', 'recall', 'official website',
-  ],
-  listingPageTitlePatterns: [
-    /^wszystkie\s*(promocje|okazje|rabaty|wyprzedaże)$/i,
-    /^all\s*(deals|offers|sales|promotions)$/i,
-  ],
-  listingPageUrlPatterns: [/^\/promocje$/, /^\/sale$/, /^\/deals?$/, /^\/okazje$/],
-  homepageCampaignCheck: /promocja|wyprzedaż|rabat|okazja|zniżka|kupon|sale|deal|discount|promo|coupon/i,
+// ─── Market Keyword Map ─────────────────────────────────────────
+
+const MARKET_KEYWORDS: Record<string, JobMarketKeywords> = {
+  TR: TR_KEYWORDS,
+  US: EN_KEYWORDS, UK: EN_KEYWORDS, AU: EN_KEYWORDS, CA: EN_KEYWORDS,
+  PH: EN_KEYWORDS, ZA: EN_KEYWORDS, PK: EN_KEYWORDS, IN: EN_KEYWORDS,
+  DE: DE_KEYWORDS,
+  BR: PT_KEYWORDS, PT: PT_KEYWORDS,
+  ES: ES_KEYWORDS, MX: ES_KEYWORDS, AR: ES_KEYWORDS, CO: ES_KEYWORDS,
+  FR: FR_KEYWORDS,
+  IT: IT_KEYWORDS,
+  RU: RU_KEYWORDS,
+  JP: JP_KEYWORDS,
+  ID: ID_KEYWORDS,
+  TH: TH_KEYWORDS,
+  KR: KR_KEYWORDS,
+  EG: AR_KEYWORDS, SA: AR_KEYWORDS, AE: AR_KEYWORDS,
+  VN: VN_KEYWORDS,
+  PL: PL_KEYWORDS,
+  MY: MY_KEYWORDS,
+  NL: NL_KEYWORDS,
+  SE: SE_KEYWORDS,
 };
 
-const MY_KEYWORDS: MarketKeywords = {
-  strongCampaignKeywords: [
-    'jualan', 'diskaun', 'promosi', 'tawaran', 'kupon',
-    'sale', 'deal', 'deals', 'discount', 'promo', 'coupon', 'offer', 'offers', 'clearance',
-  ],
-  strongCampaignKeywordsWordBoundary: [],
-  campaignKeywords: [
-    'penghantaran percuma', 'free shipping', 'cashback',
-    'harga istimewa', 'tawaran istimewa', 'tawaran terhad',
-    'beli 1 percuma 1', 'hadiah percuma',
-    'hari raya', 'merdeka', 'malaysia day',
-    'black friday', 'cyber monday', '11.11', '12.12',
-    // Telekomunikasi
-    'pelan data', 'internet tanpa had', 'prepaid', 'postpaid',
-    'tukar nombor', 'jalur lebar',
-    // Teknologi
-    'percubaan percuma', 'langganan', 'pelan premium',
-    '% off', 'off', 'voucher',
-  ],
-  campaignKeywordsWordBoundary: [/\d+\s*%/, /%\s*\d+/],
-  blacklistedTitles: [
-    'laman utama', 'tentang kami', 'hubungi kami', 'log masuk', 'daftar',
-    'troli', 'pembayaran', 'dasar privasi', 'terma',
-    'soalan lazim', 'bantuan', 'kerjaya', 'peta laman',
-    'home', 'about', 'contact', 'login', 'cart', 'checkout',
-    'privacy', 'terms', 'faq', 'help', 'careers', 'sitemap',
-  ],
-  campaignUrlPatterns: [
-    /\/jualan\b/i, /\/promosi\b/i, /\/tawaran\b/i,
-    /\/sale\b/i, /\/deals?\b/i, /\/promo/i, /\/discount/i,
-    /\/coupon/i, /\/voucher/i, /\/offers?\b/i, /\/clearance/i,
-  ],
-  nonCampaignUrlPatterns: [
-    /\/tentang\b/i, /\/hubungi\b/i, /\/about\b/i, /\/contact\b/i,
-    /\/privacy/i, /\/terms\b/i, /\/help\b/i, /\/faq\b/i,
-    /\/support\b/i, /\/careers?\b/i, /\/sitemap/i,
-  ],
-  nonCampaignTitleKeywords: [
-    'perkhidmatan selepas jualan', 'waranti', 'jaminan',
-    'laman web rasmi', 'tentang syarikat',
-    'after sales', 'warranty', 'recall', 'official website',
-  ],
-  listingPageTitlePatterns: [
-    /^semua\s*(jualan|tawaran|promosi|diskaun)$/i,
-    /^all\s*(deals|offers|sales|promotions)$/i,
-  ],
-  listingPageUrlPatterns: [/^\/jualan$/, /^\/sale$/, /^\/deals?$/, /^\/promo$/],
-  homepageCampaignCheck: /jualan|diskaun|promosi|tawaran|kupon|sale|deal|discount|promo|coupon|offer/i,
+// ====== WAF / BOT DETECTION ======
+
+const WAF_TITLE_PATTERNS = [
+  /access denied/i, /permission denied/i, /forbidden/i,
+  /cloudflare/i, /captcha/i, /recaptcha/i, /hcaptcha/i,
+  /just a moment/i, /checking your browser/i, /please wait/i,
+  /ddos protection/i, /bot detection/i,
+  /too many requests/i, /rate limit/i,
+  /security check/i, /verify you are human/i,
+  /erişim engellendi/i, /güvenlik kontrolü/i,
+];
+
+// ====== 404 / ERROR PAGE DETECTION ======
+
+const ERROR_TITLE_PATTERNS = [
+  /^404\b/i, /\b404\b.*not found/i, /page not found/i,
+  /sayfa bulunamadı/i, /sayfa bulunamadi/i,
+  /seite nicht gefunden/i,
+  /page non trouvée/i, /page introuvable/i,
+  /página no encontrada/i,
+  /pagina non trovata/i,
+  /página não encontrada/i,
+  /страница не найдена/i,
+  /ページが見つかりません/i,
+  /페이지를 찾을 수 없/i,
+  /halaman tidak ditemukan/i,
+  /ไม่พบหน้า/i,
+  /الصفحة غير موجودة/i,
+  /không tìm thấy trang/i,
+  /nie znaleziono strony/i,
+  /pagina niet gevonden/i,
+  /sidan hittades inte/i,
+];
+
+// ====== FOREIGN LOCALE URL CHECK ======
+
+const MARKET_LOCALES: Record<string, RegExp[]> = {
+  TR: [/\/(en|de|fr|it|es|pt|ru|ja|ko|zh|ar|nl|sv|pl|vi|th|id|ms)\//i, /\/(en-us|en-gb|de-de|fr-fr)\//i],
+  US: [/\/(tr|de|fr|it|es|pt|ru|ja|ko|zh|ar|nl|sv|pl|vi|th|id|ms)\//i],
+  UK: [/\/(tr|de|fr|it|es|pt|ru|ja|ko|zh|ar|nl|sv|pl|vi|th|id|ms)\//i],
+  DE: [/\/(en|tr|fr|it|es|pt|ru|ja|ko|zh|ar|nl|sv|pl|vi|th|id|ms)\//i],
+  FR: [/\/(en|tr|de|it|es|pt|ru|ja|ko|zh|ar|nl|sv|pl|vi|th|id|ms)\//i],
+  IT: [/\/(en|tr|de|fr|es|pt|ru|ja|ko|zh|ar|nl|sv|pl|vi|th|id|ms)\//i],
+  ES: [/\/(en|tr|de|fr|it|pt|ru|ja|ko|zh|ar|nl|sv|pl|vi|th|id|ms)\//i],
+  PT: [/\/(en|tr|de|fr|it|es|ru|ja|ko|zh|ar|nl|sv|pl|vi|th|id|ms)\//i],
+  BR: [/\/(en|tr|de|fr|it|es|ru|ja|ko|zh|ar|nl|sv|pl|vi|th|id|ms)\//i],
+  JP: [/\/(en|tr|de|fr|it|es|pt|ru|ko|zh|ar|nl|sv|pl|vi|th|id|ms)\//i],
+  KR: [/\/(en|tr|de|fr|it|es|pt|ru|ja|zh|ar|nl|sv|pl|vi|th|id|ms)\//i],
+  RU: [/\/(en|tr|de|fr|it|es|pt|ja|ko|zh|ar|nl|sv|pl|vi|th|id|ms)\//i],
 };
 
-const CO_KEYWORDS: MarketKeywords = {
-  ...ES_KEYWORDS,
-  campaignKeywords: [
-    ...ES_KEYWORDS.campaignKeywords,
-    'día sin iva', 'dia sin iva', 'cyberlunes', 'hot sale',
-    'día de la madre', 'dia de la madre', 'amor y amistad',
-    'cuotas sin interés', 'cuotas sin interes',
-  ],
-  homepageCampaignCheck: /oferta|promoci[oó]n|descuento|rebaja|cup[oó]n|hot.?sale|cyberlunes|cashback|sale|promo|iva/i,
-};
+// ====== SCORING FUNCTIONS ======
 
-const ZA_KEYWORDS: MarketKeywords = {
-  ...US_KEYWORDS,
-  campaignKeywords: [
-    ...US_KEYWORDS.campaignKeywords,
-    'black friday south africa', 'cyber monday sa',
-    'heritage day', 'youth day sale',
-  ],
-  homepageCampaignCheck: /sale|deal|discount|offer|promo|coupon|clearance|special|bargain|cashback|friday|cyber/i,
-};
-
-const PT_MARKET_KEYWORDS: MarketKeywords = {
-  ...BR_KEYWORDS,
-  campaignKeywords: [
-    ...BR_KEYWORDS.campaignKeywords,
-    'saldos', 'promoções', 'portes grátis',
-    'dia do consumidor', 'black friday portugal',
-  ],
-  homepageCampaignCheck: /promo[çc][ãa]o|desconto|oferta|cupom|cupon|saldo|liquidação|sale|deal|discount|promo|coupon|cashback/i,
-};
-
-const NL_KEYWORDS: MarketKeywords = {
-  strongCampaignKeywords: [
-    'aanbieding', 'korting', 'uitverkoop', 'actie', 'deal',
-    'sale', 'deals', 'discount', 'promo', 'coupon', 'offer', 'offers', 'clearance',
-  ],
-  strongCampaignKeywordsWordBoundary: [],
-  campaignKeywords: [
-    'gratis verzending', 'cashback', 'kortingscode', 'kortingsbon',
-    'speciale aanbieding', 'dagaanbieding', 'weekaanbieding',
-    'op is op', 'laatste kans', 'tijdelijke actie',
-    'black friday', 'cyber monday', 'koningsdag', 'sinterklaas',
-    // Telecom
-    'abonnement', 'mobiel internet', 'onbeperkt data', 'glasvezel',
-    'overstappen', 'sim-only', 'bundel',
-    // Technologie
-    'gratis proefperiode', 'abonnement', 'premium plan', 'licentie',
-    '% off', 'off', 'gratis',
-  ],
-  campaignKeywordsWordBoundary: [/\d+\s*%/, /%\s*\d+/],
-  blacklistedTitles: [
-    'home', 'over ons', 'contact', 'inloggen', 'registreren',
-    'winkelwagen', 'betalen', 'privacybeleid', 'voorwaarden',
-    'veelgestelde vragen', 'help', 'vacatures', 'sitemap',
-    'about', 'login', 'cart', 'checkout', 'privacy', 'terms',
-    'faq', 'careers',
-  ],
-  campaignUrlPatterns: [
-    /\/aanbiedingen\b/i, /\/korting\b/i, /\/uitverkoop\b/i, /\/actie\b/i,
-    /\/sale\b/i, /\/deals?\b/i, /\/promo/i, /\/discount/i,
-    /\/coupon/i, /\/outlet\b/i,
-  ],
-  nonCampaignUrlPatterns: [
-    /\/over-ons\b/i, /\/contact\b/i, /\/about\b/i,
-    /\/privacy/i, /\/terms\b/i, /\/voorwaarden\b/i,
-    /\/help\b/i, /\/faq\b/i, /\/support\b/i, /\/vacatures\b/i, /\/sitemap/i,
-  ],
-  nonCampaignTitleKeywords: [
-    'klantenservice', 'garantie', 'retourbeleid',
-    'officiële website', 'over het bedrijf',
-    'after sales', 'warranty', 'recall', 'official website',
-  ],
-  listingPageTitlePatterns: [
-    /^alle\s*(aanbiedingen|kortingen|acties|deals)$/i,
-    /^all\s*(deals|offers|sales|promotions)$/i,
-  ],
-  listingPageUrlPatterns: [/^\/aanbiedingen$/, /^\/sale$/, /^\/deals?$/, /^\/actie$/],
-  homepageCampaignCheck: /aanbieding|korting|uitverkoop|actie|deal|sale|discount|promo|coupon|offer/i,
-};
-
-const PK_KEYWORDS: MarketKeywords = {
-  strongCampaignKeywords: [
-    'سیل', 'ڈسکاؤنٹ', 'آفر', 'پروموشن', 'کوپن',
-    'sale', 'deal', 'deals', 'discount', 'promo', 'coupon', 'offer', 'offers', 'clearance',
-  ],
-  strongCampaignKeywordsWordBoundary: [],
-  campaignKeywords: [
-    'مفت ڈیلیوری', 'فری شپنگ', 'کیش بیک',
-    'خاص قیمت', 'خاص آفر', 'محدود آفر',
-    'ایک خریدیں ایک مفت', 'تحفہ',
-    'رمضان', 'عید', 'جشن آزادی', 'یوم پاکستان',
-    'black friday', 'cyber monday',
-    // ٹیلی کام
-    'ڈیٹا پیکج', 'موبائل پیکج', 'انٹرنیٹ پیکج', 'بنڈل آفر',
-    // ٹیکنالوجی
-    'مفت ٹرائل', 'سبسکرپشن', 'پریمیم پلان',
-    '% off', 'off', 'free shipping', 'free delivery',
-  ],
-  campaignKeywordsWordBoundary: [/\d+\s*%/, /%\s*\d+/],
-  blacklistedTitles: [
-    'ہوم', 'ہمارے بارے میں', 'رابطہ', 'لاگ ان', 'رجسٹر',
-    'کارٹ', 'چیک آؤٹ', 'رازداری کی پالیسی', 'شرائط',
-    'عمومی سوالات', 'مدد', 'ملازمتیں',
-    'home', 'about', 'contact', 'login', 'cart', 'checkout',
-    'privacy', 'terms', 'faq', 'help', 'careers', 'sitemap',
-  ],
-  campaignUrlPatterns: [
-    /\/sale\b/i, /\/deals?\b/i, /\/promo/i, /\/discount/i,
-    /\/coupon/i, /\/offers?\b/i, /\/clearance/i, /\/voucher/i,
-  ],
-  nonCampaignUrlPatterns: [
-    /\/about\b/i, /\/contact\b/i, /\/privacy/i, /\/terms\b/i,
-    /\/help\b/i, /\/faq\b/i, /\/support\b/i, /\/careers?\b/i, /\/sitemap/i,
-  ],
-  nonCampaignTitleKeywords: [
-    'وارنٹی', 'ضمانت', 'فروخت کے بعد سروس',
-    'سرکاری ویب سائٹ', 'کمپنی کے بارے میں',
-    'after sales', 'warranty', 'recall', 'official website',
-  ],
-  listingPageTitlePatterns: [
-    /^تمام\s*(آفرز|ڈیلز|سیل)$/i,
-    /^all\s*(deals|offers|sales|promotions)$/i,
-  ],
-  listingPageUrlPatterns: [/^\/sale$/, /^\/deals?$/, /^\/offers?$/, /^\/promo$/],
-  homepageCampaignCheck: /سیل|ڈسکاؤنٹ|آفر|پروموشن|کوپن|sale|deal|discount|promo|coupon|offer/i,
-};
-
-const SE_KEYWORDS: MarketKeywords = {
-  strongCampaignKeywords: [
-    'rea', 'erbjudande', 'rabatt', 'kampanj', 'fynd', 'kupong',
-    'sale', 'deal', 'deals', 'discount', 'promo', 'coupon', 'offer', 'clearance',
-  ],
-  strongCampaignKeywordsWordBoundary: [],
-  campaignKeywords: [
-    'fri frakt', 'gratis frakt', 'cashback',
-    'specialpris', 'veckans erbjudande', 'dagens deal',
-    'sista chansen', 'begränsat erbjudande',
-    'black friday', 'cyber monday', 'mellandagsrea', 'julrea',
-    'midsommar', 'påsk',
-    // Telekom
-    'abonnemang', 'mobilabonnemang', 'bredband', 'fiber',
-    'obegränsad data', 'byt operatör', 'sim-kort',
-    // Teknik
-    'gratis provperiod', 'prenumeration', 'premiumplan', 'licens',
-    '% off', 'off', 'gratis',
-  ],
-  campaignKeywordsWordBoundary: [/\d+\s*%/, /%\s*\d+/],
-  blacklistedTitles: [
-    'hem', 'startsida', 'om oss', 'kontakt', 'logga in', 'registrera',
-    'varukorg', 'kassa', 'integritetspolicy', 'villkor',
-    'vanliga frågor', 'hjälp', 'karriär', 'webbplatskarta',
-    'home', 'about', 'contact', 'login', 'cart', 'checkout',
-    'privacy', 'terms', 'faq', 'help', 'careers', 'sitemap',
-  ],
-  campaignUrlPatterns: [
-    /\/rea\b/i, /\/erbjudanden\b/i, /\/kampanjer\b/i, /\/rabatt\b/i,
-    /\/sale\b/i, /\/deals?\b/i, /\/promo/i, /\/discount/i,
-    /\/coupon/i, /\/outlet\b/i,
-  ],
-  nonCampaignUrlPatterns: [
-    /\/om-oss\b/i, /\/kontakt\b/i, /\/about\b/i, /\/contact\b/i,
-    /\/privacy/i, /\/terms\b/i, /\/villkor\b/i,
-    /\/help\b/i, /\/faq\b/i, /\/support\b/i, /\/karriar\b/i, /\/sitemap/i,
-  ],
-  nonCampaignTitleKeywords: [
-    'kundtjänst', 'garanti', 'reklamation',
-    'officiell webbplats', 'om företaget',
-    'after sales', 'warranty', 'recall', 'official website',
-  ],
-  listingPageTitlePatterns: [
-    /^alla\s*(erbjudanden|kampanjer|rabatter|reor)$/i,
-    /^all\s*(deals|offers|sales|promotions)$/i,
-  ],
-  listingPageUrlPatterns: [/^\/rea$/, /^\/sale$/, /^\/deals?$/, /^\/erbjudanden$/],
-  homepageCampaignCheck: /rea|erbjudande|rabatt|kampanj|fynd|kupong|sale|deal|discount|promo|coupon|offer/i,
-};
-
-function getMarketKeywords(market?: Market): MarketKeywords {
-  switch (market) {
-    case Market.US: return US_KEYWORDS;
-    case Market.DE: return DE_KEYWORDS;
-    case Market.UK: return UK_KEYWORDS;
-    case Market.IN: return IN_KEYWORDS;
-    case Market.BR: return BR_KEYWORDS;
-    case Market.ID: return ID_KEYWORDS;
-    case Market.RU: return RU_KEYWORDS;
-    case Market.MX: return MX_KEYWORDS;
-    case Market.JP: return JP_KEYWORDS;
-    case Market.PH: return PH_KEYWORDS;
-    case Market.TH: return TH_KEYWORDS;
-    case Market.CA: return CA_KEYWORDS;
-    case Market.AU: return AU_KEYWORDS;
-    case Market.FR: return FR_KEYWORDS;
-    case Market.IT: return IT_KEYWORDS;
-    case Market.ES: return ES_KEYWORDS;
-    case Market.AR: return AR_KEYWORDS;
-    case Market.EG: return EG_KEYWORDS;
-    case Market.SA: return SA_KEYWORDS;
-    case Market.KR: return KR_KEYWORDS;
-    case Market.AE: return AE_KEYWORDS;
-    case Market.VN: return VN_KEYWORDS;
-    case Market.PL: return PL_KEYWORDS;
-    case Market.MY: return MY_KEYWORDS;
-    case Market.CO: return CO_KEYWORDS;
-    case Market.ZA: return ZA_KEYWORDS;
-    case Market.PT: return PT_MARKET_KEYWORDS;
-    case Market.NL: return NL_KEYWORDS;
-    case Market.PK: return PK_KEYWORDS;
-    case Market.SE: return SE_KEYWORDS;
-    default: return TR_KEYWORDS;
-  }
-}
-
-// ====== HARD REJECT RULES (instant fail — no scoring needed) ======
-
-/** Check if campaign should be instantly rejected. Returns reason string or null. */
-function hardReject(campaign: NormalizedCampaign, brandName?: string, market?: Market): string | null {
-  const titleLower = campaign.title.toLowerCase().trim();
-  const url = campaign.sourceUrl;
-  const kw = getMarketKeywords(market);
-
-  // 0. WAF / bot detection / error pages (market-agnostic — tüm marketlerde geçerli)
-  const wafErrorPatterns = [
-    /\baccess\s*denied\b/i,
-    /\brobot\s*or\s*human\b/i,
-    /\bnot\s*a\s*robot\b/i,
-    /\bchallenge\s*validation\b/i,
-    /\bsomething\s*went\s*wrong\b/i,
-    /\bjust\s*a\s*moment\b/i,
-    /\bnur\s*einen\s*moment\b/i,
-    /\bbir\s*dakika\s*l[üu]tfen\b/i,
-    /\battention\s*required\b/i,
-    /\bchecking\s*your\s*browser\b/i,
-    /\bplease\s*verify\b/i,
-    /\bare\s*you\s*a\s*human\b/i,
-    /\bpardon\s*our\s*interruption\b/i,
-    /\benable\s*(java\s*script|cookies)\b/i,
-    /\bplease\s*wait\b/i,
-    /잠시만\s*기다리/i,                               // KR: "잠시만 기다리십시오" (Cloudflare challenge)
-    /\b기다려\s*주세요/i,                              // KR: "기다려 주세요" (please wait)
-    /\b(error\s*)?(403|503)\s*(forbidden|service\s*unavailable)?\b/i,
-    /\bservice\s*unavailable\b/i,
-    /\bforbidden\b/i,
-    /\bpage\s*not\s*found\b/i,
-    /\bsayfa\s*bulunamad[ıi]\b/i,             // TR: "Sayfa bulunamadı"
-    /\bseite\s*nicht\s*gefunden\b/i,           // DE: "Seite nicht gefunden"
-    /\bpage\s*introuvable\b/i,                 // FR: "Page introuvable"
-    /\bpagina\s*non\s*trovata\b/i,             // IT: "Pagina non trovata"
-    /\bp[áa]gina\s*n[ãa]o\s*encontrada\b/i,   // PT: "Página não encontrada"
-    /\bp[áa]gina\s*no\s*encontrada\b/i,        // ES: "Página no encontrada"
-    /\bページが見つかりません/i,                  // JP: "ページが見つかりません"
-    /\bстраница\s*не\s*найдена\b/i,             // RU: "Страница не найдена"
-    /\bhalaman\s*tidak\s*ditemukan\b/i,          // ID: "Halaman tidak ditemukan"
-    /\bไม่พบหน้า/i,                              // TH: "ไม่พบหน้า"
-    /\b페이지를?\s*찾을\s*수\s*없/i,               // KR: "페이지를 찾을 수 없습니다"
-    /\bالصفحة\s*غير\s*موجودة/i,                  // AR: "الصفحة غير موجودة"
-    /\bbu\s*ba[ğg]lant[ıi]\s*yeni\s*sekmede/i, // TR: garbled tooltip text in title
-    /^404\b/i,
-    /\b404\s*not\s*found\b/i,
-    /\bcloudflare\b/i,
-    /\bcaptcha\b/i,
-    /\bbitte\s*warten\b/i,
-    /\baguarde\b/i,                  // BR: "please wait"
-    /\bverifica(ção|cao)\s*(de\s*segurança|de\s*seguranca)/i,  // BR: "security verification"
-    /\bun\s*momento\b/i,             // ES/generic: "one moment"
-    /\bverify\s*you\s*are\s*human\b/i,
-    /\brequest\s*could\s*not\s*be\s*satisfied\b/i, // CloudFront error
-    /\bbot\s*detection\b/i,
-    /\bsecurity\s*check\b/i,
-    // System/error/maintenance pages (multi-language)
-    /\bteknik\s*sorun/i,                          // TR: "teknik sorunlar yaşıyoruz"
-    /\bbakım(da|dır|dayız)?\b/i,                  // TR: "bakımdayız"
-    /\bşu\s*an\s*(hizmet|erişim)/i,               // TR: "şu an hizmet veremiyoruz"
-    /\bsizinle\s*ileti[şs]ime\s*ge[çc]ece[ğg]iz/i, // TR: "sizinle iletişime geçeceğiz"
-    /\bunder\s*maintenance\b/i,
-    /\btemporarily\s*unavailable\b/i,
-    /\bwe('re|\s*are)\s*(currently\s*)?(experiencing|having)\s*(technical\s*)?(issues|problems|difficulties)/i,
-    /^coming\s*soon\.?!?$/i,                       // Only reject if entire title is "Coming Soon"
-    /\bsite\s*is\s*(down|offline)\b/i,
-    /\bsorry.{0,20}(inconvenience|trouble)/i,
-    /\ben\s*maintenance\b/i,                       // FR: "en maintenance"
-    /\bindisponible\b/i,                           // FR: "temporairement indisponible"
-    /\bin\s*manutenzione\b/i,                      // IT: "in manutenzione"
-    /\bwartungsarbeiten\b/i,                       // DE: "Wartungsarbeiten"
-  ];
-  if (wafErrorPatterns.some((p) => p.test(campaign.title))) {
-    return 'waf-error-page';
-  }
-
-  // 0b. Garbled title — navigation fragments scraped as title content (market-agnostic)
-  const navJunkPatterns = [
-    /Dropdown(Track|search|Dropdown)/i,
-    /searchWS\/Iconography/i,
-    /we-icon__/i,
-    /Track Your Order(Dropdown|we-icon)/i,
-    /hamburger-?menu/i,
-    /icon__store-locator/i,
-  ];
-  if (navJunkPatterns.some((p) => p.test(campaign.title))) {
-    return 'garbled-nav-title';
-  }
-
-  // 0d. Repeated brand name garbled title (e.g. "idealoidealo")
-  if (brandName && brandName.length >= 3) {
-    const bl = brandName.toLowerCase();
-    if (titleLower === bl + bl || titleLower === bl + bl + bl) {
-      return 'repeated-brand-garbled';
-    }
-  }
-
-  // 0c. Non-campaign generic app/service pages (market-agnostic)
-  const genericNonCampaignPatterns = [
-    /^pay\s*me\s*on\b/i,
-    /^send\s*money\b/i,
-    /^transfer\s*money\b/i,
-    /^download\s*the\s*app\b/i,
-    /^get\s*the\s*app\b/i,
-    /^create\s*(an?\s*)?account\b/i,
-    /^sign\s*up\s*(for|now|today|free)\b/i,
-    /^(log|sign)\s*in\s*to\b/i,
-    /^join\s*(us|now|today|free)\b/i,
-    // Thank-you / confirmation / contact pages
-    /^te[şs]ekk[üu]r/i,                          // TR: "Teşekkürler..."
-    /^(thank\s*you|thanks)\b/i,                    // EN: "Thank you..."
-    /^merci\b/i,                                   // FR: "Merci..."
-    /^grazie\b/i,                                  // IT: "Grazie..."
-    /^danke\b/i,                                   // DE: "Danke..."
-    /^obrigad[oa]\b/i,                             // PT: "Obrigado..."
-    /^(your\s*)?(form|message|request)\s*(has\s*been\s*)?(sent|submitted|received)/i,
-    /^(başvurunuz|mesajınız|talebiniz)\s*(alındı|gönderildi|iletildi)/i,  // TR form confirmations
-    /^ne\s*yaz[ıi]k\s*ki\b/i,                     // TR: "Ne yazık ki..."  (error/apology)
-    /^(oops|uh\s*oh|whoops)\b/i,                   // EN error pages
-    /^(cookie|privacy)\s*(policy|notice|consent)/i,
-    /^(çerez|gizlilik)\s*(politika|ayar)/i,        // TR cookie/privacy
-    // Customer service / support / contact pages
-    /^m[üu][şs]teri\s*hizmet/i,                    // TR: "Müşteri Hizmetleri"
-    /^(customer\s*service|customer\s*support|contact\s*us|help\s*center)\b/i,
-    /^(service\s*client|contactez)/i,              // FR
-    /^(servizio\s*clienti|contattaci)/i,           // IT
-    /^(kundenservice|kontakt)/i,                   // DE
-    /^(atendimento|fale\s*conosco)/i,              // PT/BR
-    // App store / download / mobile app pages
-    /^(mobil\s*uygulama|uygulamayı\s*indir)/i,     // TR
-    /^(kolay\s*iade|[üu]cretsiz\s*(kargo|teslimat))\b/i,  // TR service features (not campaigns)
-    /^(free\s*shipping|easy\s*returns?|free\s*delivery)\b/i,
-    // Store info / hours / branch / announcement pages
-    /[çc]al[ıi][şs]ma\s*saat/i,                    // TR: "Çalışma Saatleri"
-    /ma[ğg]aza.{0,10}(listesi|bilgi|adres|saat)/i,  // TR: "Mağaza Listesi/Bilgileri/Adresleri"
-    /[şs]ube.{0,10}(listesi|bilgi|adres|saat)/i,    // TR: "Şube Listesi"
-    /^(store|opening)\s*hours?\b/i,
-    /^(store|branch)\s*(list|locator|finder|directory)/i,
-    /^(find\s*a\s*store|our\s*stores)\b/i,
-    /^([öo]ffnungszeiten|filialen|standorte)/i,      // DE
-    /^(nos\s*magasins|horaires)/i,                    // FR
-    /^(i\s*nostri\s*negozi|orari)/i,                  // IT
-    // Generic search/listing/category page titles (not real campaigns)
-    /^search\s*results?\b/i,                            // "Search Results + FREE SHIPPING"
-    /^on\s*sale\s*products?\b/i,                         // "On Sale Products + FREE SHIPPING"
-    /^(all|shop\s*all|browse\s*all)\s*(products?|items?|categories)\b/i,
-    /^(new\s*arrivals?|what'?s?\s*new|just\s*in)\s*[\+|–—-]/i,  // generic listing with brand suffix
-    /^(best\s*sellers?|top\s*rated|most\s*popular)\s*[\+|–—-]/i,
-    /^(clearance|outlet)\s*(items?|products?)?\s*[\+|–—-]/i,
-    /^404\b/i,                                           // 404 error pages
-    /^page\s*not\s*found\b/i,
-    /^(error|hata)\s*\d{3}\b/i,                          // "Error 404", "Hata 503"
-    // Navigation/CTA links scraped as campaigns (all markets)
-    /^(view\s*all|see\s*all|shop\s*now|learn\s*more|read\s*more|explore|discover)\s*\.?!?$/i,
-    /^(ver\s*todo|ver\s*todos|ver\s*mais|comprar\s*agora|saiba\s*mais)\s*\.?!?$/i,  // PT/ES
-    /^(alle\s*angebote|mehr\s*erfahren|jetzt\s*kaufen|alle\s*ansehen)\s*\.?!?$/i,   // DE
-    /^(voir\s*tout|en\s*savoir\s*plus|acheter)\s*\.?!?$/i,                         // FR
-    /^(vedi\s*tutto|scopri\s*di\s*più|acquista\s*ora)\s*\.?!?$/i,                  // IT
-    /^(lihat\s*semua|beli\s*sekarang)\s*\.?!?$/i,                                 // ID
-    /^(すべて見る|もっと見る|今すぐ購入)\s*\.?!?$/i,                               // JP
-    /^(ดูทั้งหมด|ซื้อเลย)\s*\.?!?$/i,                                            // TH
-    /^(посмотреть\s*все|узнать\s*больше|купить)\s*\.?!?$/i,                         // RU
-    /^(t[üu]m[üu]n[üu]\s*g[öo]r|hemen\s*al|detayl[ıi]\s*bilgi)\s*\.?!?$/i,       // TR
-    /^trending\s*deals?\s*$/i,
-    /^these\s*offers?\s*end\s*soon\s*$/i,
-    /^(more|all)\s*deals?\s*$/i,
-    // URL paths scraped as titles (e.g. "/sale", "/cupom-quero10")
-    /^\/[a-z0-9_-]+$/i,
-    // CSS/HTML fragments scraped as titles
-    /^#[a-z-]+::?(before|after)/i,
-    /#\{.*content:\s*["']/i,
-    /^\.css-[a-z0-9]+\{/i,                                            // CSS class definition as title
-    /\{overflow:\s*hidden/i,                                           // CSS property fragment
-    // Generic non-campaign UI elements
-    /^(sign\s*up\s*here|view\s*offer|how\s*can\s*i\s*help|filters)\s*\.?!?$/i,
-    /^(vedi\s*l'offerta|ver\s*oferta|voir\s*l'offre)\s*\.?!?$/i,
-    // Login/auth pages
-    /\blogin\s*temu\b/i,
-    /\blogin\s*page\b/i,
-    // KR: Navigation category labels scraped as campaign titles
-    /^(브랜드패션|트렌드패션|뷰티\/잡화|가구\/침구|생활\/건강|스포츠\/레저|문구\/도서|가전\/컴퓨터|패션의류|식품\/건강)$/,
-    /^(베스트|기획전|라이브|공지사항|카테고리|전체|패션|일간)$/,  // KR: generic nav labels
-    /^(전체\s*보기|모두\s*보기|더\s*보기)\s*\.?!?$/,              // KR: "view all" / "see all"
-    // KR: Login/service pages
-    /^로그인\b/,                                                   // KR: "Login"
-  ];
-  if (genericNonCampaignPatterns.some((p) => p.test(titleLower))) {
-    return 'generic-non-campaign';
-  }
-
-  // 1. Invalid/garbage URLs
-  if (!url || url.startsWith('javascript:') || url === '#' || url === '') {
-    return 'invalid-url';
-  }
-
-  // 1b. Foreign locale URL — URL contains a locale prefix that doesn't match the market
-  if (url && market) {
-    const MARKET_LOCALES: Record<string, string[]> = {
-      TR: ['tr-tr', 'tr'],
-      US: ['en-us', 'en'],
-      DE: ['de-de', 'de', 'de-at', 'de-ch'],
-      UK: ['en-gb', 'en'],
-      IN: ['en-in', 'hi-in', 'en'],
-      BR: ['pt-br', 'pt'],
-      ID: ['id-id', 'id', 'en-id'],
-      RU: ['ru-ru', 'ru'],
-      MX: ['es-mx', 'es'],
-      JP: ['ja-jp', 'ja'],
-      PH: ['en-ph', 'en'],
-      TH: ['th-th', 'th', 'en-th'],
-      CA: ['en-ca', 'fr-ca', 'en'],
-      AU: ['en-au', 'en'],
-      FR: ['fr-fr', 'fr'],
-      IT: ['it-it', 'it'],
-      ES: ['es-es', 'es'],
-      EG: ['ar-eg', 'ar', 'en-eg'],
-      SA: ['ar-sa', 'ar', 'en-sa'],
-      KR: ['ko-kr', 'ko'],
-      AR: ['es-ar', 'es'],
-      AE: ['ar-ae', 'ar', 'en-ae'],
-      VN: ['vi-vn', 'vi'],
-      PL: ['pl-pl', 'pl'],
-      MY: ['ms-my', 'ms', 'en-my'],
-      CO: ['es-co', 'es'],
-      ZA: ['en-za', 'en'],
-      PT: ['pt-pt', 'pt'],
-      NL: ['nl-nl', 'nl'],
-      PK: ['ur-pk', 'ur', 'en-pk'],
-      SE: ['sv-se', 'sv'],
-    };
-    // Match URL locale patterns like /en-us/, /tr-tr/, /de-de/ etc.
-    const localeMatch = url.match(/\/([a-z]{2}-[a-z]{2})\//i);
-    if (localeMatch) {
-      const urlLocale = localeMatch[1].toLowerCase();
-      const allowedLocales = MARKET_LOCALES[market] || [];
-      const isAllowed = allowedLocales.some(loc => urlLocale === loc || urlLocale.startsWith(loc.split('-')[0] + '-'));
-      if (!isAllowed) {
-        // Check if the URL locale matches ANY other market — if so, it's a foreign locale
-        const allLocales = Object.values(MARKET_LOCALES).flat();
-        if (allLocales.includes(urlLocale)) {
-          return `foreign-locale-url(${urlLocale})`;
-        }
-      }
-    }
-  }
-
-  // 2. Listing page title detection (market-agnostic + market-specific)
-  // English listing titles (apply to ALL markets — English titles common everywhere)
-  if (/^(all\s*)?(deals?|sales?|offers?|specials?|promotions?|coupons?)$/i.test(titleLower)) {
-    return 'listing-page-title';
-  }
-  if (/^(deals?|sales?|offers?|specials?|promotions?)\s*[|–—-]\s*.+$/i.test(titleLower)) {
-    return 'listing-page-with-brand';
-  }
-  // TR
-  if (/^(tüm\s*)?kampanyalar?$/i.test(titleLower) || /^(tüm\s*)?(indirimler|fırsatlar|teklifler)$/i.test(titleLower)) {
-    return 'listing-page-title';
-  }
-  if (/^kampanyalar\s*[|–—-]\s*.+$/i.test(titleLower)) {
-    return 'listing-page-with-brand';
-  }
-  // DE
-  if (/^(alle\s*)?(angebote?|aktionen?|rabatte?|gutscheine?)$/i.test(titleLower)) {
-    return 'listing-page-title';
-  }
-  if (/^(angebote?|aktionen?|rabatte?)\s*[|–—-]\s*.+$/i.test(titleLower)) {
-    return 'listing-page-with-brand';
-  }
-  // BR/PT
-  if (/^(todas?\s*)?(ofertas?|promoções?|promocoes?|descontos?|cupons?)$/i.test(titleLower)) {
-    return 'listing-page-title';
-  }
-  // ID
-  if (/^(semua\s*)?(promo|promosi|diskon|penawaran|voucher)$/i.test(titleLower)) {
-    return 'listing-page-title';
-  }
-  // RU
-  if (/^(все\s*)?(акции|скидки|предложения|промокоды|купоны)$/i.test(titleLower)) {
-    return 'listing-page-title';
-  }
-  // MX/ES
-  if (/^(todas?\s*las?\s*)?(ofertas?|promociones?|descuentos?|cupones?)$/i.test(titleLower)) {
-    return 'listing-page-title';
-  }
-  // JP
-  if (/^(全ての?)?(セール|キャンペーン|割引|クーポン|お得)$/i.test(titleLower)) {
-    return 'listing-page-title';
-  }
-  // TH
-  if (/^(ทั้งหมด\s*)?(โปรโมชั่น|โปรโมชัน|ส่วนลด|ดีล|คูปอง)$/i.test(titleLower)) {
-    return 'listing-page-title';
-  }
-  // FR
-  if (/^(toutes?\s*les?\s*)?(soldes|promotions?|réductions?|offres?|bons?\s*plans?)$/i.test(titleLower)) {
-    return 'listing-page-title';
-  }
-  // IT
-  if (/^(tutte?\s*le?\s*)?(offerte?|promozioni?|sconti?|saldi|coupon)$/i.test(titleLower)) {
-    return 'listing-page-title';
-  }
-
-  // 3. Title is brand name only or brand + listing word
-  if (brandName) {
-    const brandLower = brandName.toLowerCase();
-    if (titleLower === brandLower) {
-      return 'brand-listing-page';
-    }
-    // Multi-language brand + listing word patterns
-    const brandListingPatterns = [
-      // EN
-      `${brandLower} deals`, `${brandLower} sales`, `${brandLower} offers`, `${brandLower} promotions`,
-      // TR
-      `${brandLower} kampanyalar`, `${brandLower} kampanyaları`, `${brandLower} indirimleri`,
-      // DE
-      `${brandLower} angebote`, `${brandLower} aktionen`, `${brandLower} rabatte`,
-      // BR/PT
-      `${brandLower} ofertas`, `${brandLower} promoções`, `${brandLower} descontos`,
-      // RU
-      `${brandLower} акции`, `${brandLower} скидки`,
-      // MX/ES
-      `${brandLower} ofertas`, `${brandLower} promociones`, `${brandLower} descuentos`,
-      // FR
-      `${brandLower} soldes`, `${brandLower} promotions`, `${brandLower} offres`,
-      // IT
-      `${brandLower} offerte`, `${brandLower} promozioni`, `${brandLower} sconti`,
-    ];
-    if (brandListingPatterns.includes(titleLower)) {
-      return 'brand-listing-page';
-    }
-  }
-
-  // 4. Non-target content (Arabic script detection)
-  if (/[\u0600-\u06FF]/.test(campaign.title)) {
-    return 'arabic-content';
-  }
-
-  // 5. Market-specific language filtering
-  if (market === Market.US || market === Market.UK) {
-    // US/UK market: reject non-English content (Turkish, etc.)
-    const turkishSpecific = /[çğıöşüÇĞİÖŞÜ]/;
-    if (turkishSpecific.test(campaign.title)) {
-      return 'non-english-content';
-    }
-  } else if (market === Market.DE) {
-    // DE market: reject Turkish-specific chars (but allow German chars: ä, ö, ü, ß)
-    const turkishOnly = /[çğışÇĞİŞ]/;  // Turkish chars NOT shared with German
-    if (turkishOnly.test(campaign.title)) {
-      return 'non-german-content';
-    }
-  } else {
-    // TR market: Title is entirely English AND not campaign-related
-    if (/^[A-Za-z0-9\s|&',.:!?%$€₺#@\-–—()\/]+$/.test(campaign.title)) {
-      const englishCampaignWords = /campaign|deal|offer|discount|sale|promotion|free|bonus|special/i;
-      const turkishWords = /kampanya|indirim|fırsat|firsat|teklif|avantaj|hediye|taksit|özel|ozel|ücretsiz|ucretsiz/i;
-      if (!englishCampaignWords.test(campaign.title) && !turkishWords.test(campaign.title)) {
-        const serviceWords = /service|warranty|guarantee|recycling|partnership|corporate|about|contact|FAQ|terms/i;
-        if (serviceWords.test(campaign.title)) {
-          return 'english-non-campaign';
-        }
-      }
-    }
-  }
-
-  // 6. URL is the homepage
-  try {
-    const parsed = new URL(url);
-    const path = parsed.pathname.replace(/\/+$/, '');
-    if (path === '' || path === '/') {
-      if (!kw.homepageCampaignCheck.test(titleLower)) {
-        return 'homepage-url';
-      }
-    }
-  } catch { /* ignore parse errors */ }
-
-  // 7. Legal/info page titles (market-specific)
-  if (market === Market.US || market === Market.UK) {
-    const usLegalPatterns = [
-      /^privacy\s*policy$/i,
-      /^terms\s*(of\s*(service|use)|and\s*conditions)$/i,
-      /^cookie\s*(policy|settings|preferences)$/i,
-      /^(all|browse)\s*(deals|offers|sales|promotions|coupons)$/i,
-      /^(about|contact)\s*(us)?$/i,
-      /^faq$/i,
-      /^help\s*(center)?$/i,
-      /^(return|refund)\s*policy$/i,
-      /\brecall\b/i,
-      /^careers?$/i,
-      /^press(\s*releases?)?$/i,
-    ];
-    if (usLegalPatterns.some((p) => p.test(titleLower))) {
-      return 'legal-page';
-    }
-  } else if (market === Market.DE) {
-    const deLegalPatterns = [
-      /^impressum$/i,
-      /^datenschutz(erkl[äa]rung)?$/i,
-      /^agb$/i, /^allgemeine\s*gesch[äa]ftsbedingungen$/i,
-      /^kontakt(\s*formular)?$/i,
-      /^[üu]ber\s*uns$/i,
-      /^cookie[\s-]*(einstellungen|richtlinie|hinweis)$/i,
-      /^hilfe(\s*center)?$/i, /^h[äa]ufige\s*fragen$/i,
-      /^widerrufs(recht|belehrung)$/i,
-      /^versand(informationen|bedingungen)?$/i,
-      /^r[üu]ck(gabe|sendung)(s?recht)?$/i,
-      /^karriere$/i, /^presse(mitteilung)?$/i,
-      /^(alle\s*)?(angebote|aktionen|deals|rabatte|gutscheine)$/i,
-      // English fallback on German sites
-      /^privacy\s*policy$/i, /^terms/i, /^faq$/i,
-      /^(about|contact)\s*(us)?$/i,
-    ];
-    if (deLegalPatterns.some((p) => p.test(titleLower))) {
-      return 'legal-page';
-    }
-  } else {
-    const trLegalPatterns = [
-      /^kampanya\s*(şartları|sartlari|koşulları|kosullari|kurallari|kuralları)$/i,
-      /çekilış\s*sonuçları|cekilis\s*sonuclari|çekiliş\s*sonuçları/i,
-      /^gizlilik\s*(politikası|sozlesmesi|bildirimi)$/i,
-      /^kvkk/i,
-      /^cerez\s*politikası$/i,
-      /^çerez\s*politikası$/i,
-      /^tüm\s*kampanyalar$/i,
-      /^tum\s*kampanyalar$/i,
-      /^all\s*campaigns$/i,
-      /^mağaza\s*kampanyalar/i,
-      /^magaza\s*kampanyalar/i,
-      /kampanyalar[ıi]?\s*[|–—-]/i,
-      /\s+kampanyalar[ıi]$/i,
-      /çerez(ler)?i?\s*(onayla|kabul|ayar|tercih|yönet)/i,
-      /cookie\s*(consent|accept|settings|preferences)/i,
-      /fonksiyonel\s*çerez/i,
-      /^(fiyat\s*)?teklif\s*(formu|al)/i,
-      /^size\s*en\s*yakın/i,
-      /geri\s*çağırma\s*kampanyası/i,
-      /geri\s*cagirma/i,
-      /^daha\s*fazlasını\s*öğren$/i,
-      /portal['ıi]?\s*keşfedin/i,
-      /^(ile\s*)?tanışın$/i,
-      /ile\s*tanışın$/i,
-    ];
-    if (trLegalPatterns.some((p) => p.test(titleLower))) {
-      return 'legal-page';
-    }
-  }
-
-  // 7b. DE: Product count pages (MediaMarkt/Saturn "(N Artikel)" pattern)
-  if (market === Market.DE) {
-    if (/\(\d+\s*artikel\)/i.test(campaign.title)) {
-      return 'de-product-count-page';
-    }
-  }
-
-  // 7c. US/UK: Insurance/finance info pages (not real campaigns)
-  if (market === Market.US || market === Market.UK) {
-    const insuranceInfoPatterns = [
-      /\bget\s+(a\s+)?quote\b/i,
-      /\bhow\s+(to|do|much)\b/i,
-      /\btips\s+for\b/i,
-      /\bcompare\s*(.*\s)?rates\b/i,
-      /\btypes\s+of\s+(insurance|coverage)\b/i,
-      /\binsurance\s+company\b/i,
-      /\bwhat\s+is\s+.*(insurance|coverage)\b/i,
-      /\blearn\s+(more\s+)?about\s+.*(insurance|coverage)\b/i,
-    ];
-    if (insuranceInfoPatterns.some((p) => p.test(campaign.title))) {
-      // Only reject if NO discount/campaign language present
-      const hasDealWord = /(sale|flash|limited|today|weekend|off|save\s*\$|coupon|promo|code|free|discount|\d+%)/i.test(campaign.title);
-      if (!hasDealWord) {
-        return 'insurance-info-page';
-      }
-    }
-  }
-
-  // 8. Individual product pages (not campaigns) — URL-based detection
-  const productUrlPatterns = [
-    /\/p\/\d+/i,
-    /\/product\/\d+/i,
-    /\/urun\/[^/]+$/i,
-    /\/products\/[^/]+$/i,
-    /[?&]productId=/i,
-    /\/p-[a-z0-9]{5,}/i,
-    // US/international product URL patterns
-    /\/dp\/[A-Z0-9]{10}/i,   // Amazon ASIN: /dp/B08N5WRWNW
-    /\/ip\/\d+/i,             // Walmart item: /ip/12345678
-    /\/shop\/p\//i,           // Logitech etc: /shop/p/product-slug
-    /\/shop\/[^/]+\.\d{3,}/i, // Logitech SKU: /shop/p/item.956-000126
-    /\/item\/\d+/i,           // Generic: /item/12345
-    /\/pd\/\d+/i,             // PD style: /pd/12345
-    /\/sku\//i,               // SKU-based: /sku/ABC123
-    /\/product\.html/i,       // Overstock etc: /product.html?option=...
-    /\/\d+\/product\.html/i,  // Overstock: /43153751/product.html
-    // Restaurant menu item pages (not campaigns)
-    /\/food\/[^/]+\/[^/]+/i,  // Any /food/category/item (Taco Bell, etc.)
-    /\/menu\/(item|product|detail)\//i,
-    /\/cardapio\//i,          // BR: menu
-    /\/speisekarte\//i,       // DE: menu
-    /\/menu\/[^/]+\/[^/]+$/i, // Generic: /menu/category/item
-  ];
-  if (campaign.sourceUrl && productUrlPatterns.some((p) => p.test(campaign.sourceUrl))) {
-    return 'individual-product-page';
-  }
-
-  // 8b. CMS component URLs (Marriott AEM, Sling etc.) — not campaigns
-  if (campaign.sourceUrl && /jcr[:\/_]content/i.test(campaign.sourceUrl)) {
-    return 'cms-component-url';
-  }
-
-  // 8c. Job listing pages — not campaigns
-  const jobUrlPatterns = [
-    /\/offerte-lavoro\//i,    // IT: Subito.it job listings
-    /\/offres-emploi\//i,     // FR: job listings
-    /\/stellenangebote\//i,   // DE: job listings
-    /\/vagas\//i,             // BR: job listings
-    /\/lowongan\//i,          // ID: job listings
-  ];
-  if (campaign.sourceUrl && jobUrlPatterns.some((p) => p.test(campaign.sourceUrl))) {
-    return 'job-listing-page';
-  }
-
-  // 8d. CMS widget titles — generic components, not real campaigns
-  if (/^offers?\s+(text\s+block|details?\s+card|search\s+results)/i.test(campaign.title)) {
-    return 'cms-widget-title';
-  }
-
-  // 8e. Login/account/auth pages — never campaigns
-  const authUrlPatterns = [
-    /\/(login|log-in|signin|sign-in|signup|sign-up|register|auth|oauth|sso)\b/i,
-    /\/(my-?account|account\/?(settings|profile|orders|dashboard|preferences|security))\b/i,
-    /\/(profile|user-profile|my-profile)\b/i,
-    /\/(forgot-?password|reset-?password|change-?password|verify-?email)\b/i,
-  ];
-  if (campaign.sourceUrl && authUrlPatterns.some((p) => p.test(campaign.sourceUrl))) {
-    return 'auth-account-page';
-  }
-
-  // 8f. Cart/checkout/payment pages — never campaigns
-  const cartUrlPatterns = [
-    /\/(cart|shopping-?cart|my-?cart|sepet|warenkorb|carrello|panier)\b/i,
-    /\/(checkout|check-out|ödeme|kasse|cassa|paiement)\b/i,
-    /\/(basket|my-?basket)\b/i,
-    /\/(order|order-?(confirmation|tracking|status|history|details))\b/i,
-    /\/(payment|pay|billing)\b/i,
-  ];
-  if (campaign.sourceUrl && cartUrlPatterns.some((p) => p.test(campaign.sourceUrl))) {
-    return 'cart-checkout-page';
-  }
-
-  // 8g. Blog/article/editorial pages — not campaigns
-  const blogUrlPatterns = [
-    /\/(blog|blogs|artikel|article|articles|magazine|journal|editorial|news|haber|haberler)\b/i,
-    /\/(blog|artikel|article)\/[^/]+/i,  // blog post pages: /blog/some-post
-    /\/(magazin|dergi|revista|rivista|zeitschrift)\b/i,  // TR/PT/IT/DE magazine
-  ];
-  if (campaign.sourceUrl && blogUrlPatterns.some((p) => p.test(campaign.sourceUrl))) {
-    // Only reject if no campaign keyword in title (some blogs announce deals)
-    const hasAnyCampaignWord = kw.strongCampaignKeywords.some((k) => titleLower.includes(k)) ||
-      kw.campaignKeywords.some((k) => titleLower.includes(k));
-    if (!hasAnyCampaignWord) {
-      return 'blog-article-page';
-    }
-  }
-
-  // 9. Individual product names without any campaign/discount language
-  const hasCampaignKeyword = kw.strongCampaignKeywords.some((k) => titleLower.includes(k)) ||
-    kw.strongCampaignKeywordsWordBoundary.some((re) => re.test(titleLower)) ||
-    kw.campaignKeywords.some((k) => titleLower.includes(k)) ||
-    kw.campaignKeywordsWordBoundary.some((re) => re.test(titleLower));
-  if (!hasCampaignKeyword) {
-    if (kw.productTypeRe && kw.productTypeRe.test(campaign.title)) {
-      return 'individual-product-name';
-    }
-    if (kw.categoryOnlyRe && kw.categoryOnlyRe.test(titleLower.trim())) {
-      return 'category-only-title';
-    }
-  }
-
-  // 10. Product listing/category pages
-  if (kw.productListingPatterns && kw.productListingPatterns.some((p) => p.test(campaign.title))) {
-    if (!campaign.description && campaign.imageUrls.length === 0) {
-      return 'product-listing-page';
-    }
-  }
-
-  // 11. Generic site title
-  const genericSiteTitles = [
-    /resmi\s*web\s*site/i,
-    /official\s*web\s*site/i,
-    /^fırsatlar$/i,
-    /^deals$/i,
-  ];
-  if (genericSiteTitles.some((p) => p.test(campaign.title))) {
-    if (/resmi\s*web\s*site|official\s*web\s*site/i.test(campaign.title)) {
-      return 'generic-site-title';
-    }
-    if (/^(fırsatlar|deals)$/i.test(titleLower) && !campaign.description && campaign.imageUrls.length === 0) {
-      return 'generic-deals-title';
-    }
-  }
-
-  // 12. Title too short
-  if (campaign.title.length < 3) {
-    return 'empty-title';
-  }
-
-  // 13. Stale campaigns: startDate more than 2 years ago
-  if (campaign.startDate) {
-    const twoYearsAgo = new Date();
-    twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
-    if (campaign.startDate < twoYearsAgo) {
-      return 'stale-campaign';
-    }
-  }
-
-  // 14. Expired campaigns: endDate in the past (more than 7 days grace)
-  if (campaign.endDate) {
-    const gracePeriod = new Date();
-    gracePeriod.setDate(gracePeriod.getDate() - 7);
-    if (campaign.endDate < gracePeriod) {
-      return 'expired-campaign';
-    }
-  }
-
-  return null;
-}
-
-// ====== SOFT SCORING ======
-
-export interface QualityResult {
+interface ScoreResult {
   score: number;
   reasons: string[];
-  passed: boolean;
-  hardRejected?: string;
 }
 
-const MIN_SCORE = 4;
-
-export function scoreCampaign(
-  campaign: NormalizedCampaign,
-  brandName?: string,
+function hardReject(
+  listing: NormalizedJobListing,
+  keywords: JobMarketKeywords,
   market?: Market,
-): QualityResult {
-  const kw = getMarketKeywords(market);
+): string | null {
+  const titleLower = listing.title.toLowerCase();
+  const urlLower = listing.sourceUrl.toLowerCase();
 
-  // === HARD REJECT first ===
-  const rejectReason = hardReject(campaign, brandName, market);
-  if (rejectReason) {
-    return { score: -99, reasons: [`HARD_REJECT: ${rejectReason}`], passed: false, hardRejected: rejectReason };
+  // 1. WAF/bot detection
+  for (const p of WAF_TITLE_PATTERNS) {
+    if (p.test(listing.title)) return 'waf_bot';
   }
 
+  // 2. 404/error pages
+  for (const p of ERROR_TITLE_PATTERNS) {
+    if (p.test(listing.title)) return '404_error';
+  }
+
+  // 3. Too short title
+  if (listing.title.length < 5) return 'title_too_short';
+
+  // 4. Blacklisted titles (exact match)
+  for (const bl of keywords.blacklistedTitles) {
+    if (titleLower === bl.toLowerCase() || titleLower === bl.toLowerCase().replace(/\s+/g, '')) {
+      return 'blacklisted_title';
+    }
+  }
+
+  // 5. White-collar job detection (word boundary for precision)
+  for (const wc of keywords.whiteCollarKeywords) {
+    const wcLower = wc.toLowerCase();
+    // Use word boundary for multi-word terms
+    if (wcLower.includes(' ')) {
+      if (titleLower.includes(wcLower)) return `white_collar:${wc}`;
+    } else {
+      // Single word — use word boundary regex
+      const re = new RegExp(`\\b${wcLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+      if (re.test(titleLower)) {
+        // Exception: blue-collar manager roles
+        if (isBlueCollarManager(titleLower, wcLower)) continue;
+        return `white_collar:${wc}`;
+      }
+    }
+  }
+
+  // 6. Non-job URL patterns
+  for (const p of keywords.nonJobUrlPatterns) {
+    if (p.test(urlLower)) {
+      // But if URL also matches job patterns, don't reject (e.g., /about-careers)
+      const hasJobUrl = keywords.jobUrlPatterns.some(jp => jp.test(urlLower));
+      if (!hasJobUrl) return 'non_job_url';
+    }
+  }
+
+  // 7. CSS/garbage title fragments
+  if (/^[.#\[\]{}@]/.test(listing.title) || /::before|::after|::placeholder/i.test(listing.title)) {
+    return 'css_garbage';
+  }
+
+  // 8. Foreign locale URL check
+  if (market) {
+    const localePatterns = MARKET_LOCALES[market];
+    if (localePatterns) {
+      for (const lp of localePatterns) {
+        if (lp.test(listing.sourceUrl)) return 'foreign_locale';
+      }
+    }
+  }
+
+  return null; // Not rejected
+}
+
+/** Check if a "manager" title is actually blue-collar management */
+function isBlueCollarManager(titleLower: string, _wcTerm: string): boolean {
+  const blueCollarManagerPatterns = [
+    /\bshift\s+manager\b/i,
+    /\bwarehouse\s+manager\b/i,
+    /\bsite\s+manager\b/i,
+    /\bfloor\s+manager\b/i,
+    /\bduty\s+manager\b/i,
+    /\bstore\s+manager\b/i,
+    /\brestaurant\s+manager\b/i,
+    /\bkitchen\s+manager\b/i,
+    /\bfactory\s+manager\b/i,
+    /\bplant\s+manager\b/i,
+    /\boperations\s+manager\b/i,
+    /\bvardiya\s+(müdürü|amiri|sorumlusu)\b/i,
+    /\bdepo\s+(müdürü|sorumlusu)\b/i,
+    /\bşantiye\s+(şefi|müdürü)\b/i,
+    /\bmağaza\s+müdürü\b/i,
+    /\brestoran\s+müdürü\b/i,
+    /\bfabrika\s+müdürü\b/i,
+    /\büretim\s+müdürü\b/i,
+  ];
+
+  return blueCollarManagerPatterns.some(p => p.test(titleLower));
+}
+
+function scoreJobListing(
+  listing: NormalizedJobListing,
+  keywords: JobMarketKeywords,
+  companyName?: string,
+): ScoreResult {
   let score = 0;
   const reasons: string[] = [];
-  const titleLower = campaign.title.toLowerCase();
 
-  // +3: Strong campaign keywords (core terms: campaign, sale, deal, discount, promo, coupon, clearance, offer + local equivalents)
-  const hasStrongKeyword = kw.strongCampaignKeywords.some((k) => titleLower.includes(k)) ||
-      kw.strongCampaignKeywordsWordBoundary.some((re) => re.test(titleLower));
-  if (hasStrongKeyword) {
-    score += 3;
-    reasons.push('+3 strong-keyword');
-  } else if (kw.campaignKeywords.some((k) => titleLower.includes(k)) ||
-      kw.campaignKeywordsWordBoundary.some((re) => re.test(titleLower))) {
-    // +2: Secondary campaign keywords
+  const titleLower = listing.title.toLowerCase();
+  const urlLower = listing.sourceUrl.toLowerCase();
+
+  // +3: Blue-collar keyword in title
+  for (const kw of keywords.blueCollarKeywords) {
+    if (titleLower.includes(kw.toLowerCase())) {
+      score += 3;
+      reasons.push(`blue_collar:${kw}`);
+      break; // Only count once
+    }
+  }
+
+  // +2: Job posting keyword in title or description
+  const textToCheck = [titleLower, listing.description?.toLowerCase() || ''].join(' ');
+  for (const kw of keywords.jobPostingKeywords) {
+    if (textToCheck.includes(kw.toLowerCase())) {
+      score += 2;
+      reasons.push(`job_posting:${kw}`);
+      break;
+    }
+  }
+
+  // +2: Has salary info
+  if (listing.salaryMin !== null || listing.salaryMax !== null) {
     score += 2;
-    reasons.push('+2 keyword');
+    reasons.push('has_salary');
+  }
+
+  // +2: Has deadline
+  if (listing.deadline) {
+    score += 2;
+    reasons.push('has_deadline');
+  }
+
+  // +2: Job URL pattern
+  for (const p of keywords.jobUrlPatterns) {
+    if (p.test(urlLower)) {
+      score += 2;
+      reasons.push('job_url');
+      break;
+    }
   }
 
   // +1: Title >= 10 chars
-  if (campaign.title.length >= 10) {
+  if (listing.title.length >= 10) {
     score += 1;
-    reasons.push('+1 title≥10');
+    reasons.push('title_len');
   }
 
-  // +1: Description exists and >= 20 chars
-  if (campaign.description && campaign.description.length >= 20) {
+  // +1: Description >= 20 chars
+  if (listing.description && listing.description.length >= 20) {
     score += 1;
-    reasons.push('+1 desc');
+    reasons.push('desc_len');
+  }
+
+  // +1: Has requirements
+  if (listing.requirements && listing.requirements.length >= 10) {
+    score += 1;
+    reasons.push('has_requirements');
+  }
+
+  // +1: Has location
+  if (listing.city || listing.state) {
+    score += 1;
+    reasons.push('has_location');
   }
 
   // +1: Has image
-  if (campaign.imageUrls.length > 0) {
+  if (listing.imageUrls.length > 0) {
     score += 1;
-    reasons.push('+1 image');
+    reasons.push('has_image');
   }
 
-  // +1: Has discount rate
-  if (campaign.discountRate !== null && campaign.discountRate > 0) {
-    score += 1;
-    reasons.push('+1 discount');
+  // -2: Non-job URL (if not already counted in hard reject)
+  for (const p of keywords.nonJobUrlPatterns) {
+    if (p.test(urlLower)) {
+      score -= 2;
+      reasons.push('non_job_url_penalty');
+      break;
+    }
   }
 
-  // +1: Has start date
-  if (campaign.startDate !== null) {
-    score += 1;
-    reasons.push('+1 startDate');
-  }
-
-  // +2: Has end date
-  if (campaign.endDate !== null) {
-    score += 2;
-    reasons.push('+2 endDate');
-  }
-
-  // +1: Has promo code
-  if (campaign.promoCode) {
-    score += 1;
-    reasons.push('+1 promoCode');
-  }
-
-  // +2: URL contains campaign path (/sale, /deals, /offer, /promo, /campaign etc.)
-  if (kw.campaignUrlPatterns.some((p) => p.test(campaign.sourceUrl))) {
-    score += 2;
-    reasons.push('+2 campaign-url');
-  }
-
-  // -3: Blacklisted title
-  if (kw.blacklistedTitles.some((bl) => titleLower === bl || titleLower.startsWith(bl + ' '))) {
-    score -= 3;
-    reasons.push('-3 blacklist');
-  }
-
-  // -2: Title = brand name only
-  if (brandName && titleLower === brandName.toLowerCase()) {
+  // -2: Company-name-only title
+  if (companyName && titleLower === companyName.toLowerCase()) {
     score -= 2;
-    reasons.push('-2 brand-only');
+    reasons.push('company_only_title');
   }
 
-  // -2: Title < 5 chars
-  if (campaign.title.length < 5) {
-    score -= 2;
-    reasons.push('-2 short');
-  }
-
-  // -2: URL is a non-campaign service/info page
-  if (kw.nonCampaignUrlPatterns.some((p) => p.test(campaign.sourceUrl))) {
-    score -= 2;
-    reasons.push('-2 non-campaign-url');
-  }
-
-  // -2: Title contains non-campaign service keywords
-  if (kw.nonCampaignTitleKeywords.some((k) => titleLower.includes(k))) {
-    score -= 2;
-    reasons.push('-2 non-campaign-title');
-  }
-
-  // -2: Product listing/category page title
-  if (kw.listingPageTitlePatterns.some((p) => p.test(campaign.title))) {
-    score -= 2;
-    reasons.push('-2 product-listing');
-  }
-
-  // -1: No description and no image (very thin content)
-  if (!campaign.description && campaign.imageUrls.length === 0) {
+  // -1: No description AND no image (thin content)
+  if (!listing.description && listing.imageUrls.length === 0) {
     score -= 1;
-    reasons.push('-1 thin');
+    reasons.push('thin_content');
   }
 
-  // -2: Seed/listing page URL pattern
-  try {
-    const parsed = new URL(campaign.sourceUrl);
-    const path = parsed.pathname.replace(/\/+$/, '');
-    if (kw.listingPageUrlPatterns.some((p) => p.test(path))) {
-      score -= 2;
-      reasons.push('-2 listing-url');
-    }
-    // -2 for English version URL (/en/) — exclude English-speaking markets
-    const englishMarkets: Market[] = [Market.US, Market.UK, Market.IN, Market.PH, Market.CA, Market.AU];
-    if (market && !englishMarkets.includes(market) && /\/en\//.test(path)) {
-      score -= 2;
-      reasons.push('-2 english-url');
-    }
-  } catch { /* ignore */ }
-
-  return { score, reasons, passed: score >= MIN_SCORE };
+  return { score, reasons };
 }
 
-export function filterCampaigns(
-  campaigns: NormalizedCampaign[],
-  brandName?: string,
-  market?: Market,
-): { passed: NormalizedCampaign[]; rejected: NormalizedCampaign[] } {
-  const passed: NormalizedCampaign[] = [];
-  const rejected: NormalizedCampaign[] = [];
+// ====== EXPORTED FILTER FUNCTIONS ======
 
-  for (const c of campaigns) {
-    const result = scoreCampaign(c, brandName, market);
-    if (result.passed) {
-      passed.push(c);
-    } else {
-      const reason = result.hardRejected
-        ? `HARD_REJECT(${result.hardRejected})`
-        : `score=${result.score}`;
+/** Static quality filter (no AI) */
+export function filterJobListings(
+  listings: NormalizedJobListing[],
+  companyName?: string,
+  market?: Market,
+): { passed: NormalizedJobListing[]; rejected: NormalizedJobListing[] } {
+  const keywords = MARKET_KEYWORDS[market || 'TR'] || EN_KEYWORDS;
+  const passed: NormalizedJobListing[] = [];
+  const rejected: NormalizedJobListing[] = [];
+
+  for (const listing of listings) {
+    // Hard reject check
+    const rejectReason = hardReject(listing, keywords, market);
+    if (rejectReason) {
+      console.log(`  [Quality] HARD_REJECT (${rejectReason}): "${listing.title.substring(0, 60)}"`);
+      rejected.push(listing);
+      continue;
+    }
+
+    // Score
+    const result = scoreJobListing(listing, keywords, companyName);
+
+    if (result.score >= MIN_SCORE) {
       console.log(
-        `  [Quality] REJECTED (${reason}): "${c.title.substring(0, 60)}" [${result.reasons.join(', ')}]`,
+        `  [Quality] PASSED (score=${result.score}): "${listing.title.substring(0, 60)}" [${result.reasons.join(', ')}]`,
       );
-      rejected.push(c);
+      passed.push(listing);
+    } else {
+      console.log(
+        `  [Quality] REJECTED (score=${result.score}): "${listing.title.substring(0, 60)}" [${result.reasons.join(', ')}]`,
+      );
+      rejected.push(listing);
     }
   }
 
-  if (rejected.length > 0) {
-    console.log(`  [Quality] ${passed.length} passed, ${rejected.length} rejected`);
-  }
-
+  console.log(`  [Quality] ${passed.length}/${listings.length} passed, ${rejected.length} rejected`);
   return { passed, rejected };
 }
 
-// ====== AI-ENHANCED FILTERING ======
-
-// Score thresholds for AI routing
-const AUTO_ACCEPT_SCORE = 6;  // Score ≥ 6 → net kampanya, AI'ya gönderme
-const AUTO_REJECT_SCORE = 3;  // Score < 3 → yetersiz sinyal, AI'ya gönderme
-// Score 3-5 → AI borderline (dar ve verimli bant)
-const AI_CONFIDENCE_THRESHOLD = 0.6;
-
-/**
- * AI-enhanced campaign filtering.
- * Hard rejects stay static (fast, free). Borderline cases go to Gemini AI.
- * AI also enriches campaigns with missing dates/discount data.
- */
-export async function filterCampaignsWithAI(
-  campaigns: NormalizedCampaign[],
-  brandName?: string,
+/** Quality filter with AI for borderline cases */
+export async function filterJobListingsWithAI(
+  listings: NormalizedJobListing[],
+  companyName?: string,
   market?: Market,
-): Promise<{ passed: NormalizedCampaign[]; rejected: NormalizedCampaign[] }> {
-  const passed: NormalizedCampaign[] = [];
-  const rejected: NormalizedCampaign[] = [];
+): Promise<{ passed: NormalizedJobListing[]; rejected: NormalizedJobListing[] }> {
+  const keywords = MARKET_KEYWORDS[market || 'TR'] || EN_KEYWORDS;
+  const passed: NormalizedJobListing[] = [];
+  const rejected: NormalizedJobListing[] = [];
   let aiCalls = 0;
-  let aiFallbacks = 0; // AI unavailable (circuit breaker), static fallback kullanıldı
+  let aiFallbacks = 0;
 
-  for (const c of campaigns) {
-    const result = scoreCampaign(c, brandName, market);
-
-    // Hard reject — skip AI
-    if (result.hardRejected) {
-      console.log(
-        `  [Quality] REJECTED (HARD_REJECT(${result.hardRejected})): "${c.title.substring(0, 60)}"`,
-      );
-      rejected.push(c);
+  for (const listing of listings) {
+    // Hard reject check
+    const rejectReason = hardReject(listing, keywords, market);
+    if (rejectReason) {
+      console.log(`  [Quality] HARD_REJECT (${rejectReason}): "${listing.title.substring(0, 60)}"`);
+      rejected.push(listing);
       continue;
     }
 
-    // Auto-accept — high confidence, skip AI
+    // Score
+    const result = scoreJobListing(listing, keywords, companyName);
+
+    // Auto-accept: score >= 6
     if (result.score >= AUTO_ACCEPT_SCORE) {
       console.log(
-        `  [AI] SKIPPED (score=${result.score}): "${c.title.substring(0, 50)}" → auto-accept`,
+        `  [Quality] AUTO_ACCEPT (score=${result.score}): "${listing.title.substring(0, 60)}" [${result.reasons.join(', ')}]`,
       );
-      passed.push(c);
+      passed.push(listing);
       continue;
     }
 
-    // Auto-reject — very low score, skip AI
-    if (result.score < AUTO_REJECT_SCORE) {
+    // Auto-reject: score < borderline min
+    if (result.score < AI_BORDERLINE_MIN) {
       console.log(
-        `  [Quality] REJECTED (score=${result.score}): "${c.title.substring(0, 60)}" [${result.reasons.join(', ')}]`,
+        `  [Quality] REJECTED (score=${result.score}): "${listing.title.substring(0, 60)}" [${result.reasons.join(', ')}]`,
       );
-      rejected.push(c);
+      rejected.push(listing);
       continue;
     }
 
     // Borderline (score 3-5) — ask AI
     try {
       const aiResult = await classifyAndEnrich(
-        c.title,
-        c.description,
-        c.sourceUrl,
-        brandName || '',
+        listing.title,
+        listing.description,
+        listing.sourceUrl,
+        companyName || '',
         market,
       );
       aiCalls++;
 
       if (aiResult.confidence >= AI_CONFIDENCE_THRESHOLD) {
         if (aiResult.isCampaign) {
-          // AI says it's a campaign — enrich with missing data
-          if (aiResult.endDate && !c.endDate) {
-            c.endDate = new Date(aiResult.endDate);
+          // AI says it's a valid job listing — enrich with AI-extracted data
+          if (aiResult.endDate && !listing.deadline) {
+            listing.deadline = new Date(aiResult.endDate);
           }
-          if (aiResult.startDate && !c.startDate) {
-            c.startDate = new Date(aiResult.startDate);
-          }
-          if (aiResult.discountRate && !c.discountRate) {
-            c.discountRate = aiResult.discountRate;
-          }
-
-          const enrichments: string[] = [];
-          if (aiResult.endDate) enrichments.push(`endDate:${aiResult.endDate}`);
-          if (aiResult.startDate) enrichments.push(`startDate:${aiResult.startDate}`);
-          if (aiResult.discountRate) enrichments.push(`discount:${aiResult.discountRate}%`);
 
           console.log(
-            `  [AI] ACCEPTED (${aiResult.confidence.toFixed(2)}): "${c.title.substring(0, 50)}" → ${aiResult.reason}${enrichments.length ? ' | ' + enrichments.join(', ') : ''}`,
+            `  [AI] ACCEPTED (${aiResult.confidence.toFixed(2)}): "${listing.title.substring(0, 50)}" → ${aiResult.reason}`,
           );
-          passed.push(c);
+          passed.push(listing);
         } else {
           console.log(
-            `  [AI] REJECTED (${aiResult.confidence.toFixed(2)}): "${c.title.substring(0, 50)}" → ${aiResult.reason}`,
+            `  [AI] REJECTED (${aiResult.confidence.toFixed(2)}): "${listing.title.substring(0, 50)}" → ${aiResult.reason}`,
           );
-          rejected.push(c);
+          rejected.push(listing);
         }
       } else {
-        // Low confidence or AI exhausted (FALLBACK_RESULT) — fall back to static score
+        // Low confidence — fall back to static score
         const isFallback = aiResult.reason.includes('fallback');
         if (isFallback) aiFallbacks++;
         const tag = isFallback ? 'AI_EXHAUSTED' : 'LOW_CONF';
         if (result.score >= MIN_SCORE) {
           console.log(
-            `  [AI] ${tag} (${aiResult.confidence.toFixed(2)}, score=${result.score}): "${c.title.substring(0, 50)}" → accepted by static score`,
+            `  [AI] ${tag} (${aiResult.confidence.toFixed(2)}, score=${result.score}): "${listing.title.substring(0, 50)}" → accepted by static score`,
           );
-          passed.push(c);
+          passed.push(listing);
         } else {
           console.log(
-            `  [AI] ${tag} (${aiResult.confidence.toFixed(2)}, score=${result.score}): "${c.title.substring(0, 50)}" → rejected by static score`,
+            `  [AI] ${tag} (${aiResult.confidence.toFixed(2)}, score=${result.score}): "${listing.title.substring(0, 50)}" → rejected by static score`,
           );
-          rejected.push(c);
+          rejected.push(listing);
         }
       }
     } catch (err) {
-      // AI error — fall back to static score
       aiFallbacks++;
       console.warn(`  [AI] ERROR: ${(err as Error).message} — falling back to static score`);
       if (result.score >= MIN_SCORE) {
-        passed.push(c);
+        passed.push(listing);
       } else {
-        rejected.push(c);
+        rejected.push(listing);
       }
     }
   }
 
   const total = passed.length + rejected.length;
-  console.log(`  [Quality+AI] ${passed.length}/${total} passed, ${rejected.length} rejected, ${aiCalls} AI calls${aiFallbacks > 0 ? `, ${aiFallbacks} AI fallbacks (circuit breaker)` : ''}`);
+  console.log(`  [Quality+AI] ${passed.length}/${total} passed, ${rejected.length} rejected, ${aiCalls} AI calls${aiFallbacks > 0 ? `, ${aiFallbacks} AI fallbacks` : ''}`);
 
   return { passed, rejected };
 }
+
+// ─── Backward-compatible aliases (Faz 2 geçiş) ──────────────────
+export const filterCampaigns = filterJobListings;
+export const filterCampaignsWithAI = filterJobListingsWithAI;

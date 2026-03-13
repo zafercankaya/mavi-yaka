@@ -39,7 +39,7 @@ export default function SubscriptionScreen() {
     const productId = Platform.OS === 'ios' ? plan.appleProductId : plan.googleProductId;
     if (!productId) return undefined;
     return offerings.current.availablePackages.find(
-      (pkg) => pkg.product.identifier === productId,
+      (pkg: PurchasesPackage) => pkg.product.identifier === productId,
     );
   };
 
@@ -99,9 +99,9 @@ export default function SubscriptionScreen() {
             </Text>
           </View>
           <View style={styles.usageRow}>
-            <Text style={styles.usageLabel}>{t('subscription.campaignFollowLimit')}</Text>
+            <Text style={styles.usageLabel}>{t('subscription.companyFollowLimit')}</Text>
             <Text style={styles.usageValue}>
-              {entitlement.currentCampaignFollowCount} / {entitlement.maxCampaignFollows === -1 ? '∞' : entitlement.maxCampaignFollows}
+              {entitlement.currentCompanyFollowCount} / {entitlement.maxCompanyFollows === -1 ? '∞' : entitlement.maxCompanyFollows}
             </Text>
           </View>
           <View style={styles.usageRow}>
@@ -132,13 +132,13 @@ export default function SubscriptionScreen() {
       ) : null}
 
       {/* Frozen banner */}
-      {entitlement && !entitlement.isPremium && (entitlement.frozenBrandFollowCount > 0 || entitlement.frozenCampaignFollowCount > 0) && (
+      {entitlement && !entitlement.isPremium && (entitlement.frozenBrandFollowCount > 0 || entitlement.frozenCompanyFollowCount > 0) && (
         <View style={styles.frozenBanner}>
           <Ionicons name="lock-closed" size={20} color="#E65100" />
           <Text style={styles.frozenBannerText}>
             {t('subscription.frozenBanner', {
               brands: entitlement.frozenBrandFollowCount,
-              campaigns: entitlement.frozenCampaignFollowCount,
+              campaigns: entitlement.frozenCompanyFollowCount,
             })}
           </Text>
         </View>
@@ -221,7 +221,7 @@ function PlanCard({
     try {
       await purchasePackage(rcPackage);
       onPurchaseSuccess();
-      trackEvent('subscription_purchase', { plan: plan.name, period: selectedPeriod });
+      trackEvent('subscription_purchase', { plan: plan.name });
       Alert.alert(t('common.success'), t('subscription.subscriptionActivated'));
     } catch (err: any) {
       if (!err.userCancelled) {
@@ -271,9 +271,9 @@ function PlanCard({
           highlighted={plan.maxBrandFollows === -1}
         />
         <FeatureRow
-          label={t('subscription.campaignFollowLimit')}
-          value={plan.maxCampaignFollows === -1 ? t('common.unlimited') : `${plan.maxCampaignFollows}`}
-          highlighted={plan.maxCampaignFollows === -1}
+          label={t('subscription.companyFollowLimit')}
+          value={plan.maxCompanyFollows === -1 ? t('common.unlimited') : `${plan.maxCompanyFollows}`}
+          highlighted={plan.maxCompanyFollows === -1}
         />
         <FeatureRow
           label={t('subscription.dailyNotifications')}

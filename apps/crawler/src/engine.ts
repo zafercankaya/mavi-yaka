@@ -1,6 +1,7 @@
 import { PrismaClient, CrawlMethod, CrawlStatus, Market } from '@prisma/client';
 import { CrawlMarket } from './config';
-import { SelectorsConfig } from '@maviyaka/shared';
+// import { SelectorsConfig } from '@maviyaka/shared';
+type SelectorsConfig = any; // TODO: restore @maviyaka/shared import when package is ready
 import { scrapeCampaigns, closeBrowser } from './processors/scrape.processor';
 import { scrapeGeneric } from './processors/generic-scraper';
 import { scrapeGenericPlaywright } from './processors/playwright-fallback';
@@ -10,15 +11,15 @@ import { normalizeCampaign, RawCampaignData } from './pipeline/normalize';
 import { filterCampaigns, filterCampaignsWithAI } from './pipeline/quality-filter';
 import { checkAndUpsert, deduplicateBatch } from './pipeline/deduplicate';
 import { runAging } from './pipeline/aging';
-import { notifyNewCampaigns } from './notify';
+import { notifyNewJobListings } from './notify';
 
 export interface CrawlResult {
   sourceId: string;
   sourceName: string;
   status: CrawlStatus;
-  campaignsFound: number;
-  campaignsNew: number;
-  campaignsUpdated: number;
+  jobsFound: number;
+  jobsNew: number;
+  jobsUpdated: number;
   errorMessage: string | null;
   durationMs: number;
 }
@@ -29,10 +30,10 @@ const GLOBAL_SOURCE_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
 /** How many sources to crawl in parallel (Contabo: 4 vCPU, 8GB RAM — mostly I/O-bound) */
 const CRAWL_CONCURRENCY = 6;
 
-/** Max active campaigns per brand — prevents any single brand from dominating */
-const MAX_CAMPAIGNS_PER_BRAND = 50;
+/** Max active job listings per company — prevents any single company from dominating */
+const MAX_JOBS_PER_COMPANY = 50;
 
-/** Throttle delay after inserting a new campaign — reduces DB connection pressure */
+/** Throttle delay after inserting a new job listing — reduces DB connection pressure */
 const DB_WRITE_THROTTLE_MS = 150;
 
 /**
@@ -71,7 +72,7 @@ export async function crawlSource(
 
   const source = await prisma.crawlSource.findUnique({
     where: { id: sourceId },
-    include: { brand: true },
+    include: { company: true },
   });
 
   if (!source) {
@@ -129,9 +130,9 @@ export async function crawlSource(
       sourceId: source.id,
       sourceName: source.name,
       status: CrawlStatus.FAILED,
-      campaignsFound: 0,
-      campaignsNew: 0,
-      campaignsUpdated: 0,
+      jobsFound: 0,
+      jobsNew: 0,
+      jobsUpdated: 0,
       errorMessage,
       durationMs,
     };
@@ -158,8 +159,9 @@ async function crawlSourceInternal(
     let effectiveMethod = source.crawlMethod;
     let effectiveUrls = source.seedUrls;
 
-    if (source.crawlMethod === CrawlMethod.RSS || source.crawlMethod === CrawlMethod.FEED) {
-      effectiveUrls = source.discoveredFeedUrl ? [source.discoveredFeedUrl] : source.seedUrls;
+    if (source.crawlMethod === CrawlMethod.RSS) {
+      // RSS method — just use seedUrls directly
+      effectiveUrls = source.seedUrls;
     } else if (source.crawlMethod === CrawlMethod.API) {
       effectiveUrls = source.discoveredApiUrl ? [source.discoveredApiUrl] : source.seedUrls;
     }
@@ -191,8 +193,7 @@ async function crawlSourceInternal(
           let urlCampaigns: RawCampaignData[] = [];
 
           switch (effectiveMethod) {
-            case CrawlMethod.RSS:
-            case CrawlMethod.FEED: {
+            case CrawlMethod.RSS: {
               urlCampaigns = await fetchRssCampaigns(url);
               break;
             }
@@ -201,8 +202,7 @@ async function crawlSourceInternal(
               urlCampaigns = await fetchApiCampaigns(url, baseUrl);
               break;
             }
-            case CrawlMethod.CAMPAIGN:
-            case CrawlMethod.PRODUCT:
+            case CrawlMethod.HTML:
             default: {
               const selectors = source.selectors as SelectorsConfig | null;
               if (selectors) {
@@ -263,26 +263,26 @@ async function crawlSourceInternal(
     errorMessage = (err as Error).message;
     // If we already found some campaigns before the timeout, mark as PARTIAL not FAILED
     status = rawCampaigns.length > 0 ? CrawlStatus.PARTIAL : CrawlStatus.FAILED;
-    console.error(`[Crawl] Error fetching: ${errorMessage}${rawCampaigns.length > 0 ? ` (${rawCampaigns.length} campaigns found before timeout)` : ''}`);
+    console.error(`[Crawl] Error fetching: ${errorMessage}${rawCampaigns.length > 0 ? ` (${rawCampaigns.length} jobs found before timeout)` : ''}`);
   }
 
-  // Process campaigns through pipeline
-  let campaignsNew = 0;
-  let campaignsUpdated = 0;
-  const newCampaignIds: string[] = [];
+  // Process job listings through pipeline
+  let jobsNew = 0;
+  let jobsUpdated = 0;
+  const newJobIds: string[] = [];
 
   if (rawCampaigns.length > 0) {
-    console.log(`[Crawl] Processing ${rawCampaigns.length} campaigns...`);
+    console.log(`[Crawl] Processing ${rawCampaigns.length} job listings...`);
 
     // Step 1: Normalize all raw campaigns
     const normalized = rawCampaigns.map((raw) => normalizeCampaign(raw));
 
-    // Step 2: Quality filter — reject low-quality campaigns
+    // Step 2: Quality filter — reject low-quality entries
     // Use AI-enhanced filter if GROQ_API_KEY is configured, otherwise static filter
-    const brandName = source.brand?.name;
+    const companyName = source.company?.name;
     const { passed } = process.env.GROQ_API_KEY
-      ? await filterCampaignsWithAI(normalized, brandName, source.market)
-      : filterCampaigns(normalized, brandName, source.market);
+      ? await filterCampaignsWithAI(normalized, companyName, source.market)
+      : filterCampaigns(normalized, companyName, source.market);
 
     // Step 3: In-batch deduplication (remove duplicates within this crawl)
     const unique = deduplicateBatch(passed);
@@ -290,51 +290,51 @@ async function crawlSourceInternal(
       console.log(`  [Dedup] Batch dedup: ${passed.length} → ${unique.length} (${passed.length - unique.length} batch duplicates removed)`);
     }
 
-    // Step 4: Check brand campaign limit before upserting
-    const existingCount = await prisma.campaign.count({
-      where: { brandId: source.brandId, status: 'ACTIVE' },
+    // Step 4: Check company job listing limit before upserting
+    const existingCount = await prisma.jobListing.count({
+      where: { companyId: source.companyId, status: 'ACTIVE' },
     });
-    const remainingSlots = Math.max(0, MAX_CAMPAIGNS_PER_BRAND - existingCount);
+    const remainingSlots = Math.max(0, MAX_JOBS_PER_COMPANY - existingCount);
     if (remainingSlots === 0) {
-      console.log(`  [Limit] Brand "${source.brand?.name}" already has ${existingCount} active campaigns (max ${MAX_CAMPAIGNS_PER_BRAND}), skipping upsert`);
+      console.log(`  [Limit] Company "${source.company?.name}" already has ${existingCount} active job listings (max ${MAX_JOBS_PER_COMPANY}), skipping upsert`);
     } else if (remainingSlots < unique.length) {
-      console.log(`  [Limit] Brand "${source.brand?.name}" has ${existingCount}/${MAX_CAMPAIGNS_PER_BRAND} campaigns, ${remainingSlots} slots remaining`);
+      console.log(`  [Limit] Company "${source.company?.name}" has ${existingCount}/${MAX_JOBS_PER_COMPANY} job listings, ${remainingSlots} slots remaining`);
     }
 
     // Step 5: Deduplicate against DB and upsert
     let insertedCount = 0;
     for (const campaign of unique) {
       try {
-        // Skip new inserts if brand is at limit (but still allow updates to existing)
+        // Skip new inserts if company is at limit (but still allow updates to existing)
         if (insertedCount >= remainingSlots && remainingSlots < unique.length) {
-          // Only allow updates, not new inserts — check if campaign already exists
-          const existing = await prisma.campaign.findFirst({
-            where: { brandId: source.brandId, title: campaign.title, status: 'ACTIVE' },
+          // Only allow updates, not new inserts — check if job listing already exists
+          const existing = await prisma.jobListing.findFirst({
+            where: { companyId: source.companyId, title: campaign.title, status: 'ACTIVE' },
             select: { id: true },
           });
-          if (!existing) continue; // Skip — brand at limit
+          if (!existing) continue; // Skip — company at limit
         }
 
         const result = await checkAndUpsert(
           prisma,
           source.id,
-          source.brandId,
-          source.brand?.categoryId ?? null,
+          source.companyId,
+          source.company?.sector ?? null,
           campaign,
           source.market,
         );
 
         if (result.isNew) {
-          campaignsNew++;
+          jobsNew++;
           insertedCount++;
-          newCampaignIds.push(result.campaignId);
+          newJobIds.push(result.jobListingId);
           // Throttle new inserts to reduce DB connection pressure during crawl
           await new Promise((r) => setTimeout(r, DB_WRITE_THROTTLE_MS));
         } else {
-          campaignsUpdated++;
+          jobsUpdated++;
         }
       } catch (err) {
-        console.warn(`[Crawl] Failed to process campaign "${campaign.title}": ${(err as Error).message}`);
+        console.warn(`[Crawl] Failed to process job listing "${campaign.title}": ${(err as Error).message}`);
         if (status === CrawlStatus.SUCCESS) {
           status = CrawlStatus.PARTIAL;
           errorMessage = (err as Error).message;
@@ -343,10 +343,10 @@ async function crawlSourceInternal(
     }
   }
 
-  // Notify followers about new campaigns
-  if (newCampaignIds.length > 0) {
+  // Notify followers about new job listings
+  if (newJobIds.length > 0) {
     try {
-      await notifyNewCampaigns(prisma, source.brandId, newCampaignIds);
+      await notifyNewJobListings(prisma, source.companyId, newJobIds);
     } catch (err) {
       console.warn(`[Crawl] Notification failed: ${(err as Error).message}`);
     }
@@ -359,9 +359,9 @@ async function crawlSourceInternal(
     where: { id: log.id },
     data: {
       status,
-      campaignsFound: rawCampaigns.length,
-      campaignsNew,
-      campaignsUpdated,
+      jobsFound: rawCampaigns.length,
+      jobsNew,
+      jobsUpdated,
       errorMessage,
       durationMs,
     },
@@ -377,15 +377,15 @@ async function crawlSourceInternal(
     sourceId: source.id,
     sourceName: source.name,
     status,
-    campaignsFound: rawCampaigns.length,
-    campaignsNew,
-    campaignsUpdated,
+    jobsFound: rawCampaigns.length,
+    jobsNew,
+    jobsUpdated,
     errorMessage,
     durationMs,
   };
 
   console.log(
-    `[Crawl] Done: ${source.name} — found=${rawCampaigns.length}, new=${campaignsNew}, updated=${campaignsUpdated}, ${durationMs}ms`,
+    `[Crawl] Done: ${source.name} — found=${rawCampaigns.length}, new=${jobsNew}, updated=${jobsUpdated}, ${durationMs}ms`,
   );
 
   return result;
@@ -406,7 +406,7 @@ export async function crawlAllActive(prisma: PrismaClient): Promise<CrawlResult[
   // Run aging after all crawls
   const aged = await runAging(prisma);
   if (aged > 0) {
-    console.log(`[Aging] Expired ${aged} campaigns`);
+    console.log(`[Aging] Expired ${aged} job listings`);
   }
 
   // Close browser if it was used
@@ -425,17 +425,17 @@ export async function crawlByMarkets(prisma: PrismaClient, markets: Market[]): P
 
   const sources = await prisma.crawlSource.findMany({
     where: { isActive: true, market: { in: markets } },
-    include: { brand: { select: { name: true, market: true } } },
+    include: { company: { select: { name: true, market: true } } },
   });
 
   console.log(`\n========== Crawl: ${markets.join(', ')} — ${sources.length} sources (concurrency: ${CRAWL_CONCURRENCY}) ==========`);
 
   const results = await crawlSourcesConcurrently(prisma, sources);
 
-  // Run aging (global — checks all ACTIVE campaigns)
+  // Run aging (global — checks all ACTIVE job listings)
   const aged = await runAging(prisma);
   if (aged > 0) {
-    console.log(`[Aging] Expired ${aged} campaigns`);
+    console.log(`[Aging] Expired ${aged} job listings`);
   }
 
   await closeBrowser();
@@ -443,10 +443,10 @@ export async function crawlByMarkets(prisma: PrismaClient, markets: Market[]): P
   // Post-crawl dedup: remove any duplicates that slipped through race conditions
   const deduped = await postCrawlDedup(prisma, markets);
   if (deduped > 0) {
-    console.log(`[Dedup] Post-crawl cleanup: removed ${deduped} duplicate campaigns`);
+    console.log(`[Dedup] Post-crawl cleanup: removed ${deduped} duplicate job listings`);
   }
 
-  const totalNew = results.reduce((s, r) => s + r.campaignsNew, 0);
+  const totalNew = results.reduce((s, r) => s + r.jobsNew, 0);
   console.log(`========== ${markets.join(', ')} Complete: ${results.length} sources, ${totalNew} new ==========\n`);
   return results;
 }
@@ -494,28 +494,28 @@ async function crawlSourcesConcurrently(
 }
 
 /**
- * Post-crawl duplicate cleanup: finds and removes duplicate ACTIVE campaigns
- * within the same brand+market that have the same title or canonical URL.
+ * Post-crawl duplicate cleanup: finds and removes duplicate ACTIVE job listings
+ * within the same company+market that have the same title or canonical URL.
  * This catches any duplicates that slipped through due to race conditions.
  */
 async function postCrawlDedup(prisma: PrismaClient, markets: Market[]): Promise<number> {
   let totalRemoved = 0;
 
-  // Find title-based duplicates: same brand + market + title, keep oldest (first inserted)
-  const titleDupes: Array<{ brand_id: string; market: string; title: string; cnt: string }> =
+  // Find title-based duplicates: same company + market + title, keep oldest (first inserted)
+  const titleDupes: Array<{ company_id: string; country: string; title: string; cnt: string }> =
     await prisma.$queryRawUnsafe(`
-      SELECT brand_id, market, title, COUNT(*) as cnt
-      FROM campaigns
-      WHERE status = 'ACTIVE' AND market = ANY($1::text[])
-      GROUP BY brand_id, market, title
+      SELECT company_id, country, title, COUNT(*) as cnt
+      FROM job_listings
+      WHERE status = 'ACTIVE' AND country = ANY($1::text[])
+      GROUP BY company_id, country, title
       HAVING COUNT(*) > 1
     `, markets);
 
   for (const dupe of titleDupes) {
-    const campaigns = await prisma.campaign.findMany({
+    const jobListings = await prisma.jobListing.findMany({
       where: {
-        brandId: dupe.brand_id,
-        market: dupe.market as Market,
+        companyId: dupe.company_id,
+        country: dupe.country as Market,
         title: dupe.title,
         status: 'ACTIVE',
       },
@@ -524,9 +524,9 @@ async function postCrawlDedup(prisma: PrismaClient, markets: Market[]): Promise<
     });
 
     // Keep first, delete rest
-    const toDelete = campaigns.slice(1).map((c) => c.id);
+    const toDelete = jobListings.slice(1).map((j) => j.id);
     if (toDelete.length > 0) {
-      await prisma.campaign.updateMany({
+      await prisma.jobListing.updateMany({
         where: { id: { in: toDelete } },
         data: { status: 'EXPIRED' },
       });
@@ -534,21 +534,21 @@ async function postCrawlDedup(prisma: PrismaClient, markets: Market[]): Promise<
     }
   }
 
-  // Find canonical URL duplicates: same brand + market + canonical_url
-  const urlDupes: Array<{ brand_id: string; market: string; canonical_url: string; cnt: string }> =
+  // Find canonical URL duplicates: same company + market + canonical_url
+  const urlDupes: Array<{ company_id: string; country: string; canonical_url: string; cnt: string }> =
     await prisma.$queryRawUnsafe(`
-      SELECT brand_id, market, canonical_url, COUNT(*) as cnt
-      FROM campaigns
-      WHERE status = 'ACTIVE' AND canonical_url IS NOT NULL AND market = ANY($1::text[])
-      GROUP BY brand_id, market, canonical_url
+      SELECT company_id, country, canonical_url, COUNT(*) as cnt
+      FROM job_listings
+      WHERE status = 'ACTIVE' AND canonical_url IS NOT NULL AND country = ANY($1::text[])
+      GROUP BY company_id, country, canonical_url
       HAVING COUNT(*) > 1
     `, markets);
 
   for (const dupe of urlDupes) {
-    const campaigns = await prisma.campaign.findMany({
+    const jobListings = await prisma.jobListing.findMany({
       where: {
-        brandId: dupe.brand_id,
-        market: dupe.market as Market,
+        companyId: dupe.company_id,
+        country: dupe.country as Market,
         canonicalUrl: dupe.canonical_url,
         status: 'ACTIVE',
       },
@@ -556,9 +556,9 @@ async function postCrawlDedup(prisma: PrismaClient, markets: Market[]): Promise<
       select: { id: true },
     });
 
-    const toDelete = campaigns.slice(1).map((c) => c.id);
+    const toDelete = jobListings.slice(1).map((j) => j.id);
     if (toDelete.length > 0) {
-      await prisma.campaign.updateMany({
+      await prisma.jobListing.updateMany({
         where: { id: { in: toDelete } },
         data: { status: 'EXPIRED' },
       });

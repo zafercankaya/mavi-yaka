@@ -19,33 +19,26 @@ interface CrawlLog {
   id: string;
   sourceId: string;
   status: string;
-  campaignsFound: number;
-  campaignsNew: number;
-  campaignsUpdated: number;
+  jobsFound: number;
+  jobsNew: number;
+  jobsUpdated: number;
   errorMessage: string | null;
   durationMs: number | null;
   createdAt: string;
   source: {
     name: string;
-    brandId: string;
-    brand: {
+    companyId: string;
+    company: {
       name: string;
-      categoryId: string | null;
-      category: { name: string } | null;
+      sector: string | null;
     };
   };
 }
 
-interface Category {
+interface Company {
   id: string;
   name: string;
-  slug: string;
-}
-
-interface Brand {
-  id: string;
-  name: string;
-  categoryId: string | null;
+  sector: string | null;
 }
 
 export default function CrawlLogsPage() {
@@ -57,44 +50,46 @@ export default function CrawlLogsPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   // Reference data
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [allBrands, setAllBrands] = useState<Brand[]>([]);
+  const [allCompanies, setAllCompanies] = useState<Company[]>([]);
 
   const { market } = useMarket();
 
   // Filters
-  const [filterCategory, setFilterCategory] = useState<string>('all');
-  const [filterBrand, setFilterBrand] = useState<string>('all');
+  const [filterSector, setFilterSector] = useState<string>('all');
+  const [filterCompany, setFilterCompany] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
 
-  // Load categories and brands on mount
+  // Load companies on mount
   useEffect(() => {
     async function loadRefs() {
       try {
-        const [catRes, brandRes] = await Promise.all([
-          apiFetch<{ data: Category[] }>('/admin/categories'),
-          apiFetch<{ data: Brand[] }>('/admin/brands'),
-        ]);
-        setCategories(catRes.data);
-        setAllBrands(brandRes.data);
+        const res = await apiFetch<{ data: Company[] }>(`/admin/companies?market=${market}`);
+        setAllCompanies(res.data);
       } catch (err) {
         console.error('Ref data load error:', err);
       }
     }
     loadRefs();
-  }, []);
+  }, [market]);
 
-  // Brands filtered by selected category
-  const filteredBrands = useMemo(() => {
-    if (filterCategory === 'all') return allBrands;
-    return allBrands.filter((b) => b.categoryId === filterCategory);
-  }, [allBrands, filterCategory]);
+  // Companies filtered by selected sector
+  const filteredCompanies = useMemo(() => {
+    if (filterSector === 'all') return allCompanies;
+    return allCompanies.filter((c) => c.sector === filterSector);
+  }, [allCompanies, filterSector]);
 
-  // Reset brand filter when category changes
-  const handleCategoryChange = useCallback((val: string) => {
-    setFilterCategory(val);
-    setFilterBrand('all');
+  // Sectors list for filter
+  const sectors = useMemo(() => {
+    const set = new Set<string>();
+    allCompanies.forEach((c) => { if (c.sector) set.add(c.sector); });
+    return Array.from(set).sort();
+  }, [allCompanies]);
+
+  // Reset company filter when sector changes
+  const handleSectorChange = useCallback((val: string) => {
+    setFilterSector(val);
+    setFilterCompany('all');
   }, []);
 
   const load = async () => {
@@ -102,8 +97,8 @@ export default function CrawlLogsPage() {
     try {
       const params = new URLSearchParams({ limit: '200' });
       params.set('market', market);
-      if (filterCategory !== 'all') params.set('categoryId', filterCategory);
-      if (filterBrand !== 'all') params.set('brandId', filterBrand);
+      if (filterSector !== 'all') params.set('sector', filterSector);
+      if (filterCompany !== 'all') params.set('companyId', filterCompany);
       if (filterStatus !== 'all') params.set('status', filterStatus);
       params.set('sortOrder', sortOrder);
 
@@ -114,7 +109,7 @@ export default function CrawlLogsPage() {
     }
   };
 
-  useEffect(() => { load(); }, [market, filterCategory, filterBrand, filterStatus, sortOrder]);
+  useEffect(() => { load(); }, [market, filterSector, filterCompany, filterStatus, sortOrder]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -174,28 +169,28 @@ export default function CrawlLogsPage() {
 
       {/* Filters & Actions Bar */}
       <div className="flex flex-wrap items-center gap-3">
-        {/* Category Filter */}
-        <Select value={filterCategory} onValueChange={handleCategoryChange}>
+        {/* Sector Filter */}
+        <Select value={filterSector} onValueChange={handleSectorChange}>
           <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Kategori filtrele" />
+            <SelectValue placeholder="Sektor filtrele" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Tüm Kategoriler</SelectItem>
-            {categories.map((cat) => (
-              <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+            <SelectItem value="all">Tum Sektorler</SelectItem>
+            {sectors.map((s) => (
+              <SelectItem key={s} value={s}>{s}</SelectItem>
             ))}
           </SelectContent>
         </Select>
 
-        {/* Brand Filter (depends on category) */}
-        <Select value={filterBrand} onValueChange={setFilterBrand}>
+        {/* Company Filter (depends on sector) */}
+        <Select value={filterCompany} onValueChange={setFilterCompany}>
           <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Marka filtrele" />
+            <SelectValue placeholder="Firma filtrele" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Tüm Markalar</SelectItem>
-            {filteredBrands.map((b) => (
-              <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+            <SelectItem value="all">Tum Firmalar</SelectItem>
+            {filteredCompanies.map((c) => (
+              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -240,17 +235,15 @@ export default function CrawlLogsPage() {
       </div>
 
       {/* Active filter summary */}
-      {(filterCategory !== 'all' || filterBrand !== 'all' || filterStatus !== 'all') && (
+      {(filterSector !== 'all' || filterCompany !== 'all' || filterStatus !== 'all') && (
         <div className="flex items-center gap-2 text-sm text-gray-500">
           <span>Filtreler:</span>
-          {filterCategory !== 'all' && (
-            <Badge variant="outline">
-              {categories.find((c) => c.id === filterCategory)?.name || 'Kategori'}
-            </Badge>
+          {filterSector !== 'all' && (
+            <Badge variant="outline">{filterSector}</Badge>
           )}
-          {filterBrand !== 'all' && (
+          {filterCompany !== 'all' && (
             <Badge variant="outline">
-              {filteredBrands.find((b) => b.id === filterBrand)?.name || 'Marka'}
+              {filteredCompanies.find((c) => c.id === filterCompany)?.name || 'Firma'}
             </Badge>
           )}
           {filterStatus !== 'all' && (
@@ -258,7 +251,7 @@ export default function CrawlLogsPage() {
           )}
           <button
             className="text-xs text-blue-600 hover:underline ml-2"
-            onClick={() => { setFilterCategory('all'); setFilterBrand('all'); setFilterStatus('all'); }}
+            onClick={() => { setFilterSector('all'); setFilterCompany('all'); setFilterStatus('all'); }}
           >
             Temizle
           </button>
@@ -280,8 +273,8 @@ export default function CrawlLogsPage() {
                     />
                   </th>
                   <th className="pb-3 font-medium">Kaynak</th>
-                  <th className="pb-3 font-medium">Marka</th>
-                  <th className="pb-3 font-medium">Kategori</th>
+                  <th className="pb-3 font-medium">Firma</th>
+                  <th className="pb-3 font-medium">Sektör</th>
                   <th className="pb-3 font-medium">Durum</th>
                   <th className="pb-3 font-medium text-right">Bulundu</th>
                   <th className="pb-3 font-medium text-right">Yeni</th>
@@ -314,18 +307,18 @@ export default function CrawlLogsPage() {
                           />
                         </td>
                         <td className="py-3 font-medium" onClick={rowClick}>{log.source.name}</td>
-                        <td className="py-3 text-gray-500" onClick={rowClick}>{log.source.brand.name}</td>
+                        <td className="py-3 text-gray-500" onClick={rowClick}>{log.source.company.name}</td>
                         <td className="py-3 text-gray-400 text-xs" onClick={rowClick}>
-                          {log.source.brand.category?.name || '-'}
+                          {log.source.company.sector || '-'}
                         </td>
                         <td className="py-3" onClick={rowClick}>
                           <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusColors[log.status] || ''}`}>
                             {statusIcons[log.status]} {log.status}
                           </span>
                         </td>
-                        <td className="py-3 text-right" onClick={rowClick}>{log.campaignsFound}</td>
-                        <td className="py-3 text-right text-green-600 font-medium" onClick={rowClick}>{log.campaignsNew}</td>
-                        <td className="py-3 text-right" onClick={rowClick}>{log.campaignsUpdated}</td>
+                        <td className="py-3 text-right" onClick={rowClick}>{log.jobsFound}</td>
+                        <td className="py-3 text-right text-green-600 font-medium" onClick={rowClick}>{log.jobsNew}</td>
+                        <td className="py-3 text-right" onClick={rowClick}>{log.jobsUpdated}</td>
                         <td className="py-3 text-right text-gray-500" onClick={rowClick}>
                           {log.durationMs ? `${(log.durationMs / 1000).toFixed(1)}s` : '-'}
                         </td>
@@ -352,9 +345,9 @@ export default function CrawlLogsPage() {
                                 <div className="text-gray-500">Hata mesajı yok.</div>
                               )}
                               <div className="flex gap-4 text-gray-500">
-                                <span>Bulundu: {log.campaignsFound}</span>
-                                <span>Yeni: {log.campaignsNew}</span>
-                                <span>Güncellendi: {log.campaignsUpdated}</span>
+                                <span>Bulundu: {log.jobsFound}</span>
+                                <span>Yeni: {log.jobsNew}</span>
+                                <span>Güncellendi: {log.jobsUpdated}</span>
                                 <span>Süre: {log.durationMs ? `${(log.durationMs / 1000).toFixed(1)}s` : 'N/A'}</span>
                               </div>
                             </div>

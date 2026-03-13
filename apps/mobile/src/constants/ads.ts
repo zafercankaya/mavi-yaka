@@ -27,5 +27,5 @@ export const AD_UNIT_IDS = {
   })!,
 };
 
-/** Number of campaign items between each ad slot */
+/** Number of job items between each ad slot */
 export const AD_INTERVAL = 5;

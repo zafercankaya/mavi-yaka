@@ -1,42 +1,49 @@
 /**
- * Cleanup script: re-evaluate all existing campaigns against the improved quality filter.
- * Campaigns that fail are deleted from DB.
+ * Cleanup script: re-evaluate all existing job listings against the improved quality filter.
+ * Listings that fail are deleted from DB.
  */
 import { PrismaClient } from '@prisma/client';
 import { normalizeCampaign, RawCampaignData } from './pipeline/normalize';
-import { scoreCampaign } from './pipeline/quality-filter';
+import { filterCampaigns } from './pipeline/quality-filter';
+
+// scoreCampaign is no longer exported; use filterCampaigns wrapper
+function scoreCampaign(normalized: any, companyName?: string) {
+  const { passed, rejected } = filterCampaigns([normalized], companyName);
+  if (passed.length > 0) {
+    return { passed: true, score: 3, reasons: ['passed-filter'], hardRejected: null };
+  }
+  return { passed: false, score: 0, reasons: ['rejected'], hardRejected: 'quality-filter' };
+}
 
 const prisma = new PrismaClient();
 
 async function main() {
-  const campaigns = await prisma.campaign.findMany({
+  const listings = await prisma.jobListing.findMany({
     include: {
-      brand: { select: { name: true } },
+      company: { select: { name: true } },
       source: { select: { name: true } },
     },
   });
 
-  console.log(`\n=== KAMPANYA TEMIZLIGI ===`);
-  console.log(`Toplam kampanya: ${campaigns.length}\n`);
+  console.log(`\n=== ILAN TEMIZLIGI ===`);
+  console.log(`Toplam ilan: ${listings.length}\n`);
 
-  const toDelete: { id: string; title: string; brand: string; reason: string }[] = [];
-  const toKeep: { id: string; title: string; brand: string; score: number }[] = [];
+  const toDelete: { id: string; title: string; company: string; reason: string }[] = [];
+  const toKeep: { id: string; title: string; company: string; score: number }[] = [];
 
-  for (const c of campaigns) {
+  for (const c of listings) {
     // Re-create a NormalizedCampaign from DB data for quality scoring
     const raw: RawCampaignData = {
       title: c.title,
       description: c.description || undefined,
       sourceUrl: c.sourceUrl,
-      imageUrls: c.imageUrls || [],
-      startDate: c.startDate?.toISOString(),
-      endDate: c.endDate?.toISOString(),
-      discountRate: c.discountRate != null ? Number(c.discountRate) : undefined,
+      imageUrls: c.imageUrl ? [c.imageUrl] : [],
+      deadline: c.deadline?.toISOString(),
     };
 
     const normalized = normalizeCampaign(raw);
-    const brandName = c.brand?.name;
-    const result = scoreCampaign(normalized, brandName);
+    const companyName = c.company?.name;
+    const result = scoreCampaign(normalized, companyName);
 
     if (!result.passed) {
       const reason = result.hardRejected
@@ -45,26 +52,25 @@ async function main() {
       toDelete.push({
         id: c.id,
         title: c.title.substring(0, 70),
-        brand: c.brand?.name || '?',
+        company: c.company?.name || '?',
         reason,
       });
     } else {
       toKeep.push({
         id: c.id,
         title: normalized.title.substring(0, 70),
-        brand: c.brand?.name || '?',
+        company: c.company?.name || '?',
         score: result.score,
       });
 
-      // Update the campaign with cleaned title if it changed
+      // Update the listing with cleaned title if it changed
       if (normalized.title !== c.title || normalized.description !== c.description) {
-        await prisma.campaign.update({
+        await prisma.jobListing.update({
           where: { id: c.id },
           data: {
             title: normalized.title,
             description: normalized.description,
             sourceUrl: normalized.sourceUrl,
-            discountRate: normalized.discountRate,
           },
         });
         console.log(`  [Update] "${c.title.substring(0, 50)}" → "${normalized.title.substring(0, 50)}"`);
@@ -73,29 +79,29 @@ async function main() {
   }
 
   // Show what will be deleted
-  console.log(`\n=== SILINECEK KAMPANYALAR (${toDelete.length}) ===`);
+  console.log(`\n=== SILINECEK ILANLAR (${toDelete.length}) ===`);
   for (const d of toDelete) {
-    console.log(`  [${d.brand}] "${d.title}" → ${d.reason}`);
+    console.log(`  [${d.company}] "${d.title}" → ${d.reason}`);
   }
 
   // Show what will be kept
-  console.log(`\n=== KALACAK KAMPANYALAR (${toKeep.length}) ===`);
+  console.log(`\n=== KALACAK ILANLAR (${toKeep.length}) ===`);
   for (const k of toKeep) {
-    console.log(`  [${k.brand}] (score=${k.score}) "${k.title}"`);
+    console.log(`  [${k.company}] (score=${k.score}) "${k.title}"`);
   }
 
-  // Delete rejected campaigns
+  // Delete rejected listings
   if (toDelete.length > 0) {
     const ids = toDelete.map((d) => d.id);
-    const result = await prisma.campaign.deleteMany({
+    const result = await prisma.jobListing.deleteMany({
       where: { id: { in: ids } },
     });
-    console.log(`\n=== ${result.count} KAMPANYA SILINDI ===`);
+    console.log(`\n=== ${result.count} ILAN SILINDI ===`);
   }
 
   // Final stats
-  const remaining = await prisma.campaign.count();
-  console.log(`\nSonuc: ${remaining} kampanya kaldi (${campaigns.length - remaining} silindi)`);
+  const remaining = await prisma.jobListing.count();
+  console.log(`\nSonuc: ${remaining} ilan kaldi (${listings.length - remaining} silindi)`);
 
   await prisma.$disconnect();
 }

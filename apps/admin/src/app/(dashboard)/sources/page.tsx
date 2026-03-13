@@ -18,7 +18,7 @@ import { useMarket, type Market } from '@/lib/market';
 
 interface Source {
   id: string;
-  brandId: string;
+  companyId: string;
   name: string;
   crawlMethod: string;
   seedUrls: string[];
@@ -29,24 +29,18 @@ interface Source {
   isActive: boolean;
   market: Market;
   lastCrawledAt: string | null;
-  brand: { name: string; categoryId: string | null };
+  company: { name: string; sector: string | null };
 }
 
-interface Brand {
+interface Company {
   id: string;
   name: string;
-  categoryId: string | null;
-}
-
-interface Category {
-  id: string;
-  name: string;
+  sector: string | null;
 }
 
 export default function SourcesPage() {
   const [sources, setSources] = useState<Source[]>([]);
-  const [brands, setBrands] = useState<Brand[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSource, setEditingSource] = useState<Source | null>(null);
   const [crawlingId, setCrawlingId] = useState<string | null>(null);
@@ -55,29 +49,27 @@ export default function SourcesPage() {
   const { market } = useMarket();
 
   // Filters
-  const [categoryFilter, setCategoryFilter] = useState('');
-  const [brandFilter, setBrandFilter] = useState('');
+  const [sectorFilter, setSectorFilter] = useState('');
+  const [companyFilter, setCompanyFilter] = useState('');
 
   const loadData = useCallback(async () => {
-    const [s, b, c] = await Promise.all([
+    const [s, b] = await Promise.all([
       apiFetch<{ data: Source[] }>(`/admin/sources?market=${market}`),
-      apiFetch<{ data: Brand[] }>(`/admin/brands?market=${market}`),
-      apiFetch<{ data: Category[] }>('/admin/categories'),
+      apiFetch<{ data: Company[] }>(`/admin/companies?market=${market}`),
     ]);
     setSources(s.data);
-    setBrands(b.data);
-    setCategories(c.data);
+    setCompanies(b.data);
   }, [market]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const filteredBrands = categoryFilter
-    ? brands.filter((b) => b.categoryId === categoryFilter)
-    : brands;
+  const filteredCompanies = sectorFilter
+    ? companies.filter((c) => c.sector === sectorFilter)
+    : companies;
 
   const filteredSources = sources.filter((s) => {
-    if (brandFilter && s.brandId !== brandFilter) return false;
-    if (categoryFilter && !brandFilter && s.brand.categoryId !== categoryFilter) return false;
+    if (companyFilter && s.companyId !== companyFilter) return false;
+    if (sectorFilter && !companyFilter && s.company.sector !== sectorFilter) return false;
     return true;
   });
 
@@ -152,26 +144,26 @@ export default function SourcesPage() {
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
         <select
-          value={categoryFilter}
+          value={sectorFilter}
           onChange={(e) => {
-            setCategoryFilter(e.target.value);
-            setBrandFilter('');
+            setSectorFilter(e.target.value);
+            setCompanyFilter('');
           }}
           className="border rounded-md px-3 py-2 text-sm"
         >
-          <option value="">Tum Kategoriler</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
+          <option value="">Tum Sektorler</option>
+          {Array.from(new Set(companies.map((c) => c.sector).filter(Boolean))).sort().map((s) => (
+            <option key={s} value={s!}>{s}</option>
           ))}
         </select>
         <select
-          value={brandFilter}
-          onChange={(e) => setBrandFilter(e.target.value)}
+          value={companyFilter}
+          onChange={(e) => setCompanyFilter(e.target.value)}
           className="border rounded-md px-3 py-2 text-sm"
         >
-          <option value="">Tum Markalar</option>
-          {filteredBrands.map((b) => (
-            <option key={b.id} value={b.id}>{b.name}</option>
+          <option value="">Tum Firmalar</option>
+          {filteredCompanies.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>
       </div>
@@ -188,13 +180,13 @@ export default function SourcesPage() {
                       {source.crawlMethod}
                     </span>
                     <Badge variant="outline">
-                      {{ TR: '🇹🇷', US: '🇺🇸', DE: '🇩🇪', UK: '🇬🇧', IN: '🇮🇳', BR: '🇧🇷' }[source.market] || '🌍'} {source.market}
+                      {({ TR: '🇹🇷', US: '🇺🇸', DE: '🇩🇪', UK: '🇬🇧', IN: '🇮🇳', BR: '🇧🇷', ID: '🇮🇩', RU: '🇷🇺', MX: '🇲🇽', JP: '🇯🇵', PH: '🇵🇭', TH: '🇹🇭', CA: '🇨🇦', AU: '🇦🇺', FR: '🇫🇷', IT: '🇮🇹', ES: '🇪🇸', EG: '🇪🇬', SA: '🇸🇦', KR: '🇰🇷', AR: '🇦🇷', AE: '🇦🇪', VN: '🇻🇳', PL: '🇵🇱', MY: '🇲🇾', CO: '🇨🇴', ZA: '🇿🇦', PT: '🇵🇹', NL: '🇳🇱', PK: '🇵🇰', SE: '🇸🇪' } as Record<string, string>)[source.market] || '🌍'} {source.market}
                     </Badge>
                     <Badge variant={source.isActive ? 'default' : 'secondary'}>
                       {source.isActive ? 'Aktif' : 'Pasif'}
                     </Badge>
                   </div>
-                  <p className="text-sm text-gray-500">Marka: {source.brand.name}</p>
+                  <p className="text-sm text-gray-500">Firma: {source.company.name}</p>
                   <div className="text-xs text-gray-400 space-y-1">
                     {source.seedUrls.map((url, i) => (
                       <div key={i} className="truncate max-w-lg">🔗 {url}</div>
@@ -246,7 +238,7 @@ export default function SourcesPage() {
           </DialogHeader>
           <SourceForm
             source={editingSource}
-            brands={brands}
+            companies={companies}
             onSaved={handleSaved}
             onCancel={() => setDialogOpen(false)}
           />
@@ -257,17 +249,17 @@ export default function SourcesPage() {
 }
 
 function SourceForm({
-  source, brands, onSaved, onCancel,
+  source, companies, onSaved, onCancel,
 }: {
   source: Source | null;
-  brands: Brand[];
+  companies: Company[];
   onSaved: () => void;
   onCancel: () => void;
 }) {
   const { market: currentMarket } = useMarket();
-  const [brandId, setBrandId] = useState(source?.brandId || '');
+  const [companyId, setCompanyId] = useState(source?.companyId || '');
   const [name, setName] = useState(source?.name || '');
-  const [crawlMethod, setCrawlMethod] = useState(source?.crawlMethod || 'CAMPAIGN');
+  const [crawlMethod, setCrawlMethod] = useState(source?.crawlMethod || 'HTML');
   const [sourceMarket, setSourceMarket] = useState<Market>(source?.market || currentMarket);
   const [seedUrls, setSeedUrls] = useState(source?.seedUrls.join('\n') || '');
   const [maxDepth, setMaxDepth] = useState(source?.maxDepth ?? 2);
@@ -283,8 +275,8 @@ function SourceForm({
   const handleSubmit = async () => {
     setError('');
     const urls = seedUrls.split('\n').map((u) => u.trim()).filter(Boolean);
-    if (!brandId || !name || urls.length === 0) {
-      setError('Marka, isim ve en az 1 URL gereklidir.');
+    if (!companyId || !name || urls.length === 0) {
+      setError('Firma, isim ve en az 1 URL gereklidir.');
       return;
     }
 
@@ -301,7 +293,7 @@ function SourceForm({
     setLoading(true);
     try {
       const body = {
-        brandId,
+        companyId,
         name,
         crawlMethod,
         seedUrls: urls,
@@ -332,12 +324,12 @@ function SourceForm({
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label>Marka</Label>
-          <Select value={brandId} onValueChange={setBrandId}>
-            <SelectTrigger><SelectValue placeholder="Marka seçin" /></SelectTrigger>
+          <Label>Firma</Label>
+          <Select value={companyId} onValueChange={setCompanyId}>
+            <SelectTrigger><SelectValue placeholder="Firma secin" /></SelectTrigger>
             <SelectContent>
-              {brands.map((b) => (
-                <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+              {companies.map((c) => (
+                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -348,8 +340,8 @@ function SourceForm({
           <Select value={crawlMethod} onValueChange={setCrawlMethod}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="CAMPAIGN">Genel Kampanya</SelectItem>
-              <SelectItem value="PRODUCT">Ürün Listesi</SelectItem>
+              <SelectItem value="HTML">Web Scraping (HTML)</SelectItem>
+              <SelectItem value="PLAYWRIGHT">Playwright (SPA)</SelectItem>
               <SelectItem value="RSS">RSS Feed</SelectItem>
               <SelectItem value="FEED">JSON/API Feed</SelectItem>
             </SelectContent>
@@ -360,7 +352,7 @@ function SourceForm({
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>Kaynak Adı</Label>
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ör: Trendyol Kampanyalar" />
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ör: Kariyer.net Is Ilanlari" />
         </div>
         <div className="space-y-2">
           <Label>Market</Label>

@@ -17,8 +17,8 @@ export class CrawlService {
 
   async getLogs(filters: {
     sourceId?: string;
-    brandId?: string;
-    categoryId?: string;
+    companyId?: string;
+    sector?: string;
     status?: string;
     market?: Market;
     limit?: number;
@@ -26,12 +26,12 @@ export class CrawlService {
   } = {}) {
     const where: any = {};
     if (filters.sourceId) where.sourceId = filters.sourceId;
-    if (filters.categoryId && filters.brandId) {
-      where.source = { brandId: filters.brandId, brand: { categoryId: filters.categoryId } };
-    } else if (filters.categoryId) {
-      where.source = { brand: { categoryId: filters.categoryId } };
-    } else if (filters.brandId) {
-      where.source = { brandId: filters.brandId };
+    if (filters.sector && filters.companyId) {
+      where.source = { companyId: filters.companyId, company: { sector: filters.sector } };
+    } else if (filters.sector) {
+      where.source = { company: { sector: filters.sector } };
+    } else if (filters.companyId) {
+      where.source = { companyId: filters.companyId };
     }
     if (filters.market) {
       where.source = { ...where.source, market: filters.market };
@@ -44,8 +44,8 @@ export class CrawlService {
         source: {
           select: {
             name: true,
-            brandId: true,
-            brand: { select: { name: true, categoryId: true, category: { select: { name: true } } } },
+            companyId: true,
+            company: { select: { name: true, sector: true } },
           },
         },
       },
@@ -65,7 +65,7 @@ export class CrawlService {
     const log = await this.prisma.crawlLog.findUnique({
       where: { id },
       include: {
-        source: { select: { name: true, brand: { select: { name: true } } } },
+        source: { select: { name: true, company: { select: { name: true } } } },
       },
     });
     if (!log) throw new NotFoundException('Crawl log bulunamadı');
@@ -75,7 +75,7 @@ export class CrawlService {
   async getSourceForCrawl(sourceId: string) {
     const source = await this.prisma.crawlSource.findUnique({
       where: { id: sourceId },
-      include: { brand: { select: { name: true } } },
+      include: { company: { select: { name: true } } },
     });
     if (!source) throw new NotFoundException('Kaynak bulunamadi');
     return source;
@@ -93,9 +93,9 @@ export class CrawlService {
       data: {
         sourceId: source.id,
         status: CrawlStatus.RUNNING,
-        campaignsFound: 0,
-        campaignsNew: 0,
-        campaignsUpdated: 0,
+        jobsFound: 0,
+        jobsNew: 0,
+        jobsUpdated: 0,
         durationMs: 0,
       },
     });
@@ -137,9 +137,9 @@ export class CrawlService {
           data: {
             sourceId: source.id,
             status: CrawlStatus.RUNNING,
-            campaignsFound: 0,
-            campaignsNew: 0,
-            campaignsUpdated: 0,
+            jobsFound: 0,
+            jobsNew: 0,
+            jobsUpdated: 0,
             durationMs: 0,
           },
         }),

@@ -14,7 +14,7 @@ const PRIVACY_HTML = `<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kampanya Sepeti - Gizlilik Politikası / Privacy Policy</title>
+    <title>Mavi Yaka - Gizlilik Politikası / Privacy Policy</title>
     <style>
         :root{--primary:#e53e3e;--primary-dark:#c53030;--bg:#fff;--bg-alt:#f7f7f8;--text:#1a1a2e;--text-muted:#64748b;--border:#e2e8f0;--accent:#2563eb}
         *{margin:0;padding:0;box-sizing:border-box}
@@ -45,7 +45,7 @@ const PRIVACY_HTML = `<!DOCTYPE html>
     </style>
 </head>
 <body>
-<div class="header"><h1>Kampanya Sepeti</h1><p>Gizlilik Politikası / Privacy Policy</p></div>
+<div class="header"><h1>Mavi Yaka</h1><p>Gizlilik Politikası / Privacy Policy</p></div>
 <div class="lang-switcher">
     <button class="lang-btn active" onclick="switchLang('tr')" id="btn-tr">Türkçe</button>
     <button class="lang-btn" onclick="switchLang('en')" id="btn-en">English</button>
@@ -53,10 +53,10 @@ const PRIVACY_HTML = `<!DOCTYPE html>
 <div class="container">
 <div class="lang-section active" id="section-tr">
 <span class="effective-date">Yürürlük Tarihi: 3 Mart 2026</span>
-<p>Kampanya Sepeti ("Uygulama"), com.kampanyasepeti.app paket adlı mobil uygulamamızı kullanan kullanıcılarımızın kişisel verilerinin korunmasına büyük önem vermektedir. Bu Gizlilik Politikası, 6698 sayılı Kişisel Verilerin Korunması Kanunu (KVKK) kapsamında hazırlanmıştır.</p>
+<p>Mavi Yaka ("Uygulama"), com.maviyaka.app paket adlı mobil uygulamamızı kullanan kullanıcılarımızın kişisel verilerinin korunmasına büyük önem vermektedir. Bu Gizlilik Politikası, 6698 sayılı Kişisel Verilerin Korunması Kanunu (KVKK) kapsamında hazırlanmıştır.</p>
 
 <h2>1. Veri Sorumlusu</h2>
-<p><strong>Unvan:</strong> zafer77can (Bireysel Geliştirici)<br><strong>Uygulama:</strong> Kampanya Sepeti<br><strong>Paket Adı:</strong> com.kampanyasepeti.app<br><strong>E-posta:</strong> zafer.cankaya@gmail.com</p>
+<p><strong>Unvan:</strong> zafer77can (Bireysel Geliştirici)<br><strong>Uygulama:</strong> Mavi Yaka<br><strong>Paket Adı:</strong> com.maviyaka.app<br><strong>E-posta:</strong> zafer.cankaya@gmail.com</p>
 
 <h2>2. Toplanan Kişisel Veriler</h2>
 <table class="data-table">
@@ -111,22 +111,22 @@ const PRIVACY_HTML = `<!DOCTYPE html>
 </ul>
 
 <h2>7. Çocukların Gizliliği</h2>
-<p>Kampanya Sepeti 13 yaşından küçük çocuklara yönelik değildir.</p>
+<p>Mavi Yaka 13 yaşından küçük çocuklara yönelik değildir.</p>
 
 <h2>8. Politika Değişiklikleri</h2>
 <p>Bu politika güncellenebilir. Önemli değişikliklerde uygulama içi bildirim yapılır.</p>
 
 <h2>9. İletişim</h2>
-<div class="contact-box"><p><strong>Geliştirici:</strong> zafer77can</p><p><strong>E-posta:</strong> zafer.cankaya@gmail.com</p><p><strong>Uygulama:</strong> Kampanya Sepeti (com.kampanyasepeti.app)</p></div>
+<div class="contact-box"><p><strong>Geliştirici:</strong> zafer77can</p><p><strong>E-posta:</strong> zafer.cankaya@gmail.com</p><p><strong>Uygulama:</strong> Mavi Yaka (com.maviyaka.app)</p></div>
 </div>
 
 <!-- ENGLISH -->
 <div class="lang-section" id="section-en">
 <span class="effective-date">Effective Date: March 3, 2026</span>
-<p>Kampanya Sepeti ("Application"), operating under package name com.kampanyasepeti.app, is committed to protecting the personal data of our users. This Privacy Policy complies with the Turkish Personal Data Protection Law No. 6698 (KVKK).</p>
+<p>Mavi Yaka ("Application"), operating under package name com.maviyaka.app, is committed to protecting the personal data of our users. This Privacy Policy complies with the Turkish Personal Data Protection Law No. 6698 (KVKK).</p>
 
 <h2>1. Data Controller</h2>
-<p><strong>Name:</strong> zafer77can (Individual Developer)<br><strong>App:</strong> Kampanya Sepeti<br><strong>Package:</strong> com.kampanyasepeti.app<br><strong>Email:</strong> zafer.cankaya@gmail.com</p>
+<p><strong>Name:</strong> zafer77can (Individual Developer)<br><strong>App:</strong> Mavi Yaka<br><strong>Package:</strong> com.maviyaka.app<br><strong>Email:</strong> zafer.cankaya@gmail.com</p>
 
 <h2>2. Data We Collect</h2>
 <table class="data-table">
@@ -187,9 +187,9 @@ const PRIVACY_HTML = `<!DOCTYPE html>
 <p>This policy may be updated. Significant changes communicated via in-app notification.</p>
 
 <h2>9. Contact</h2>
-<div class="contact-box"><p><strong>Developer:</strong> zafer77can</p><p><strong>Email:</strong> zafer.cankaya@gmail.com</p><p><strong>App:</strong> Kampanya Sepeti (com.kampanyasepeti.app)</p></div>
+<div class="contact-box"><p><strong>Developer:</strong> zafer77can</p><p><strong>Email:</strong> zafer.cankaya@gmail.com</p><p><strong>App:</strong> Mavi Yaka (com.maviyaka.app)</p></div>
 </div>
 </div>
-<div class="footer">&copy; 2026 Kampanya Sepeti</div>
+<div class="footer">&copy; 2026 Mavi Yaka</div>
 <script>function switchLang(l){document.querySelectorAll('.lang-section').forEach(e=>e.classList.remove('active'));document.querySelectorAll('.lang-btn').forEach(e=>e.classList.remove('active'));document.getElementById('section-'+l).classList.add('active');document.getElementById('btn-'+l).classList.add('active')}</script>
 </body></html>`;

@@ -55,7 +55,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold text-orange-500">
-            Kampanya Sepeti
+            Mavi Yaka
           </CardTitle>
           <CardDescription>Admin Paneli</CardDescription>
         </CardHeader>

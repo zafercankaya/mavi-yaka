@@ -1,7 +1,7 @@
 /**
- * Backfill promo codes for existing ACTIVE campaigns.
- * Applies extractPromoCode() to title + description of all campaigns
- * that currently have promo_code = NULL.
+ * Backfill promo codes for existing ACTIVE job listings.
+ * NOTE: promoCode field no longer exists on JobListing in the new schema.
+ * This script is kept for reference but is effectively a no-op.
  *
  * Usage:
  *   npx tsx src/backfill-promo-codes.ts          # dry-run (count only)
@@ -9,7 +9,12 @@
  */
 import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
-import { extractPromoCode } from './pipeline/normalize';
+// extractPromoCode no longer exists in normalize — stub for legacy script
+function extractPromoCode(title: string, description?: string | null): string | null {
+  const text = `${title} ${description || ''}`;
+  const match = text.match(/\b([A-Z0-9]{4,20})\b/);
+  return match ? match[1] : null;
+}
 
 const BATCH_SIZE = 1000;
 const applyMode = process.argv.includes('--apply');
@@ -19,47 +24,45 @@ async function main() {
 
   console.log(`\n=== Promo Code Backfill ${applyMode ? '(APPLY MODE)' : '(DRY RUN)'} ===\n`);
 
-  const totalActive = await prisma.campaign.count({
-    where: { status: 'ACTIVE', promoCode: null },
+  const totalActive = await prisma.jobListing.count({
+    where: { status: 'ACTIVE' },
   });
-  console.log(`Total ACTIVE campaigns without promo code: ${totalActive}\n`);
+  console.log(`Total ACTIVE job listings: ${totalActive}\n`);
 
-  const marketStats: Record<string, { found: number; total: number }> = {};
+  const countryStats: Record<string, { found: number; total: number }> = {};
   let totalFound = 0;
   let offset = 0;
 
   while (true) {
-    const campaigns = await prisma.campaign.findMany({
-      where: { status: 'ACTIVE', promoCode: null },
-      select: { id: true, title: true, description: true, market: true },
+    const listings = await prisma.jobListing.findMany({
+      where: { status: 'ACTIVE' },
+      select: { id: true, title: true, description: true, country: true },
       orderBy: { createdAt: 'desc' },
       take: BATCH_SIZE,
       skip: offset,
     });
 
-    if (campaigns.length === 0) break;
+    if (listings.length === 0) break;
 
-    for (const c of campaigns) {
-      const market = c.market || 'TR';
-      if (!marketStats[market]) marketStats[market] = { found: 0, total: 0 };
-      marketStats[market].total++;
+    for (const c of listings) {
+      const country = c.country || 'TR';
+      if (!countryStats[country]) countryStats[country] = { found: 0, total: 0 };
+      countryStats[country].total++;
 
       const code = extractPromoCode(c.title, c.description);
       if (code) {
         totalFound++;
-        marketStats[market].found++;
-        console.log(`  [${market}] "${c.title.substring(0, 50)}" → ${code}`);
+        countryStats[country].found++;
+        console.log(`  [${country}] "${c.title.substring(0, 50)}" → ${code}`);
 
-        if (applyMode) {
-          await prisma.campaign.update({
-            where: { id: c.id },
-            data: { promoCode: code },
-          });
-        }
+        // NOTE: promoCode field no longer exists on JobListing
+        // if (applyMode) {
+        //   await prisma.jobListing.update({ where: { id: c.id }, data: { promoCode: code } });
+        // }
       }
     }
 
-    offset += campaigns.length;
+    offset += listings.length;
     process.stdout.write(`  Processed ${offset}/${totalActive}...\r`);
   }
 
@@ -67,16 +70,16 @@ async function main() {
   console.log(`Total scanned: ${offset}`);
   console.log(`Total promo codes found: ${totalFound} (${((totalFound / Math.max(offset, 1)) * 100).toFixed(1)}%)\n`);
 
-  console.log('Market breakdown:');
-  const sorted = Object.entries(marketStats).sort((a, b) => b[1].found - a[1].found);
-  for (const [market, stats] of sorted) {
+  console.log('Country breakdown:');
+  const sorted = Object.entries(countryStats).sort((a, b) => b[1].found - a[1].found);
+  for (const [country, stats] of sorted) {
     if (stats.found > 0) {
-      console.log(`  ${market}: ${stats.found}/${stats.total} campaigns (${((stats.found / stats.total) * 100).toFixed(1)}%)`);
+      console.log(`  ${country}: ${stats.found}/${stats.total} listings (${((stats.found / stats.total) * 100).toFixed(1)}%)`);
     }
   }
 
   if (!applyMode && totalFound > 0) {
-    console.log(`\nRun with --apply to update these ${totalFound} campaigns in DB.`);
+    console.log(`\nNote: promoCode field no longer exists on JobListing. Found ${totalFound} codes but cannot apply.`);
   }
 
   await prisma.$disconnect();

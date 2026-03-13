@@ -101,7 +101,7 @@ export async function startScheduler(prisma: PrismaClient): Promise<void> {
         const succeeded = results.filter((r) => r.status === CrawlStatus.SUCCESS).length;
         const partial = results.filter((r) => r.status === CrawlStatus.PARTIAL).length;
         const failed = results.filter((r) => r.status === CrawlStatus.FAILED).length;
-        const totalNew = results.reduce((sum, r) => sum + r.campaignsNew, 0);
+        const totalNew = results.reduce((sum, r) => sum + r.jobsNew, 0);
 
         console.log(
           `[Scheduler] ${label} complete: ${succeeded} success, ${partial} partial, ${failed} failed, ${totalNew} new`,
@@ -125,8 +125,9 @@ export async function startScheduler(prisma: PrismaClient): Promise<void> {
       await saveDailyReport(prisma, report);
       const s = report.summary;
       console.log(
-        `[Scheduler] Maintenance done: ${s.amazonDeactivated} amazon, ${s.brandsCleaned} cleaned, ` +
-        `${s.brandsMerged} merged, ${s.sourcesDeactivated} sources off, ` +
+        `[Scheduler] Maintenance done: ${s.whiteCollarExpired} white-collar expired, ${s.deadlineExpired} deadline expired, ` +
+        `${s.invalidSalariesFixed} salaries fixed, ${s.staleCompaniesDeactivated} companies deactivated, ` +
+        `${s.brandsCleaned} cleaned, ${s.brandsMerged} merged, ${s.sourcesDeactivated} sources off, ` +
         `${s.orphanCampaignsExpired + s.notFoundCampaignsExpired} campaigns expired, ${s.oldLogsDeleted} logs deleted`,
       );
     } catch (err) {

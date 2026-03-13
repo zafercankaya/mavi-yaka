@@ -8,15 +8,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { apiFetch } from '@/lib/api';
-import { useMarket } from '@/lib/market';
-
-type Market = 'TR' | 'US' | 'DE' | 'UK' | 'IN' | 'BR' | 'ID' | 'RU' | 'MX' | 'JP' | 'PH' | 'TH' | 'CA' | 'AU' | 'FR' | 'IT' | 'ES' | 'EG' | 'SA' | 'KR' | 'AR';
+import { useMarket, type Market } from '@/lib/market';
 
 const CURRENCY_MAP: Record<Market, string> = {
   TR: 'TRY', US: 'USD', CA: 'CAD', AU: 'AUD', UK: 'GBP', JP: 'JPY', KR: 'KRW',
-  DE: 'EUR', FR: 'EUR', IT: 'EUR', ES: 'EUR',
-  BR: 'BRL', MX: 'MXN', AR: 'ARS', RU: 'RUB', EG: 'EGP', SA: 'SAR',
-  IN: 'INR', ID: 'IDR', PH: 'PHP', TH: 'THB',
+  DE: 'EUR', FR: 'EUR', IT: 'EUR', ES: 'EUR', NL: 'EUR', PT: 'EUR',
+  BR: 'BRL', MX: 'MXN', AR: 'ARS', CO: 'COP', RU: 'RUB', EG: 'EGP', SA: 'SAR', AE: 'AED',
+  IN: 'INR', ID: 'IDR', PH: 'PHP', TH: 'THB', MY: 'MYR', VN: 'VND', PK: 'PKR',
+  PL: 'PLN', SE: 'SEK', ZA: 'ZAR',
 };
 const CURRENCY_SYMBOL: Record<string, string> = {
   TRY: '₺', USD: '$', CAD: 'C$', AUD: 'A$', GBP: '£', JPY: '¥', KRW: '₩',

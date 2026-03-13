@@ -13,7 +13,7 @@ export interface InAppNotification {
   userId: string;
   title: string;
   body: string;
-  data: { type: string; campaignId?: string; brandId?: string } | null;
+  data: { type: string; jobId?: string; companyId?: string } | null;
   isRead: boolean;
   createdAt: string;
 }

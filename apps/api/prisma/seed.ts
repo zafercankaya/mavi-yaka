@@ -1,72 +1,80 @@
-import { PrismaClient, UserRole, CrawlMethod, CampaignStatus } from '@prisma/client';
+import {
+  PrismaClient,
+  UserRole,
+  CrawlMethod,
+  JobStatus,
+  Sector,
+  JobType,
+  WorkMode,
+  Market,
+  SourceType,
+} from '@prisma/client';
 import { createHash } from 'crypto';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
-const DEFAULT_CATEGORIES = [
-  { name: 'Elektronik', nameEn: 'Electronics', slug: 'elektronik', iconName: 'devices', sortOrder: 1 },
-  { name: 'Giyim & Moda', nameEn: 'Fashion & Clothing', slug: 'giyim-moda', iconName: 'checkroom', sortOrder: 2 },
-  { name: 'Gıda & Market', nameEn: 'Groceries & Supermarket', slug: 'gida-market', iconName: 'shopping_cart', sortOrder: 3 },
-  { name: 'Ev & Yaşam', nameEn: 'Home & Living', slug: 'ev-yasam', iconName: 'home', sortOrder: 4 },
-  { name: 'Kozmetik & Kişisel Bakım', nameEn: 'Beauty & Personal Care', slug: 'kozmetik-kisisel-bakim', iconName: 'spa', sortOrder: 5 },
-  { name: 'Spor & Outdoor', nameEn: 'Sports & Outdoor', slug: 'spor-outdoor', iconName: 'fitness_center', sortOrder: 6 },
-  { name: 'Kitap & Hobi', nameEn: 'Books & Hobbies', slug: 'kitap-hobi', iconName: 'menu_book', sortOrder: 7 },
-  { name: 'Seyahat & Ulaşım', nameEn: 'Travel & Transport', slug: 'seyahat-ulasim', iconName: 'flight', sortOrder: 8 },
-  { name: 'Yeme & İçme', nameEn: 'Food & Drink', slug: 'yeme-icme', iconName: 'restaurant', sortOrder: 9 },
-  { name: 'Telekomunikasyon', nameEn: 'Telecommunications', slug: 'telekomunikasyon', iconName: 'cell_tower', sortOrder: 145 },
-  { name: 'Teknoloji & Yazılım', nameEn: 'Technology & Software', slug: 'teknoloji-yazilim', iconName: 'code', sortOrder: 146 },
-  { name: 'Sigorta', nameEn: 'Insurance', slug: 'sigorta', iconName: 'shield', sortOrder: 12 },
-  { name: 'Diğer', nameEn: 'Others', slug: 'diger', iconName: 'category', sortOrder: 99 },
-];
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/ğ/g, 'g')
+    .replace(/ü/g, 'u')
+    .replace(/ş/g, 's')
+    .replace(/ı/g, 'i')
+    .replace(/ö/g, 'o')
+    .replace(/ç/g, 'c')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
 
 async function main() {
   console.log('Seeding database...');
 
-  // Categories
-  for (const cat of DEFAULT_CATEGORIES) {
-    await prisma.category.upsert({
-      where: { slug: cat.slug },
-      update: { nameEn: cat.nameEn },
-      create: cat,
-    });
-  }
-  console.log(`  ✓ ${DEFAULT_CATEGORIES.length} categories`);
+  // --- Subscription Plans ---
 
-  // Free plan
   await prisma.subscriptionPlan.upsert({
     where: { id: '00000000-0000-0000-0000-000000000001' },
     update: {},
     create: {
       id: '00000000-0000-0000-0000-000000000001',
       name: 'Ücretsiz',
-      maxBrandFollows: 1,
-      maxCampaignFollows: 1,
-      dailyNotifLimit: 1,
+      market: Market.TR,
+      currency: 'TRY',
+      priceMonthly: 0,
+      priceYearly: 0,
+      maxCompanyFollows: 3,
+      maxSavedJobs: 5,
+      maxAlerts: 1,
+      dailyViewLimit: 20,
       hasAdvancedFilter: false,
       adFree: false,
+      weeklyDigest: false,
     },
   });
 
-  // Premium plan
   await prisma.subscriptionPlan.upsert({
     where: { id: '00000000-0000-0000-0000-000000000002' },
     update: {},
     create: {
       id: '00000000-0000-0000-0000-000000000002',
       name: 'Premium',
+      market: Market.TR,
+      currency: 'TRY',
       priceMonthly: 49.99,
       priceYearly: 399.99,
-      maxBrandFollows: -1,
-      maxCampaignFollows: -1,
-      dailyNotifLimit: -1,
+      maxCompanyFollows: -1,
+      maxSavedJobs: -1,
+      maxAlerts: -1,
+      dailyViewLimit: -1,
       hasAdvancedFilter: true,
       adFree: true,
+      weeklyDigest: true,
     },
   });
   console.log('  ✓ 2 subscription plans (Free + Premium)');
 
-  // Admin user
+  // --- Admin User ---
+
   const adminPassword = await bcrypt.hash('admin123456', 12);
   await prisma.user.upsert({
     where: { email: 'admin@maviyaka.app' },
@@ -80,87 +88,247 @@ async function main() {
   });
   console.log('  ✓ Admin user (admin@maviyaka.app / admin123456)');
 
-  // Brands
-  const brands = [
-    { name: 'Trendyol', slug: 'trendyol', websiteUrl: 'https://www.trendyol.com' },
-    { name: 'Hepsiburada', slug: 'hepsiburada', websiteUrl: 'https://www.hepsiburada.com' },
-    { name: 'A101', slug: 'a101', websiteUrl: 'https://www.a101.com.tr' },
-    { name: 'BİM', slug: 'bim', websiteUrl: 'https://www.bim.com.tr' },
-    { name: 'Migros', slug: 'migros', websiteUrl: 'https://www.migros.com.tr' },
+  // --- Companies ---
+
+  const companies = [
+    {
+      name: 'İŞKUR',
+      slug: 'iskur',
+      sector: Sector.OTHER,
+      websiteUrl: 'https://www.iskur.gov.tr',
+      market: Market.TR,
+      description: 'Türkiye İş Kurumu - Resmi iş ilanları platformu',
+      sourceType: SourceType.GOVERNMENT,
+      seedUrl: 'https://esube.iskur.gov.tr/Ilan/IlanListesi.aspx',
+    },
+    {
+      name: 'Kariyer.net',
+      slug: 'kariyernet',
+      sector: Sector.OTHER,
+      websiteUrl: 'https://www.kariyer.net',
+      market: Market.TR,
+      description: 'Türkiye\'nin en büyük iş ilanı platformu',
+      sourceType: SourceType.JOB_PLATFORM,
+      seedUrl: 'https://www.kariyer.net/is-ilanlari',
+    },
+    {
+      name: 'Indeed TR',
+      slug: 'indeed-tr',
+      sector: Sector.OTHER,
+      websiteUrl: 'https://tr.indeed.com',
+      market: Market.TR,
+      description: 'Küresel iş arama motoru - Türkiye',
+      sourceType: SourceType.JOB_PLATFORM,
+      seedUrl: 'https://tr.indeed.com/jobs',
+    },
+    {
+      name: 'Migros',
+      slug: 'migros',
+      sector: Sector.RETAIL,
+      websiteUrl: 'https://www.migros.com.tr',
+      market: Market.TR,
+      description: 'Migros Ticaret A.Ş. - Perakende zinciri',
+      sourceType: SourceType.COMPANY_CAREER,
+      seedUrl: 'https://www.migros.com.tr/kariyer',
+    },
+    {
+      name: 'Trendyol',
+      slug: 'trendyol',
+      sector: Sector.ECOMMERCE_CARGO,
+      websiteUrl: 'https://www.trendyol.com',
+      market: Market.TR,
+      description: 'Trendyol - E-ticaret ve kargo hizmetleri',
+      sourceType: SourceType.COMPANY_CAREER,
+      seedUrl: 'https://www.trendyol.com/kariyer',
+    },
   ];
 
-  const brandRecords: any[] = [];
-  for (const b of brands) {
-    const brand = await prisma.brand.upsert({
-      where: { slug: b.slug },
-      update: {},
-      create: b,
-    });
-    brandRecords.push(brand);
-  }
-  console.log(`  ✓ ${brands.length} brands`);
-
-  // Crawl Sources — her marka için genel kampanya kaynağı
-  for (const brand of brandRecords) {
-    await prisma.crawlSource.upsert({
-      where: { id: brand.id },
+  const companyRecords: any[] = [];
+  for (const c of companies) {
+    const company = await prisma.company.upsert({
+      where: { slug: c.slug },
       update: {},
       create: {
-        id: brand.id,
-        brandId: brand.id,
-        name: `${brand.name} Kampanyalar`,
-        crawlMethod: CrawlMethod.CAMPAIGN,
-        seedUrls: [`${brand.websiteUrl}/kampanyalar`],
-        schedule: '0 3 * * *',
-        agingDays: 7,
+        name: c.name,
+        slug: c.slug,
+        sector: c.sector,
+        websiteUrl: c.websiteUrl,
+        market: c.market,
+        description: c.description,
+        isActive: true,
       },
     });
+    companyRecords.push({ ...company, sourceType: c.sourceType, seedUrl: c.seedUrl });
   }
-  console.log(`  ✓ ${brandRecords.length} crawl sources`);
+  console.log(`  ✓ ${companies.length} companies`);
 
-  // Sample Campaigns
-  const categories = await prisma.category.findMany();
-  const sampleCampaigns = [
-    { title: 'Elektronik Ürünlerde %30 İndirim', brand: 'trendyol', cat: 'elektronik', discount: 30 },
-    { title: 'Kış Modası Büyük Kampanya', brand: 'trendyol', cat: 'giyim-moda', discount: 50 },
-    { title: 'Süpermarket Haftası - Tüm Ürünlerde Fırsat', brand: 'migros', cat: 'gida-market', discount: 20 },
-    { title: 'Ev & Dekorasyon Fırsatları', brand: 'hepsiburada', cat: 'ev-yasam', discount: 40 },
-    { title: 'A101 Aktüel Ürünler Bu Hafta', brand: 'a101', cat: 'gida-market', discount: null },
-    { title: 'BİM Cuma Fırsatları', brand: 'bim', cat: 'gida-market', discount: 15 },
-    { title: 'Spor Giyim ve Ekipman İndirimleri', brand: 'trendyol', cat: 'spor-outdoor', discount: 35 },
-    { title: 'Kozmetik Festivali - Seçili Ürünlerde %25', brand: 'hepsiburada', cat: 'kozmetik-kisisel-bakim', discount: 25 },
-    { title: 'Kitap Fuarı İndirimleri', brand: 'hepsiburada', cat: 'kitap-hobi', discount: 40 },
-    { title: 'Migros Sanal Market Fırsatları', brand: 'migros', cat: 'gida-market', discount: 10 },
+  // --- Crawl Sources ---
+
+  const sourceRecords: any[] = [];
+  for (const company of companyRecords) {
+    const source = await prisma.crawlSource.upsert({
+      where: { id: company.id },
+      update: {},
+      create: {
+        id: company.id,
+        companyId: company.id,
+        name: `${company.name} İş İlanları`,
+        type: company.sourceType,
+        crawlMethod: CrawlMethod.HTML,
+        seedUrls: [company.seedUrl],
+        schedule: '0 3 * * *',
+        agingDays: 14,
+        market: Market.TR,
+        isActive: true,
+      },
+    });
+    sourceRecords.push(source);
+  }
+  console.log(`  ✓ ${sourceRecords.length} crawl sources`);
+
+  // --- Sample Job Listings ---
+
+  const sampleJobs = [
+    {
+      title: 'Forklift Operatörü',
+      companySlug: 'iskur',
+      sector: Sector.LOGISTICS_TRANSPORTATION,
+      jobType: JobType.FULL_TIME,
+      workMode: WorkMode.ON_SITE,
+      city: 'İstanbul',
+      salaryMin: 22000,
+      salaryMax: 28000,
+    },
+    {
+      title: 'Kargo Dağıtıcı',
+      companySlug: 'trendyol',
+      sector: Sector.ECOMMERCE_CARGO,
+      jobType: JobType.FULL_TIME,
+      workMode: WorkMode.ON_SITE,
+      city: 'Ankara',
+      salaryMin: 20000,
+      salaryMax: 25000,
+    },
+    {
+      title: 'Kasiyer',
+      companySlug: 'migros',
+      sector: Sector.RETAIL,
+      jobType: JobType.FULL_TIME,
+      workMode: WorkMode.ON_SITE,
+      city: 'İzmir',
+      salaryMin: 18000,
+      salaryMax: 22000,
+    },
+    {
+      title: 'Depo Görevlisi',
+      companySlug: 'kariyernet',
+      sector: Sector.LOGISTICS_TRANSPORTATION,
+      jobType: JobType.FULL_TIME,
+      workMode: WorkMode.ON_SITE,
+      city: 'Bursa',
+      salaryMin: 19000,
+      salaryMax: 24000,
+    },
+    {
+      title: 'Aşçıbaşı',
+      companySlug: 'indeed-tr',
+      sector: Sector.FOOD_BEVERAGE,
+      jobType: JobType.FULL_TIME,
+      workMode: WorkMode.ON_SITE,
+      city: 'Antalya',
+      salaryMin: 25000,
+      salaryMax: 35000,
+    },
+    {
+      title: 'CNC Torna Operatörü',
+      companySlug: 'iskur',
+      sector: Sector.MANUFACTURING,
+      jobType: JobType.FULL_TIME,
+      workMode: WorkMode.ON_SITE,
+      city: 'Kocaeli',
+      salaryMin: 24000,
+      salaryMax: 32000,
+    },
+    {
+      title: 'Güvenlik Görevlisi',
+      companySlug: 'kariyernet',
+      sector: Sector.SECURITY_SERVICES,
+      jobType: JobType.FULL_TIME,
+      workMode: WorkMode.ON_SITE,
+      city: 'İstanbul',
+      salaryMin: 18000,
+      salaryMax: 22000,
+    },
+    {
+      title: 'Kat Hizmetleri Elemanı',
+      companySlug: 'indeed-tr',
+      sector: Sector.HOSPITALITY_TOURISM,
+      jobType: JobType.SEASONAL,
+      workMode: WorkMode.ON_SITE,
+      city: 'Muğla',
+      salaryMin: 17000,
+      salaryMax: 21000,
+    },
+    {
+      title: 'Elektrik Teknisyeni',
+      companySlug: 'iskur',
+      sector: Sector.CONSTRUCTION,
+      jobType: JobType.FULL_TIME,
+      workMode: WorkMode.ON_SITE,
+      city: 'Gaziantep',
+      salaryMin: 22000,
+      salaryMax: 30000,
+    },
+    {
+      title: 'Reyon Görevlisi',
+      companySlug: 'migros',
+      sector: Sector.RETAIL,
+      jobType: JobType.PART_TIME,
+      workMode: WorkMode.ON_SITE,
+      city: 'Adana',
+      salaryMin: 12000,
+      salaryMax: 15000,
+    },
   ];
 
-  let campaignCount = 0;
-  for (const c of sampleCampaigns) {
-    const brand = brandRecords.find((b) => b.slug === c.brand)!;
-    const category = categories.find((cat) => cat.slug === c.cat);
-    const sourceUrl = `${brand.websiteUrl}/kampanya/${Date.now()}-${campaignCount}`;
-    const fingerprint = createHash('sha256').update(`${brand.id}:${sourceUrl}`).digest('hex');
+  let jobCount = 0;
+  for (const j of sampleJobs) {
+    const company = companyRecords.find((c) => c.slug === j.companySlug)!;
+    const source = sourceRecords.find((s) => s.companyId === company.id)!;
+    const sourceUrl = `${company.websiteUrl}/ilan/${slugify(j.title)}-${jobCount}`;
+    const fingerprint = createHash('sha256').update(`${company.id}:${sourceUrl}`).digest('hex');
+    const now = new Date();
+    const deadline = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
-    await prisma.campaign.upsert({
+    await prisma.jobListing.upsert({
       where: { fingerprint },
       update: {},
       create: {
-        title: c.title,
-        description: `${c.title} - Bu kampanyayı kaçırmayın!`,
-        brandId: brand.id,
-        categoryId: category?.id ?? null,
-        sourceId: brand.id,
+        title: j.title,
+        slug: slugify(j.title),
+        description: `${j.title} pozisyonu için deneyimli adaylar aranmaktadır. ${j.city} lokasyonunda tam zamanlı çalışma imkanı.`,
+        companyId: company.id,
+        sourceId: source.id,
         sourceUrl,
         fingerprint,
-        discountRate: c.discount,
-        imageUrls: [],
-        status: CampaignStatus.ACTIVE,
-        startDate: new Date(),
-        endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        status: JobStatus.ACTIVE,
+        country: Market.TR,
+        city: j.city,
+        sector: j.sector,
+        jobType: j.jobType,
+        workMode: j.workMode,
+        salaryMin: j.salaryMin,
+        salaryMax: j.salaryMax,
+        salaryCurrency: 'TRY',
+        salaryPeriod: 'monthly',
+        deadline,
+        postedDate: now,
+        lastSeenAt: now,
       },
     });
-    campaignCount++;
+    jobCount++;
   }
-  console.log(`  ✓ ${campaignCount} sample campaigns`);
+  console.log(`  ✓ ${jobCount} sample job listings`);
 
   console.log('Seed complete!');
 }

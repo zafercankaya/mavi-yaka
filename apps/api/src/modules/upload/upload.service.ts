@@ -20,7 +20,7 @@ export class UploadService {
   }
 
   async upload(
-    folder: 'brands' | 'categories',
+    folder: 'companies' | 'brands' | 'categories',
     entityId: string,
     file: Express.Multer.File,
   ): Promise<string> {

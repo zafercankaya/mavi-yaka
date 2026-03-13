@@ -4,7 +4,7 @@
  */
 import * as cheerio from 'cheerio';
 import { chromium, Browser } from 'playwright';
-import { RawCampaignData, validatePromoCode } from '../pipeline/normalize';
+import { RawJobData } from '../pipeline/normalize';
 import { CRAWL_DELAY_MS, REQUEST_TIMEOUT_MS, CrawlMarket, getAcceptLanguage, getBrowserLocale } from '../config';
 import { pickBestFromSrcset, isLikelyBrandLogo } from '../pipeline/optimize-images';
 import { extractDates } from '../utils/date-extractor';
@@ -173,7 +173,7 @@ export async function scrapeGenericPlaywright(
   maxDepth: number,
   market?: CrawlMarket,
   abortSignal?: AbortSignal,
-): Promise<RawCampaignData[]> {
+): Promise<RawJobData[]> {
   if (abortSignal?.aborted) return [];
   console.log(`  [Playwright] Fallback scraping: ${seedUrl}`);
 
@@ -211,7 +211,7 @@ export async function scrapeGenericPlaywright(
     }
   });
 
-  const campaigns: RawCampaignData[] = [];
+  const campaigns: RawJobData[] = [];
   const seenUrls = new Set<string>();
 
   try {
@@ -235,8 +235,8 @@ export async function scrapeGenericPlaywright(
     // Phase 1: Extract cards directly
     const directCampaigns = extractCardsFromPage($, seedUrl);
     for (const c of directCampaigns) {
-      if (!c.startDate) c.startDate = pageDates.startDate ?? undefined;
-      if (!c.endDate) c.endDate = pageDates.endDate ?? undefined;
+      if (!c.postedDate) c.postedDate = pageDates.startDate ?? undefined;
+      if (!c.deadline) c.deadline = pageDates.endDate ?? undefined;
     }
     campaigns.push(...directCampaigns);
 
@@ -265,8 +265,8 @@ export async function scrapeGenericPlaywright(
           if (subCards.length > 0) {
             const subDates = extractDates(detail$);
             for (const sc of subCards) {
-              if (!sc.startDate) sc.startDate = subDates.startDate ?? undefined;
-              if (!sc.endDate) sc.endDate = subDates.endDate ?? undefined;
+              if (!sc.postedDate) sc.postedDate = subDates.startDate ?? undefined;
+              if (!sc.deadline) sc.deadline = subDates.endDate ?? undefined;
               const isDupe = campaigns.some(
                 (c) => c.title === sc.title || c.sourceUrl === sc.sourceUrl,
               );
@@ -362,8 +362,8 @@ function findCampaignLinks($: cheerio.CheerioAPI, baseUrl: string): string[] {
   return Array.from(links);
 }
 
-function extractCardsFromPage($: cheerio.CheerioAPI, baseUrl: string): RawCampaignData[] {
-  const campaigns: RawCampaignData[] = [];
+function extractCardsFromPage($: cheerio.CheerioAPI, baseUrl: string): RawJobData[] {
+  const campaigns: RawJobData[] = [];
   const cardSelectors = [
     '.campaign-card', '.kampanya-card', '.campaign-item', '.kampanya-item',
     '.promo-card', '.promo-item', '.deal-card', '.deal-item',
@@ -400,11 +400,11 @@ function extractCardsFromPage($: cheerio.CheerioAPI, baseUrl: string): RawCampai
  * Extract campaigns from tab-based layouts.
  * Some sites organize campaigns as tabs with role="tab" and role="tabpanel".
  */
-function extractTabCampaigns($: cheerio.CheerioAPI, baseUrl: string): RawCampaignData[] {
+function extractTabCampaigns($: cheerio.CheerioAPI, baseUrl: string): RawJobData[] {
   const tabs = $('[role="tablist"] [role="tab"]');
   if (tabs.length === 0 || tabs.length > 30) return [];
 
-  const campaigns: RawCampaignData[] = [];
+  const campaigns: RawJobData[] = [];
 
   tabs.each((_i, tabEl) => {
     const title = $(tabEl).text().trim();
@@ -471,14 +471,14 @@ function extractPromoFromHtml($: cheerio.CheerioAPI, scope?: any): string | null
   for (const sel of PW_PROMO_CSS) {
     const els = root.find(sel).toArray();
     for (const el of els) {
-      const code = validatePromoCode($(el).text().trim());
+      const code = $(el).text().trim();
       if (code) return code;
     }
   }
   for (const attr of PW_PROMO_ATTRS) {
     const els = root.find(`[${attr}]`).toArray();
     for (const el of els) {
-      const code = validatePromoCode($(el).attr(attr));
+      const code = $(el).attr(attr)?.trim();
       if (code) return code;
     }
   }
@@ -500,7 +500,7 @@ function findCouponInJsonLd(obj: any, depth = 0): string | null {
     return null;
   }
   for (const key of ['couponCode', 'discountCode', 'voucherCode', 'promoCode']) {
-    if (typeof obj[key] === 'string') { const c = validatePromoCode(obj[key]); if (c) return c; }
+    if (typeof obj[key] === 'string' && obj[key].trim()) { return obj[key].trim(); }
   }
   for (const val of Object.values(obj)) {
     if (typeof val === 'object') { const c = findCouponInJsonLd(val, depth + 1); if (c) return c; }
@@ -510,7 +510,7 @@ function findCouponInJsonLd(obj: any, depth = 0): string | null {
 
 function extractCampaignFromElement(
   $: cheerio.CheerioAPI, el: any, baseUrl: string,
-): RawCampaignData | null {
+): RawJobData | null {
   const title =
     $(el).find('h1, h2, h3, h4').first().text().trim() ||
     $(el).find('a').first().text().trim() ||
@@ -583,12 +583,10 @@ function extractCampaignFromElement(
     description: description && description.length > 5 ? description : undefined,
     sourceUrl,
     imageUrls,
-    discountRate,
-    promoCode: extractPromoFromHtml($, el) || undefined,
   };
 }
 
-function extractFromMetaTags($: cheerio.CheerioAPI, pageUrl: string): RawCampaignData | null {
+function extractFromMetaTags($: cheerio.CheerioAPI, pageUrl: string): RawJobData | null {
   const title =
     $('meta[property="og:title"]').attr('content')?.trim() ||
     $('meta[name="twitter:title"]').attr('content')?.trim() ||
@@ -633,9 +631,7 @@ function extractFromMetaTags($: cheerio.CheerioAPI, pageUrl: string): RawCampaig
     description: description && description.length > 10 ? description : undefined,
     sourceUrl: pageUrl,
     imageUrls,
-    discountRate,
-    startDate: dates.startDate ?? undefined,
-    endDate: dates.endDate ?? undefined,
-    promoCode: extractPromoFromHtml($) || undefined,
+    postedDate: dates.startDate ?? undefined,
+    deadline: dates.endDate ?? undefined,
   };
 }

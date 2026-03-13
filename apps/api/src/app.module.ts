@@ -9,14 +9,14 @@ import { HealthController } from './health.controller';
 import { PrivacyController } from './privacy.controller';
 import { AuthModule } from './modules/auth/auth.module';
 import { AdminModule } from './modules/admin/admin.module';
-import { CampaignsModule } from './modules/campaigns/campaigns.module';
-import { BrandsPublicModule } from './modules/brands/brands.module';
-import { CategoriesPublicModule } from './modules/categories/categories.module';
+import { JobsModule } from './modules/jobs/jobs.module';
+import { CompaniesPublicModule } from './modules/companies/companies.module';
+import { SectorsPublicModule } from './modules/sectors/sectors.module';
 import { FollowsModule } from './modules/follows/follows.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 import { UploadModule } from './modules/upload/upload.module';
-import { FavoritesModule } from './modules/favorites/favorites.module';
+import { SavedJobsModule } from './modules/saved-jobs/saved-jobs.module';
 import { ReferralsModule } from './modules/referrals/referrals.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 
@@ -40,14 +40,14 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
     PrismaModule,
     AuthModule,
     AdminModule,
-    CampaignsModule,
-    BrandsPublicModule,
-    CategoriesPublicModule,
+    JobsModule,
+    CompaniesPublicModule,
+    SectorsPublicModule,
     FollowsModule,
     NotificationsModule,
     SubscriptionsModule,
     UploadModule,
-    FavoritesModule,
+    SavedJobsModule,
     ReferralsModule,
     AnalyticsModule,
   ],

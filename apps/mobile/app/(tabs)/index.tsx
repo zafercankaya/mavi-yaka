@@ -15,12 +15,12 @@ import {
 } from 'lucide-react-native';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { fetchCampaigns, Campaign, CampaignFilters } from '../../src/api/campaigns';
-import { fetchBrands, fetchCategories, Brand, Category, getCategoryDisplayName, sortCategories } from '../../src/api/brands';
+import { fetchJobs, JobListing, JobFilters } from '../../src/api/jobs';
+import { fetchCompanies, Company } from '../../src/api/companies';
 import { fetchFollows } from '../../src/api/follows';
 import { useAuthStore } from '../../src/store/auth';
 import { useMarketStore } from '../../src/store/market';
-import CampaignCard from '../../src/components/CampaignCard';
+import JobCard from '../../src/components/JobCard';
 import { AdBanner } from '../../src/components/AdBanner';
 import { useAdFree } from '../../src/hooks/useAdFree';
 import { AD_INTERVAL } from '../../src/constants/ads';
@@ -29,14 +29,14 @@ import { Colors, TAB_BAR_HEIGHT } from '../../src/constants/theme';
 
 type FeedMode = 'all' | 'following';
 type AdItem = { _type: 'ad'; _id: string };
-type ListItem = Campaign | AdItem;
+type ListItem = JobListing | AdItem;
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
-const SORT_KEYS = ['recommended', 'discount_high', 'has_promo', 'ending_soon', 'last_24h'] as const;
+const SORT_KEYS = ['recommended', 'newest', 'ending_soon', 'last_24h'] as const;
 
 // Category icon & color mapping by slug
-const CATEGORY_META: Record<string, { icon: React.ComponentType<any>; color: string }> = {
+const SECTOR_META: Record<string, { icon: React.ComponentType<any>; color: string }> = {
   'elektronik':             { icon: Monitor,            color: '#4A90D9' },
   'giyim-moda':             { icon: Shirt,              color: '#E8553A' },
   'gida-market':            { icon: ShoppingCart,        color: '#2ED573' },
@@ -55,9 +55,9 @@ const CATEGORY_META: Record<string, { icon: React.ComponentType<any>; color: str
   'diger':                  { icon: MoreHorizontal,      color: '#9CA3AF' },
 };
 
-function getCategoryMeta(slug?: string) {
+function getSectorMeta(slug?: string) {
   if (!slug) return { icon: LayoutGrid, color: Colors.textSecondary };
-  return CATEGORY_META[slug] ?? { icon: LayoutGrid, color: Colors.textSecondary };
+  return SECTOR_META[slug] ?? { icon: LayoutGrid, color: Colors.textSecondary };
 }
 
 export default function HomeScreen() {
@@ -70,7 +70,7 @@ export default function HomeScreen() {
 
   const [feedMode, setFeedMode] = useState<FeedMode>('all');
   const [categoryId, setCategoryId] = useState<string | undefined>();
-  const [selectedBrandIds, setSelectedBrandIds] = useState<Set<string>>(new Set());
+  const [selectedCompanyIds, setSelectedCompanyIds] = useState<Set<string>>(new Set());
   const [sort, setSort] = useState('recommended');
 
   // FlatList ref — useScrollToTop scrolls to top when active tab is tapped again
@@ -79,18 +79,13 @@ export default function HomeScreen() {
 
   // ScrollView refs — used to auto-scroll to the selected item
   const categoryScrollRef = useRef<ScrollView>(null);
-  const brandScrollRef = useRef<ScrollView>(null);
+  const companyScrollRef = useRef<ScrollView>(null);
   const categoryPositions = useRef<Record<string, number>>({});
-  const brandPositions = useRef<Record<string, number>>({});
+  const companyPositions = useRef<Record<string, number>>({});
 
-  const { data: brandsData } = useQuery({
-    queryKey: ['brands', market],
-    queryFn: () => fetchBrands().then((r) => r.data),
-  });
-
-  const { data: categoriesData } = useQuery({
-    queryKey: ['categories'],
-    queryFn: () => fetchCategories().then((r) => r.data),
+  const { data: companiesData } = useQuery({
+    queryKey: ['companies', market],
+    queryFn: () => fetchCompanies().then((r) => r.data),
   });
 
   const { data: followsData } = useQuery({
@@ -99,52 +94,35 @@ export default function HomeScreen() {
     enabled: isAuthenticated,
   });
 
-  const followedBrandIds = useMemo(() => {
+  const followedCompanyIds = useMemo(() => {
     if (!followsData) return new Set<string>();
-    return new Set(followsData.filter((f) => f.brandId).map((f) => f.brandId!));
+    return new Set(followsData.filter((f) => f.companyId).map((f) => f.companyId!));
   }, [followsData]);
 
-  const followedBrandCategoryIds = useMemo(() => {
-    if (!brandsData) return new Set<string>();
-    return new Set(
-      brandsData
-        .filter((b: Brand) => followedBrandIds.has(b.id) && b.categoryId)
-        .map((b: Brand) => b.categoryId!),
-    );
-  }, [brandsData, followedBrandIds]);
-
-  const visibleCategories = useMemo(() => {
-    let all = categoriesData ?? [];
-    if (feedMode === 'following') {
-      all = all.filter((c: Category) => followedBrandCategoryIds.has(c.id));
-    }
-    return sortCategories(all, market);
-  }, [categoriesData, feedMode, followedBrandCategoryIds, market]);
-
-  const filteredBrands = useMemo(() => {
-    if (!brandsData) return [];
-    let list = brandsData;
+  const filteredCompanies = useMemo(() => {
+    if (!companiesData) return [];
+    let list = companiesData;
     if (categoryId) {
-      list = list.filter((b: Brand) => b.categoryId === categoryId);
+      list = list.filter((c: Company) => c.sector === categoryId);
     }
     if (feedMode === 'following') {
-      list = list.filter((b: Brand) => followedBrandIds.has(b.id));
+      list = list.filter((c: Company) => followedCompanyIds.has(c.id));
     }
     return list;
-  }, [brandsData, categoryId, feedMode, followedBrandIds]);
+  }, [companiesData, categoryId, feedMode, followedCompanyIds]);
 
   const handleFeedModeChange = (mode: FeedMode) => {
     setFeedMode(mode);
     setCategoryId(undefined);
-    setSelectedBrandIds(new Set());
+    setSelectedCompanyIds(new Set());
   };
 
   const handleCategorySelect = (catId: string | undefined) => {
     const newId = catId === categoryId ? undefined : catId;
     setCategoryId(newId);
-    setSelectedBrandIds(new Set());
-    // Reset brand scroll when category changes (brand list content changes)
-    brandScrollRef.current?.scrollTo({ x: 0, animated: false });
+    setSelectedCompanyIds(new Set());
+    // Reset company scroll when category changes (company list content changes)
+    companyScrollRef.current?.scrollTo({ x: 0, animated: false });
     // Scroll to selected category so it's visible
     if (newId && categoryPositions.current[newId] !== undefined) {
       const targetX = categoryPositions.current[newId];
@@ -159,14 +137,14 @@ export default function HomeScreen() {
     }
   };
 
-  const handleBrandSelect = (bId: string | undefined) => {
+  const handleCompanySelect = (bId: string | undefined) => {
     if (!bId) {
       // "Tümü" tapped — clear all selections
-      setSelectedBrandIds(new Set());
-      brandScrollRef.current?.scrollTo({ x: 0, animated: true });
+      setSelectedCompanyIds(new Set());
+      companyScrollRef.current?.scrollTo({ x: 0, animated: true });
       return;
     }
-    setSelectedBrandIds((prev) => {
+    setSelectedCompanyIds((prev) => {
       const next = new Set(prev);
       if (next.has(bId)) {
         next.delete(bId);
@@ -175,36 +153,36 @@ export default function HomeScreen() {
       }
       return next;
     });
-    // Scroll to tapped brand so it's visible
-    if (brandPositions.current[bId] !== undefined) {
-      const targetX = brandPositions.current[bId];
+    // Scroll to tapped company so it's visible
+    if (companyPositions.current[bId] !== undefined) {
+      const targetX = companyPositions.current[bId];
       const scrollX = Math.max(0, targetX - SCREEN_WIDTH / 2 + 45);
       setTimeout(() => {
-        brandScrollRef.current?.scrollTo({ x: scrollX, animated: true });
+        companyScrollRef.current?.scrollTo({ x: scrollX, animated: true });
       }, 50);
     }
   };
 
-  const brandIdsArray = useMemo(() => Array.from(selectedBrandIds), [selectedBrandIds]);
+  const companyIdsArray = useMemo(() => Array.from(selectedCompanyIds), [selectedCompanyIds]);
 
-  const filters = useMemo<CampaignFilters>(() => {
-    const f: CampaignFilters = {
+  const filters = useMemo<JobFilters>(() => {
+    const f: JobFilters = {
       sort: sort as any,
       limit: 15,
     };
-    if (brandIdsArray.length > 0) {
-      f.brandIds = brandIdsArray;
+    if (companyIdsArray.length > 0) {
+      f.companyIds = companyIdsArray;
     } else if (categoryId) {
-      f.categoryId = categoryId;
+      f.sector = categoryId;
     }
     if (feedMode === 'following') f.followingOnly = true;
     return f;
-  }, [brandIdsArray, categoryId, sort, feedMode]);
+  }, [companyIdsArray, categoryId, sort, feedMode]);
 
   // Flat queryKey ensures React Query reliably detects filter changes
   const queryKey = useMemo(
-    () => ['campaigns', market, brandIdsArray.join(','), categoryId ?? '', sort, feedMode] as const,
-    [market, brandIdsArray, categoryId, sort, feedMode],
+    () => ['jobs', market, companyIdsArray.join(','), categoryId ?? '', sort, feedMode] as const,
+    [market, companyIdsArray, categoryId, sort, feedMode],
   );
 
   const {
@@ -213,13 +191,13 @@ export default function HomeScreen() {
   } = useInfiniteQuery({
     queryKey,
     queryFn: ({ pageParam }) =>
-      fetchCampaigns({ ...filters, cursor: pageParam as string | undefined }),
+      fetchJobs({ ...filters, cursor: pageParam as string | undefined }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) =>
       lastPage.meta?.hasMore ? lastPage.meta.nextCursor : undefined,
   });
 
-  const campaigns = useMemo(() => {
+  const jobs = useMemo(() => {
     const all = data?.pages.flatMap((p) => p.data) ?? [];
     const seen = new Set<string>();
     return all.filter((c) => {
@@ -231,23 +209,23 @@ export default function HomeScreen() {
   const totalCount = data?.pages[0]?.meta?.total ?? 0;
 
   const listData: ListItem[] = useMemo(() => {
-    if (adFree) return campaigns;
+    if (adFree) return jobs;
     const result: ListItem[] = [];
-    campaigns.forEach((c, i) => {
+    jobs.forEach((c, i) => {
       result.push(c);
       if ((i + 1) % AD_INTERVAL === 0) {
         result.push({ _type: 'ad', _id: `ad-${i}` });
       }
     });
     return result;
-  }, [campaigns, adFree]);
+  }, [jobs, adFree]);
 
   const handleEndReached = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) fetchNextPage();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  const handleCampaignPress = useCallback((campaign: Campaign) => {
-    router.push(`/campaign/${campaign.id}`);
+  const handleJobPress = useCallback((job: JobListing) => {
+    router.push(`/job/${job.id}`);
   }, [router]);
 
   const renderItem = useCallback(
@@ -255,9 +233,9 @@ export default function HomeScreen() {
       if ('_type' in item && item._type === 'ad') {
         return <AdBanner />;
       }
-      return <CampaignCard campaign={item} onPress={handleCampaignPress} />;
+      return <JobCard job={item as JobListing} onPress={handleJobPress} />;
     },
-    [handleCampaignPress],
+    [handleJobPress],
   );
 
   // Header is rendered as a React element (not component) so inner ScrollViews
@@ -292,9 +270,9 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {/* Categories with Icons */}
+      {/* Sectors with Icons */}
       <View style={styles.categoriesSection}>
-        <Text style={styles.sectionLabel}>{t('common.categories')}</Text>
+        <Text style={styles.sectionLabel}>{t('common.sectors')}</Text>
         <ScrollView
           ref={categoryScrollRef}
           horizontal
@@ -310,26 +288,25 @@ export default function HomeScreen() {
             </View>
             <Text style={[styles.categoryCardText, !categoryId && styles.categoryCardTextActive]}>{t('common.all')}</Text>
           </Pressable>
-          {visibleCategories.map((cat: Category) => {
-            const meta = getCategoryMeta(cat.slug);
-            const isActive = categoryId === cat.id;
+          {Object.entries(SECTOR_META).map(([slug, meta]) => {
+            const isActive = categoryId === slug;
             const IconComp = meta.icon;
             return (
               <View
-                key={cat.id}
+                key={slug}
                 onLayout={(e) => {
-                  categoryPositions.current[cat.id] = e.nativeEvent.layout.x;
+                  categoryPositions.current[slug] = e.nativeEvent.layout.x;
                 }}
               >
                 <Pressable
                   style={[styles.categoryCard, isActive && { backgroundColor: meta.color, borderColor: meta.color }]}
-                  onPress={() => handleCategorySelect(cat.id)}
+                  onPress={() => handleCategorySelect(slug)}
                 >
                   <View style={[styles.categoryIconCircle, { backgroundColor: isActive ? '#fff' : meta.color + '18' }]}>
                     <IconComp size={18} color={meta.color} />
                   </View>
                   <Text style={[styles.categoryCardText, isActive && styles.categoryCardTextActive]} numberOfLines={1}>
-                    {getCategoryDisplayName(cat, market)}
+                    {t(`sectors.${slug}`, slug)}
                   </Text>
                 </Pressable>
               </View>
@@ -338,49 +315,49 @@ export default function HomeScreen() {
         </ScrollView>
       </View>
 
-      {/* Brands (multi-select) */}
-      <View style={styles.brandsSection}>
+      {/* Companies (multi-select) */}
+      <View style={styles.companiesSection}>
         <Text style={styles.sectionLabel}>
-          {t('common.brands')}{selectedBrandIds.size > 0 ? ` (${selectedBrandIds.size})` : ''}
+          {t('common.companies')}{selectedCompanyIds.size > 0 ? ` (${selectedCompanyIds.size})` : ''}
         </Text>
         <ScrollView
-          ref={brandScrollRef}
+          ref={companyScrollRef}
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.brandsList}
+          contentContainerStyle={styles.companiesList}
         >
           <Pressable
-            style={[styles.brandChip, selectedBrandIds.size === 0 && styles.brandChipActive]}
-            onPress={() => handleBrandSelect(undefined)}
+            style={[styles.companyChip, selectedCompanyIds.size === 0 && styles.companyChipActive]}
+            onPress={() => handleCompanySelect(undefined)}
           >
-            <Text style={[styles.brandChipText, selectedBrandIds.size === 0 && styles.brandChipTextActive]}>{t('common.all')}</Text>
+            <Text style={[styles.companyChipText, selectedCompanyIds.size === 0 && styles.companyChipTextActive]}>{t('common.all')}</Text>
           </Pressable>
-          {filteredBrands.map((brand: Brand) => {
-            const isSelected = selectedBrandIds.has(brand.id);
+          {filteredCompanies.map((company: Company) => {
+            const isSelected = selectedCompanyIds.has(company.id);
             return (
               <View
-                key={brand.id}
+                key={company.id}
                 onLayout={(e) => {
-                  brandPositions.current[brand.id] = e.nativeEvent.layout.x;
+                  companyPositions.current[company.id] = e.nativeEvent.layout.x;
                 }}
               >
                 <Pressable
-                  style={[styles.brandChip, isSelected && styles.brandChipActive]}
-                  onPress={() => handleBrandSelect(brand.id)}
+                  style={[styles.companyChip, isSelected && styles.companyChipActive]}
+                  onPress={() => handleCompanySelect(company.id)}
                 >
                   <Text
-                    style={[styles.brandChipText, isSelected && styles.brandChipTextActive]}
+                    style={[styles.companyChipText, isSelected && styles.companyChipTextActive]}
                     numberOfLines={1}
                   >
-                    {brand.name}
+                    {company.name}
                   </Text>
                 </Pressable>
               </View>
             );
           })}
-          {feedMode === 'following' && filteredBrands.length === 0 && (
-            <View style={styles.emptyBrandsHint}>
-              <Text style={styles.emptyBrandsHintText}>{t('home.noFollowedBrands')}</Text>
+          {feedMode === 'following' && filteredCompanies.length === 0 && (
+            <View style={styles.emptyCompaniesHint}>
+              <Text style={styles.emptyCompaniesHintText}>{t('home.noFollowedCompanies')}</Text>
             </View>
           )}
         </ScrollView>
@@ -406,7 +383,7 @@ export default function HomeScreen() {
         <View style={styles.resultsRow}>
           <TrendingUp size={16} color={Colors.primary} />
           <Text style={styles.resultsCount}>
-            {t('home.campaignCount', { shown: campaigns.length, total: totalCount })}
+            {t('home.jobCount', { shown: jobs.length, total: totalCount })}
           </Text>
         </View>
       )}
@@ -449,11 +426,11 @@ export default function HomeScreen() {
           ) : (
             <View style={styles.emptyContainer}>
               <TrendingUp size={48} color={Colors.textTertiary} />
-              <Text style={styles.emptyTitle}>{t('home.noCampaigns')}</Text>
+              <Text style={styles.emptyTitle}>{t('home.noJobs')}</Text>
               <Text style={styles.emptyText}>
                 {feedMode === 'following'
-                  ? t('home.noCampaignsFollowing')
-                  : t('home.noCampaignsFilter')}
+                  ? t('home.noJobsFollowing')
+                  : t('home.noJobsFilter')}
               </Text>
             </View>
           )
@@ -615,15 +592,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  // Brands
-  brandsSection: {
+  // Companies
+  companiesSection: {
     marginBottom: 12,
   },
-  brandsList: {
+  companiesList: {
     paddingHorizontal: 16,
     gap: 8,
   },
-  brandChip: {
+  companyChip: {
     paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: 20,
@@ -631,23 +608,23 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     backgroundColor: Colors.surface,
   },
-  brandChipActive: {
+  companyChipActive: {
     backgroundColor: '#1E293B',
     borderColor: '#1E293B',
   },
-  brandChipText: {
+  companyChipText: {
     fontSize: 13,
     fontWeight: '600',
     color: Colors.textSecondary,
   },
-  brandChipTextActive: {
+  companyChipTextActive: {
     color: '#fff',
   },
-  emptyBrandsHint: {
+  emptyCompaniesHint: {
     paddingHorizontal: 8,
     paddingVertical: 6,
   },
-  emptyBrandsHintText: {
+  emptyCompaniesHintText: {
     fontSize: 12,
     color: Colors.textTertiary,
     fontStyle: 'italic',

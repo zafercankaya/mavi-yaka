@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "Blue Collar",
+    "name": "BlueCollar.jobs",
     "tagline": "Blue-collar jobs, all in one place"
   },
   "tabs": {
@@ -125,24 +125,23 @@
     "SENIOR": "5+ Years"
   },
   "sector": {
-    "LOGISTICS": "Logistics",
+    "LOGISTICS_TRANSPORTATION": "Logistics & Transportation",
     "MANUFACTURING": "Manufacturing",
     "RETAIL": "Retail",
     "CONSTRUCTION": "Construction",
-    "FOOD_SERVICE": "Food Service",
-    "CLEANING": "Cleaning",
-    "SECURITY": "Security",
-    "WAREHOUSE": "Warehouse",
-    "COURIER": "Courier",
-    "AGRICULTURE": "Agriculture",
+    "FOOD_BEVERAGE": "Food & Beverage",
     "AUTOMOTIVE": "Automotive",
-    "TEXTILE": "Textile",
-    "MINING": "Mining",
-    "HEALTHCARE_SUPPORT": "Healthcare Support",
-    "HOSPITALITY": "Hospitality",
-    "MAINTENANCE": "Maintenance & Repair",
-    "DRIVER": "Driver",
-    "TECHNICIAN": "Technician",
+    "TEXTILE": "Textile & Apparel",
+    "MINING_ENERGY": "Mining & Energy",
+    "HEALTHCARE": "Healthcare",
+    "HOSPITALITY_TOURISM": "Hospitality & Tourism",
+    "AGRICULTURE": "Agriculture",
+    "SECURITY_SERVICES": "Security Services",
+    "FACILITY_MANAGEMENT": "Facility Management",
+    "METAL_STEEL": "Metal & Steel",
+    "CHEMICALS_PLASTICS": "Chemicals & Plastics",
+    "ECOMMERCE_CARGO": "E-commerce & Cargo",
+    "TELECOMMUNICATIONS": "Telecommunications",
     "OTHER": "Other"
   },
   "follows": {

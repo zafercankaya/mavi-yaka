@@ -5,30 +5,26 @@ import { Type } from 'class-transformer';
 import { NotificationsService } from './notifications.service';
 import { InternalKeyGuard } from '../../common/guards/internal-key.guard';
 
-class CampaignItemDto {
+class JobItemDto {
   @IsString()
   id!: string;
 
   @IsString()
   title!: string;
-
-  @IsNumber()
-  @IsOptional()
-  discountRate!: number | null;
 }
 
 class InternalNotifyDto {
   @IsString()
-  brandId!: string;
+  companyId!: string;
 
   @IsString()
   @IsOptional()
-  categoryId?: string | null;
+  sector?: string | null;
 
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => CampaignItemDto)
-  campaigns!: CampaignItemDto[];
+  @Type(() => JobItemDto)
+  jobListings!: JobItemDto[];
 }
 
 @Controller('internal')
@@ -40,10 +36,10 @@ export class InternalNotifyController {
   @Post('notify')
   @ApiOperation({ summary: 'Internal: crawler bildirim webhook' })
   async notify(@Body() dto: InternalNotifyDto) {
-    await this.notificationsService.notifyNewCampaigns(
-      dto.brandId,
-      dto.categoryId ?? null,
-      dto.campaigns,
+    await this.notificationsService.notifyNewJobListings(
+      dto.companyId,
+      (dto.sector as any) ?? null,
+      dto.jobListings,
     );
 
     return { data: { dispatched: true } };
@@ -81,7 +77,7 @@ export class InternalNotifyController {
   @ApiOperation({ summary: 'Internal: favori bitiş bildirimleri gönder' })
   async sendExpiringFavorites(@Query('markets') marketsParam?: string) {
     const markets = marketsParam ? marketsParam.split(',') as any[] : undefined;
-    const result = await this.notificationsService.sendExpiringFavoriteNotifications(markets);
+    const result = await this.notificationsService.sendExpiringSavedJobNotifications(markets);
     return { data: result };
   }
 }

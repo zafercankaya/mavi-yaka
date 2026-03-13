@@ -25,7 +25,7 @@ function TermsContentTR() {
       <Text style={styles.date}>Son güncelleme: 2 Mart 2026</Text>
 
       <Section title="1. Hizmet Tanımı">
-        Kampanya Sepeti ("Uygulama"), Türkiye'deki markaların kampanya ve indirim bilgilerini
+        Mavi Yaka ("Uygulama"), Türkiye ve dünya genelindeki iş ilanlarını
         toplayarak kullanıcılarına sunan bir bilgilendirme platformudur. Uygulama, kampanyaları
         oluşturan markalar ile herhangi bir ticari ortaklık ilişkisi içinde değildir.
       </Section>
@@ -40,7 +40,7 @@ function TermsContentTR() {
 
       <Section title="3. Kampanya Bilgileri">
         Uygulamada yer alan kampanya bilgileri ilgili markaların web sitelerinden otomatik olarak
-        derlenmektedir. Kampanya Sepeti:{'\n\n'}
+        derlenmektedir. Mavi Yaka:{'\n\n'}
         • Kampanya içeriklerinin doğruluğunu garanti etmez{'\n'}
         • Kampanyaların geçerlilik süreleri değişiklik gösterebilir{'\n'}
         • Kampanya koşulları ilgili markanın sorumluluğundadır{'\n'}
@@ -64,13 +64,13 @@ function TermsContentTR() {
       </Section>
 
       <Section title="6. Fikri Mülkiyet">
-        Uygulama tasarımı, logosu, yazılımı ve özgün içerikleri Kampanya Sepeti'ne aittir.
+        Uygulama tasarımı, logosu, yazılımı ve özgün içerikleri Mavi Yaka'ne aittir.
         Kampanya görselleri ve içerikleri ilgili markaların mülkiyetindedir ve bilgilendirme
         amacıyla kullanılmaktadır.
       </Section>
 
       <Section title="7. Sorumluluk Sınırlaması">
-        Kampanya Sepeti, aşağıdaki durumlardan sorumlu tutulamaz:{'\n\n'}
+        Mavi Yaka, aşağıdaki durumlardan sorumlu tutulamaz:{'\n\n'}
         • Kampanya bilgilerindeki hatalar veya eksiklikler{'\n'}
         • Kampanyaların sona ermesi veya koşullarının değişmesi{'\n'}
         • Kullanıcının kampanyadan yararlanamaması{'\n'}
@@ -104,7 +104,7 @@ function TermsContentEN() {
       <Text style={styles.date}>Last updated: March 2, 2026</Text>
 
       <Section title="1. Service Description">
-        Kampanya Sepeti ("App") is an information platform that aggregates deals and discount
+        Mavi Yaka ("App") is an information platform that aggregates job listing
         information from brands and presents them to users. The App is not commercially
         affiliated with the brands whose deals are displayed.
       </Section>
@@ -119,7 +119,7 @@ function TermsContentEN() {
 
       <Section title="3. Deal Information">
         Deal information displayed in the App is automatically compiled from brand websites.
-        Kampanya Sepeti:{'\n\n'}
+        Mavi Yaka:{'\n\n'}
         • Does not guarantee the accuracy of deal content{'\n'}
         • Deal validity periods may change{'\n'}
         • Deal terms are the responsibility of the respective brand{'\n'}
@@ -143,13 +143,13 @@ function TermsContentEN() {
       </Section>
 
       <Section title="6. Intellectual Property">
-        The App's design, logo, software, and original content belong to Kampanya Sepeti.
+        The App's design, logo, software, and original content belong to Mavi Yaka.
         Deal images and content are the property of their respective brands and are used
         for informational purposes.
       </Section>
 
       <Section title="7. Limitation of Liability">
-        Kampanya Sepeti cannot be held responsible for:{'\n\n'}
+        Mavi Yaka cannot be held responsible for:{'\n\n'}
         • Errors or omissions in deal information{'\n'}
         • Expiration or changes in deal terms{'\n'}
         • User's inability to take advantage of a deal{'\n'}

@@ -1,19 +1,19 @@
 /**
- * Generic campaign scraper — works without site-specific selectors.
+ * Generic job listing scraper — works without site-specific selectors.
  * Uses HTTP fetch + Cheerio (NO Playwright).
  *
  * Strategy:
  * 1. HTTP fetch seed URL
- * 2. Try to extract campaign cards directly from the page
- * 3. Find campaign/promotion links and visit each one
- * 4. Extract data from meta tags, JSON-LD, and common HTML patterns
+ * 2. Try to extract job listing cards directly from the page
+ * 3. Find career/job links and visit each one
+ * 4. Extract data from meta tags, JSON-LD (JobPosting), and common HTML patterns
  * 5. Extract dates from all available sources
  *
  * If HTML is too sparse (SPA site), returns empty array so the engine
  * can fall back to Playwright.
  */
 import * as cheerio from 'cheerio';
-import { RawCampaignData, validatePromoCode } from '../pipeline/normalize';
+import { RawJobData } from '../pipeline/normalize';
 import { CRAWL_DELAY_MS, REQUEST_TIMEOUT_MS, CrawlMarket, getAcceptLanguage } from '../config';
 import { pickBestFromSrcset, isLikelyBrandLogo } from '../pipeline/optimize-images';
 import { extractDates } from '../utils/date-extractor';
@@ -47,19 +47,19 @@ function resolveNextImageUrl(src: string, baseUrl: string): string | null {
  * Extract campaigns from Next.js __NEXT_DATA__ JSON embedded in the page.
  * Recursively searches the JSON structure for arrays of campaign-like objects.
  */
-function extractFromNextData($: cheerio.CheerioAPI, baseUrl: string): RawCampaignData[] {
+function extractFromNextData($: cheerio.CheerioAPI, baseUrl: string): RawJobData[] {
   const script = $('script#__NEXT_DATA__');
   if (script.length === 0) return [];
 
   try {
     const json = JSON.parse(script.html() || '');
-    const campaigns: RawCampaignData[] = [];
+    const campaigns: RawJobData[] = [];
     const seen = new Set<string>();
 
     findCampaignArrays(json, baseUrl, campaigns, seen, 0);
 
     if (campaigns.length > 0) {
-      console.log(`  [Generic] Extracted ${campaigns.length} campaigns from __NEXT_DATA__`);
+      console.log(`  [Generic] Extracted ${campaigns.length} job listings from __NEXT_DATA__`);
     }
     return campaigns;
   } catch {
@@ -68,15 +68,19 @@ function extractFromNextData($: cheerio.CheerioAPI, baseUrl: string): RawCampaig
 }
 
 /** Property names that indicate a title field */
-const TITLE_KEYS = ['title', 'name', 'campaignTitle', 'campaignName', 'offerTitle', 'offerName', 'heading', 'baslik', 'dealTitle', 'promoTitle'];
+const TITLE_KEYS = ['title', 'name', 'jobTitle', 'positionTitle', 'pozisyon', 'pozisyonAdi', 'campaignTitle', 'campaignName', 'offerTitle', 'offerName', 'heading', 'baslik', 'dealTitle', 'promoTitle'];
 /** Property names that indicate an image URL field */
 const IMAGE_KEYS = ['imageUrl', 'image', 'imgUrl', 'img', 'imageURL', 'imageSrc', 'thumbnail', 'photo', 'coverImage', 'bannerImage', 'pictureUrl', 'campaignImageUrl', 'offerImage', 'offerImageUrl', 'bannerUrl', 'heroImage', 'featuredImage', 'cardImage'];
 /** Property names that indicate a campaign URL/slug field */
 const URL_KEYS = ['url', 'href', 'slug', 'link', 'path', 'campaignUrl', 'detailUrl', 'pageUrl', 'campaignSlug', 'offerSlug', 'offerUrl', 'dealUrl'];
 /** Property names that indicate a description field */
-const DESC_KEYS = ['description', 'desc', 'summary', 'subtitle', 'aciklama', 'content'];
-/** Property names that indicate a promo/coupon code field */
-const CODE_KEYS = ['promoCode', 'promo_code', 'couponCode', 'coupon_code', 'discountCode', 'discount_code', 'voucherCode', 'voucher_code', 'code', 'coupon', 'promocode'];
+const DESC_KEYS = ['description', 'desc', 'summary', 'subtitle', 'aciklama', 'content', 'jobDescription', 'qualifications', 'responsibilities'];
+/** Property names that indicate a salary field */
+const SALARY_KEYS = ['salary', 'compensation', 'wage', 'pay', 'maas', 'ucret', 'gehalt', 'salario', 'salaire'];
+/** Property names that indicate a location field */
+const LOCATION_KEYS = ['location', 'city', 'address', 'konum', 'sehir', 'il', 'standort', 'ubicacion'];
+/** Property names that indicate a requirements field */
+const REQUIREMENTS_KEYS = ['requirements', 'qualifications', 'skills', 'experience', 'nitelikler', 'gereksinimler'];
 
 /**
  * Recursively search a JSON object for arrays of campaign-like objects.
@@ -85,7 +89,7 @@ const CODE_KEYS = ['promoCode', 'promo_code', 'couponCode', 'coupon_code', 'disc
 function findCampaignArrays(
   obj: any,
   baseUrl: string,
-  results: RawCampaignData[],
+  results: RawJobData[],
   seen: Set<string>,
   depth: number,
 ): void {
@@ -130,7 +134,7 @@ function hasCampaignShape(obj: Record<string, any>): boolean {
   return hasTitle && (hasUrl || hasImage);
 }
 
-function extractCampaignFromJsonObject(obj: Record<string, any>, baseUrl: string): RawCampaignData | null {
+function extractCampaignFromJsonObject(obj: Record<string, any>, baseUrl: string): RawJobData | null {
   const title = findValue(obj, TITLE_KEYS);
   if (!title || typeof title !== 'string' || title.length < 5 || title.length > 300) return null;
 
@@ -154,16 +158,19 @@ function extractCampaignFromJsonObject(obj: Record<string, any>, baseUrl: string
     ? descVal.substring(0, 500)
     : undefined;
 
-  const fullText = `${title} ${description || ''}`;
-  const discountRate = parseDiscountSafe(fullText);
+  // Extract job-specific fields from JSON keys
+  const salaryVal = findValue(obj, SALARY_KEYS);
+  const salaryText = salaryVal && typeof salaryVal === 'string' ? salaryVal.trim() : undefined;
 
-  // Extract promo code from JSON keys
-  const codeVal = findValue(obj, CODE_KEYS);
-  const promoCode = codeVal && typeof codeVal === 'string' && codeVal.length >= 3 && codeVal.length <= 30
-    ? codeVal.trim().toUpperCase()
+  const locationVal = findValue(obj, LOCATION_KEYS);
+  const locationText = locationVal && typeof locationVal === 'string' ? locationVal.trim() : undefined;
+
+  const requirementsVal = findValue(obj, REQUIREMENTS_KEYS);
+  const requirements = requirementsVal && typeof requirementsVal === 'string' && requirementsVal.length > 10
+    ? requirementsVal.substring(0, 500)
     : undefined;
 
-  return { title, description, sourceUrl, imageUrls, discountRate, promoCode };
+  return { title, description, sourceUrl, imageUrls, salaryText, locationText, requirements };
 }
 
 function findValue(obj: Record<string, any>, keys: string[]): any {
@@ -179,18 +186,6 @@ function findValue(obj: Record<string, any>, keys: string[]): any {
   return undefined;
 }
 
-// Material/fabric composition patterns — NOT discounts
-const MATERIAL_PATTERN = /(?:pamuk|cotton|polyester|elastan|viskon|viscose|keten|linen|yün|wool|ipek|silk|naylon|nylon|akrilik|acrylic|sentetik|lycra|rayon|algod[ãa]o|poli[ée]ster|seda|linho|l[ãa]|baumwolle|seide|leinen|wolle|viskose|coton|soie|lin|laine|cotone|seta|lana|katun|sutra|хлопок|шёлк|шерсть|綿|絹)/i;
-
-function parseDiscountSafe(text: string): number | undefined {
-  const match = text.match(/%\s*(\d+)/) || text.match(/(\d+)\s*%/);
-  if (!match) return undefined;
-  const val = parseInt(match[1], 10);
-  if (val < 1 || val > 95) return undefined;
-  const afterMatch = text.substring(match.index! + match[0].length, match.index! + match[0].length + 30);
-  if (MATERIAL_PATTERN.test(afterMatch)) return undefined;
-  return val;
-}
 
 /**
  * Fetch HTML from a URL using HTTP fetch (no browser).
@@ -237,42 +232,29 @@ async function fetchHtml(url: string, market?: CrawlMarket): Promise<string> {
   }
 }
 
-// Campaign-related URL patterns (Turkish + English)
-const CAMPAIGN_PATH_PATTERNS = [
+// Job/career-related URL patterns (Turkish + English + multilingual)
+const JOB_PATH_PATTERNS = [
   // Turkish (TR)
-  /kampanya/i, /indirim/i, /firsat/i, /promosyon/i, /teklif/i,
-  // English (US, UK, AU, PH, CA, IN)
-  /outlet/i, /sale/i, /deal/i, /offer/i, /promo/i, /special/i,
-  /discount/i, /campaign/i, /clearance/i, /coupon/i, /voucher/i,
-  /savings/i, /bargain/i, /flash-sale/i, /weekly-ad/i,
+  /kariyer/i, /is-?ilanlari/i, /is-?ilani/i, /pozisyon/i, /basvuru/i,
+  // English
+  /careers?/i, /jobs?/i, /openings?/i, /hiring/i, /vacancies/i, /vacancy/i,
+  /positions?/i, /opportunities/i, /recruitment/i, /work-with-us/i, /join-us/i,
   // Portuguese (BR)
-  /oferta/i, /promocao/i, /desconto/i, /liquidacao/i, /cupom/i, /queima/i,
-  /black-friday/i, /esquenta/i,
+  /vagas/i, /carreiras/i, /oportunidades/i, /trabalhe-conosco/i,
   // German (DE)
-  /angebot/i, /aktion/i, /rabatt/i, /gutschein/i, /sonderangebot/i,
-  /ausverkauf/i, /schn[äa]ppchen/i, /sparpreis/i, /restposten/i,
-  // Indian (IN)
-  /cashback/i, /combo/i, /emi/i, /exchange/i, /festive/i,
-  /diwali/i, /loot/i, /bonanza/i,
-  // Indonesian (ID)
-  /diskon/i, /penawaran/i, /obral/i, /harbolnas/i, /flash-sale/i,
-  /gratis-ongkir/i, /hemat/i,
-  // Russian (RU)
-  /akts[iy][iy]?/i, /skidki?/i, /rasprodazha/i, /promokod/i,
-  /kupon/i, /bonus/i,
-  // Spanish (MX)
-  /oferta/i, /promocion/i, /descuento/i, /cupon/i, /rebaja/i,
-  /liquidacion/i, /hot-sale/i, /buen-fin/i, /ahorro/i,
-  // Japanese (JP)
-  /tokka/i, /timesale/i, /campaign/i, /bargain/i, /outlet/i,
-  // Thai (TH)
-  /promotion/i, /flash-sale/i,
+  /karriere/i, /stellenangebote/i, /jobs?/i, /stellen/i, /bewerbung/i,
+  // Spanish (MX, ES, AR, CO)
+  /empleo/i, /ofertas-de-empleo/i, /trabaja-con-nosotros/i, /vacantes/i,
   // French (FR, CA)
-  /soldes?/i, /remise/i, /destockage/i, /vente-flash/i,
-  /bon-plan/i, /bons-plans/i, /code-promo/i, /vente-privee/i, /braderie/i,
+  /emploi/i, /carrieres?/i, /recrutement/i, /offres-d-emploi/i, /postes/i,
   // Italian (IT)
-  /offert[ae]/i, /sconti/i, /saldi/i, /svendita/i,
-  /codice-sconto/i, /sottocosto/i, /fuori-tutto/i, /volantino/i, /occasioni/i,
+  /lavora-con-noi/i, /posizioni-aperte/i, /carriera/i,
+  // Indonesian (ID)
+  /lowongan/i, /karir/i,
+  // Russian (RU)
+  /vakansii/i, /rabota/i, /kariera/i,
+  // Japanese (JP)
+  /recruit/i, /saiyo/i,
 ];
 
 // Patterns to EXCLUDE (non-campaign pages)
@@ -296,7 +278,7 @@ const EXCLUDE_PATTERNS = [
   /kargo|shipping|delivery|versand|livraison|spedizione/i,
   /iade|returns?|retoure|retour|reso/i,
   /magaza[_-]?bul|store[_-]?locator|store[_-]?finder|filial/i,
-  /kariyer|career|jobs|stelle|emploi|lavora/i,
+  // /kariyer|career|jobs/ — removed, these are valid job listing pages
   /uyelik|membership|abonnement/i,
   /sikca[_-]?sorulan|frequently[_-]?asked/i,
   /kvkk|gdpr|ccpa|dsgvo|lgpd/i,
@@ -332,9 +314,9 @@ const EXCLUDE_PATTERNS = [
 ];
 
 /**
- * Find campaign-related links on a page.
+ * Find job/career-related links on a page.
  */
-function findCampaignLinks($: cheerio.CheerioAPI, baseUrl: string): string[] {
+function findJobLinks($: cheerio.CheerioAPI, baseUrl: string): string[] {
   const links = new Set<string>();
   const baseHost = new URL(baseUrl).hostname;
 
@@ -352,10 +334,10 @@ function findCampaignLinks($: cheerio.CheerioAPI, baseUrl: string): string[] {
       if (EXCLUDE_PATTERNS.some((p) => p.test(path))) return;
 
       const text = $(el).text().trim().toLowerCase();
-      const isCampaignUrl = CAMPAIGN_PATH_PATTERNS.some((p) => p.test(path));
-      const isCampaignText = CAMPAIGN_PATH_PATTERNS.some((p) => p.test(text));
+      const isJobUrl = JOB_PATH_PATTERNS.some((p) => p.test(path));
+      const isJobText = JOB_PATH_PATTERNS.some((p) => p.test(text));
 
-      if (isCampaignUrl || isCampaignText) {
+      if (isJobUrl || isJobText) {
         if (fullUrl.replace(/\/$/, '') !== baseUrl.replace(/\/$/, '')) {
           links.add(fullUrl);
         }
@@ -367,40 +349,32 @@ function findCampaignLinks($: cheerio.CheerioAPI, baseUrl: string): string[] {
 }
 
 /**
- * Extract campaign-like cards directly from the page.
+ * Extract job listing cards directly from the page.
  */
-function extractCardsFromPage($: cheerio.CheerioAPI, baseUrl: string): RawCampaignData[] {
-  const campaigns: RawCampaignData[] = [];
+function extractCardsFromPage($: cheerio.CheerioAPI, baseUrl: string): RawJobData[] {
+  const campaigns: RawJobData[] = [];
 
   const cardSelectors = [
-    '.campaign-card', '.kampanya-card', '.campaign-item', '.kampanya-item',
-    '.promo-card', '.promo-item', '.deal-card', '.deal-item',
-    '.offer-card', '.offer-item', '.deal-item',
-    '[class*="campaign"]', '[class*="kampanya"]', '[class*="promo"]',
-    '[class*="offer"]', '[class*="deal"]',
-    '.slider-item', '.banner-item', '.dot-card-content',
-    'a[href*="kampanya"]', 'a[href*="campaign"]', 'a[href*="offer"]', 'a[href*="deal"]',
-    // Portuguese (BR)
-    '[class*="oferta"]', '[class*="promocao"]', '[class*="desconto"]',
-    'a[href*="oferta"]', 'a[href*="promocao"]', 'a[href*="desconto"]',
-    // German (DE)
-    '[class*="angebot"]', '[class*="aktion"]', '[class*="rabatt"]',
-    'a[href*="angebot"]', 'a[href*="aktion"]', 'a[href*="rabatt"]', 'a[href*="gutschein"]',
-    // Indian (IN)
-    '[class*="cashback"]', 'a[href*="cashback"]', 'a[href*="emi"]',
-    'a[href*="exchange-offer"]', 'a[href*="festive"]', 'a[href*="loot"]',
-    // Indonesian (ID)
-    '[class*="diskon"]', '[class*="penawaran"]', 'a[href*="diskon"]', 'a[href*="promo"]',
-    // Russian (RU)
-    '[class*="akci"]', '[class*="skidka"]', 'a[href*="akci"]', 'a[href*="skidki"]',
-    // Spanish (MX)
-    'a[href*="oferta"]', 'a[href*="promocion"]', 'a[href*="descuento"]',
-    // French (FR, CA)
-    '[class*="solde"]', '[class*="promo"]', 'a[href*="solde"]', 'a[href*="bon-plan"]',
-    // Italian (IT)
-    '[class*="offert"]', '[class*="scont"]', 'a[href*="offert"]', 'a[href*="saldi"]',
-    // Japanese (JP)
-    'a[href*="campaign"]', 'a[href*="sale"]', 'a[href*="tokka"]',
+    // Job-specific selectors
+    '.job-card', '.job-item', '.job-listing', '.job-post',
+    '.vacancy-card', '.vacancy-item', '.position-card', '.position-item',
+    '.career-card', '.career-item', '.opening-card', '.opening-item',
+    '[class*="job"]', '[class*="vacancy"]', '[class*="position"]', '[class*="career"]',
+    '[class*="opening"]', '[class*="listing"]',
+    // Turkish
+    '[class*="ilan"]', '[class*="pozisyon"]', '[class*="kariyer"]',
+    'a[href*="kariyer"]', 'a[href*="is-ilani"]', 'a[href*="pozisyon"]',
+    // English
+    'a[href*="careers"]', 'a[href*="jobs"]', 'a[href*="openings"]', 'a[href*="vacancies"]',
+    // German
+    'a[href*="karriere"]', 'a[href*="stellenangebot"]',
+    // Portuguese
+    'a[href*="vagas"]', 'a[href*="carreiras"]',
+    // Spanish
+    'a[href*="empleo"]', 'a[href*="vacantes"]',
+    // French
+    'a[href*="emploi"]', 'a[href*="recrutement"]',
+    // Generic
     'article', '.card',
   ];
 
@@ -433,11 +407,11 @@ function extractCardsFromPage($: cheerio.CheerioAPI, baseUrl: string): RawCampai
  * Some sites (e.g., ÇiçekSepeti) organize campaigns as tabs with
  * role="tab" buttons and role="tabpanel" content sections.
  */
-function extractTabCampaigns($: cheerio.CheerioAPI, baseUrl: string): RawCampaignData[] {
+function extractTabCampaigns($: cheerio.CheerioAPI, baseUrl: string): RawJobData[] {
   const tabs = $('[role="tablist"] [role="tab"]');
   if (tabs.length === 0 || tabs.length > 30) return [];
 
-  const campaigns: RawCampaignData[] = [];
+  const campaigns: RawJobData[] = [];
 
   tabs.each((_i, tabEl) => {
     const title = $(tabEl).text().trim();
@@ -486,106 +460,133 @@ function extractTabCampaigns($: cheerio.CheerioAPI, baseUrl: string): RawCampaig
   });
 
   if (campaigns.length > 0) {
-    console.log(`  [Generic] Extracted ${campaigns.length} campaigns from tab layout`);
+    console.log(`  [Generic] Extracted ${campaigns.length} job listings from tab layout`);
   }
 
   return campaigns;
 }
 
-// ─── HTML-based promo code extraction ────────────────────────
-const PROMO_CSS_SELECTORS = [
-  '[class*="coupon-code"]', '[class*="promo-code"]', '[class*="discount-code"]',
-  '[class*="voucher-code"]', '[class*="couponcode"]', '[class*="promocode"]',
-  '[class*="discountcode"]', '[class*="vouchercode"]',
-  '[class*="kuponcod"]', '[class*="promokod"]',
-  '[class*="copy-code"]', '[class*="code-copy"]',
-  '.coupon-value', '.promo-value', '.code-value',
-  '[class*="coupon"] code', '[class*="promo"] code',
-  '[class*="coupon"] .value', '[class*="promo"] .value',
-];
-
-const PROMO_ATTR_SELECTORS = [
-  'data-clipboard-text',
-  'data-copy',
-  'data-code',
-  'data-coupon-code',
-  'data-coupon',
-  'data-promo-code',
-  'data-promo',
-  'data-voucher',
-];
+// ─── Schema.org JobPosting JSON-LD extraction ────────────────
 
 /**
- * Extract promo code from HTML elements — CSS selectors, data attributes, and JSON-LD.
- * @param $ Cheerio instance
- * @param scope Optional element to search within (for card-level extraction)
+ * Extract job listings from Schema.org JobPosting JSON-LD structured data.
+ * Finds <script type="application/ld+json"> tags and parses JobPosting objects.
  */
-function extractPromoFromHtml($: cheerio.CheerioAPI, scope?: any): string | null {
-  const root = scope ? $(scope) : $('body');
-
-  // 1. CSS class-based selectors
-  for (const sel of PROMO_CSS_SELECTORS) {
-    const els = root.find(sel).toArray();
-    for (const el of els) {
-      const text = $(el).text().trim();
-      const code = validatePromoCode(text);
-      if (code) return code;
-    }
-  }
-
-  // 2. Data attributes (clipboard, copy, code)
-  for (const attr of PROMO_ATTR_SELECTORS) {
-    const els = root.find(`[${attr}]`).toArray();
-    for (const el of els) {
-      const val = $(el).attr(attr);
-      const code = validatePromoCode(val);
-      if (code) return code;
-    }
-  }
-
-  // 3. JSON-LD structured data (schema.org Offer.couponCode)
+function extractJobPostingJsonLd($: any, baseUrl: string): RawJobData[] {
+  const results: RawJobData[] = [];
   const jsonLdScripts = $('script[type="application/ld+json"]').toArray();
+
   for (const el of jsonLdScripts) {
     try {
       const json = JSON.parse($(el).text());
-      const code = findCouponInJsonLd(json);
-      if (code) return code;
+      const postings = findJobPostings(json);
+      for (const posting of postings) {
+        const job = parseJobPosting(posting, baseUrl);
+        if (job) results.push(job);
+      }
     } catch { /* ignore malformed JSON-LD */ }
   }
 
-  return null;
+  if (results.length > 0) {
+    console.log(`  [Generic] Extracted ${results.length} job listings from JobPosting JSON-LD`);
+  }
+  return results;
 }
 
-/** Recursively search JSON-LD for couponCode fields */
-function findCouponInJsonLd(obj: any, depth = 0): string | null {
-  if (depth > 5 || !obj || typeof obj !== 'object') return null;
+/** Recursively find all objects with @type: "JobPosting" in JSON-LD */
+function findJobPostings(obj: any, depth = 0): any[] {
+  if (depth > 5 || !obj || typeof obj !== 'object') return [];
   if (Array.isArray(obj)) {
+    const results: any[] = [];
     for (const item of obj) {
-      const code = findCouponInJsonLd(item, depth + 1);
-      if (code) return code;
+      results.push(...findJobPostings(item, depth + 1));
     }
-    return null;
+    return results;
   }
-  for (const key of ['couponCode', 'discountCode', 'voucherCode', 'promoCode']) {
-    if (typeof obj[key] === 'string') {
-      const code = validatePromoCode(obj[key]);
-      if (code) return code;
-    }
+  // Check @type directly
+  if (obj['@type'] === 'JobPosting') return [obj];
+  // Check @graph array
+  if (Array.isArray(obj['@graph'])) {
+    return findJobPostings(obj['@graph'], depth + 1);
   }
+  // Recurse into object values
+  const results: any[] = [];
   for (const val of Object.values(obj)) {
     if (typeof val === 'object') {
-      const code = findCouponInJsonLd(val, depth + 1);
-      if (code) return code;
+      results.push(...findJobPostings(val, depth + 1));
     }
   }
-  return null;
+  return results;
+}
+
+/** Parse a single JobPosting JSON-LD object into RawJobData */
+function parseJobPosting(posting: any, baseUrl: string): RawJobData | null {
+  const title = posting.title || posting.name;
+  if (!title || typeof title !== 'string' || title.length < 3) return null;
+
+  let sourceUrl = baseUrl;
+  if (posting.url && typeof posting.url === 'string') {
+    try { sourceUrl = new URL(posting.url, baseUrl).toString(); } catch {}
+  }
+
+  const description = typeof posting.description === 'string'
+    ? posting.description.replace(/<[^>]*>/g, '').substring(0, 500).trim() || undefined
+    : undefined;
+
+  // baseSalary extraction
+  let salaryText: string | undefined;
+  if (posting.baseSalary) {
+    if (typeof posting.baseSalary === 'string') {
+      salaryText = posting.baseSalary;
+    } else if (typeof posting.baseSalary === 'object') {
+      const s = posting.baseSalary;
+      const currency = s.currency || '';
+      const value = s.value;
+      if (typeof value === 'object' && value.minValue && value.maxValue) {
+        salaryText = `${currency} ${value.minValue}-${value.maxValue}`.trim();
+      } else if (typeof value === 'number' || typeof value === 'string') {
+        salaryText = `${currency} ${value}`.trim();
+      }
+    }
+  }
+
+  // jobLocation extraction
+  let locationText: string | undefined;
+  if (posting.jobLocation) {
+    const loc = Array.isArray(posting.jobLocation) ? posting.jobLocation[0] : posting.jobLocation;
+    if (typeof loc === 'string') {
+      locationText = loc;
+    } else if (typeof loc === 'object' && loc.address) {
+      const addr = loc.address;
+      if (typeof addr === 'string') {
+        locationText = addr;
+      } else if (typeof addr === 'object') {
+        locationText = [addr.addressLocality, addr.addressRegion, addr.addressCountry]
+          .filter(Boolean).join(', ');
+      }
+    }
+  }
+
+  const deadline = typeof posting.validThrough === 'string' ? posting.validThrough : undefined;
+  const postedDate = typeof posting.datePosted === 'string' ? posting.datePosted : undefined;
+  const jobTypeText = typeof posting.employmentType === 'string' ? posting.employmentType : undefined;
+
+  const imageUrls: string[] = [];
+  if (posting.image) {
+    const img = typeof posting.image === 'string' ? posting.image : posting.image.url;
+    if (img && typeof img === 'string') {
+      try { imageUrls.push(new URL(img, baseUrl).toString()); } catch {}
+    }
+  }
+
+  return { title, description, sourceUrl, imageUrls, salaryText, locationText, deadline, postedDate, jobTypeText };
 }
 
 function extractCampaignFromElement(
   $: cheerio.CheerioAPI,
   el: any,
   baseUrl: string,
-): RawCampaignData | null {
+): RawJobData | null {
   const title =
     $(el).find('h1, h2, h3, h4').first().text().trim() ||
     $(el).find('a').first().text().trim() ||
@@ -659,22 +660,18 @@ function extractCampaignFromElement(
   const description =
     $(el).find('p, [class*="desc"]').first().text().trim() || undefined;
 
-  const discountRate = parseDiscountSafe(title);
-
   return {
     title,
     description: description && description.length > 5 ? description : undefined,
     sourceUrl,
     imageUrls,
-    discountRate,
-    promoCode: extractPromoFromHtml($, el) || undefined,
   };
 }
 
 /**
  * Extract campaign data from a detail page using meta tags and common patterns.
  */
-function extractFromMetaTags($: cheerio.CheerioAPI, pageUrl: string): RawCampaignData | null {
+function extractFromMetaTags($: cheerio.CheerioAPI, pageUrl: string): RawJobData | null {
   const title =
     $('meta[property="og:title"]').attr('content')?.trim() ||
     $('meta[name="twitter:title"]').attr('content')?.trim() ||
@@ -715,9 +712,6 @@ function extractFromMetaTags($: cheerio.CheerioAPI, pageUrl: string): RawCampaig
     }
   }
 
-  const fullText = `${title} ${description || ''}`;
-  const discountRate = parseDiscountSafe(fullText);
-
   // Extract dates from the page
   const dates = extractDates($);
 
@@ -726,10 +720,8 @@ function extractFromMetaTags($: cheerio.CheerioAPI, pageUrl: string): RawCampaig
     description: description && description.length > 10 ? description : undefined,
     sourceUrl: pageUrl,
     imageUrls,
-    discountRate,
-    startDate: dates.startDate ?? undefined,
-    endDate: dates.endDate ?? undefined,
-    promoCode: extractPromoFromHtml($) || undefined,
+    postedDate: dates.startDate ?? undefined,
+    deadline: dates.endDate ?? undefined,
   };
 }
 
@@ -889,7 +881,7 @@ async function fetchDetailImage(url: string): Promise<string | null> {
  * try to fetch a better image from the campaign's detail page.
  * Also detects shared images across campaigns (likely generic brand images).
  */
-async function enrichLogoImages(campaigns: RawCampaignData[]): Promise<void> {
+async function enrichLogoImages(campaigns: RawJobData[]): Promise<void> {
   // Phase 1: Fetch better images for campaigns with logo-only or no images
   for (const c of campaigns) {
     if (c.imageUrls && c.imageUrls.length > 0 && c.imageUrls.every(isLikelyBrandLogo)) {
@@ -963,7 +955,7 @@ async function visitPage(
   url: string,
   depthLeft: number,
   seenUrls: Set<string>,
-  campaigns: RawCampaignData[],
+  campaigns: RawJobData[],
   visited: { count: number },
   abortSignal?: AbortSignal,
 ): Promise<void> {
@@ -981,7 +973,7 @@ async function visitPage(
 
     // Check if this is a listing/category page (has many campaign sub-links)
     if (depthLeft > 0) {
-      const subLinks = findCampaignLinks(detail$, url);
+      const subLinks = findJobLinks(detail$, url);
       if (subLinks.length >= LISTING_PAGE_THRESHOLD) {
         console.log(`  [Generic] Listing page (${subLinks.length} sub-links, depth=${depthLeft}): ${url}`);
         // Extract cards from listing page (captures images from card elements)
@@ -989,8 +981,8 @@ async function visitPage(
         if (listingCards.length > 0) {
           const listingDates = extractDates(detail$);
           for (const lc of listingCards) {
-            if (!lc.startDate) lc.startDate = listingDates.startDate ?? undefined;
-            if (!lc.endDate) lc.endDate = listingDates.endDate ?? undefined;
+            if (!lc.postedDate) lc.postedDate = listingDates.startDate ?? undefined;
+            if (!lc.deadline) lc.deadline = listingDates.endDate ?? undefined;
             const isDupe = campaigns.some(
               (c) => c.title === lc.title || c.sourceUrl === lc.sourceUrl,
             );
@@ -1036,8 +1028,8 @@ export async function scrapeGeneric(
   maxDepth: number,
   market?: CrawlMarket,
   abortSignal?: AbortSignal,
-  accumulator?: RawCampaignData[],
-): Promise<RawCampaignData[]> {
+  accumulator?: RawJobData[],
+): Promise<RawJobData[]> {
   console.log(`  [Generic] Fetching: ${seedUrl}`);
 
   const html = await fetchHtml(seedUrl, market);
@@ -1051,19 +1043,25 @@ export async function scrapeGeneric(
   }
 
   // Use accumulator if provided (allows engine to access results before function returns)
-  const campaigns: RawCampaignData[] = accumulator || [];
+  const campaigns: RawJobData[] = accumulator || [];
   const seenUrls = new Set<string>();
   seenUrls.add(seedUrl);
 
   // Extract page-level dates for fallback
   const pageDates = extractDates($);
 
-  // Phase 0: Try to extract campaigns from Next.js __NEXT_DATA__ JSON
+  // Phase 0a: Try to extract job listings from Schema.org JobPosting JSON-LD
+  const jsonLdJobs = extractJobPostingJsonLd($, seedUrl);
+  if (jsonLdJobs.length > 0) {
+    campaigns.push(...jsonLdJobs);
+  }
+
+  // Phase 0b: Try to extract job listings from Next.js __NEXT_DATA__ JSON
   const nextDataCampaigns = extractFromNextData($, seedUrl);
   if (nextDataCampaigns.length > 0) {
     for (const c of nextDataCampaigns) {
-      if (!c.startDate) c.startDate = pageDates.startDate ?? undefined;
-      if (!c.endDate) c.endDate = pageDates.endDate ?? undefined;
+      if (!c.postedDate) c.postedDate = pageDates.startDate ?? undefined;
+      if (!c.deadline) c.deadline = pageDates.endDate ?? undefined;
     }
     campaigns.push(...nextDataCampaigns);
   }
@@ -1071,10 +1069,10 @@ export async function scrapeGeneric(
   // Phase 1: Try to extract campaign cards directly from the page
   const directCampaigns = extractCardsFromPage($, seedUrl);
   if (directCampaigns.length > 0) {
-    console.log(`  [Generic] Found ${directCampaigns.length} campaigns directly on page`);
+    console.log(`  [Generic] Found ${directCampaigns.length} job listings directly on page`);
     for (const c of directCampaigns) {
-      if (!c.startDate) c.startDate = pageDates.startDate ?? undefined;
-      if (!c.endDate) c.endDate = pageDates.endDate ?? undefined;
+      if (!c.postedDate) c.postedDate = pageDates.startDate ?? undefined;
+      if (!c.deadline) c.deadline = pageDates.endDate ?? undefined;
       // Avoid duplicates from __NEXT_DATA__ extraction
       const isDupe = campaigns.some(
         (existing) => existing.title === c.title || existing.sourceUrl === c.sourceUrl,
@@ -1086,11 +1084,11 @@ export async function scrapeGeneric(
   // Phase 2: Find campaign links and visit them recursively
   // Depth 2 allows: seed → category → sub-category → campaign (3 hops)
   if (maxDepth > 0) {
-    const campaignLinks = findCampaignLinks($, seedUrl);
-    console.log(`  [Generic] Found ${campaignLinks.length} campaign links to visit`);
+    const jobLinks = findJobLinks($, seedUrl);
+    console.log(`  [Generic] Found ${jobLinks.length} job links to visit`);
 
     const visited = { count: 0 };
-    for (const link of campaignLinks.slice(0, MAX_LINKS_PER_PAGE)) {
+    for (const link of jobLinks.slice(0, MAX_LINKS_PER_PAGE)) {
       if (abortSignal?.aborted) break;
       await visitPage(link, 2, seenUrls, campaigns, visited, abortSignal);
     }
@@ -1100,13 +1098,13 @@ export async function scrapeGeneric(
   // empty so the engine falls back to Playwright which can render JS content.
   // Playwright fallback has its own meta tag extraction as last resort.
   if (campaigns.length === 0) {
-    console.log(`  [Generic] No campaigns found in Phases 0-2, returning empty for Playwright fallback`);
+    console.log(`  [Generic] No job listings found in Phases 0-2, returning empty for Playwright fallback`);
     return [];
   }
 
   // Phase 4: Enrich campaigns that only have logo images
   await enrichLogoImages(campaigns);
 
-  console.log(`  [Generic] Total campaigns extracted: ${campaigns.length}`);
+  console.log(`  [Generic] Total job listings extracted: ${campaigns.length}`);
   return campaigns;
 }

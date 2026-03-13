@@ -47,7 +47,7 @@ export function useStoreReviewInit() {
 }
 
 /**
- * Call after positive engagement (follow brand, favorite campaign).
+ * Call after positive engagement (follow company, save job).
  * Only fires if cooldown elapsed and opens >= MIN_OPENS.
  */
 export async function maybeRequestReview(): Promise<void> {

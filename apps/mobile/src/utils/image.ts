@@ -1,4 +1,4 @@
-/** Detect if a URL is likely a brand logo, not a campaign image */
+/** Detect if a URL is likely a company logo, not a job image */
 export function isLikelyLogo(url: string): boolean {
   try {
     const path = new URL(url).pathname.toLowerCase();
@@ -19,7 +19,7 @@ export function isLikelyLogo(url: string): boolean {
   }
 }
 
-/** Find the first real campaign image (not a logo) from the array */
-export function findCampaignImage(imageUrls: string[]): string | null {
+/** Find the first real job image (not a logo) from the array */
+export function findJobImage(imageUrls: string[]): string | null {
   return imageUrls.find((url) => !isLikelyLogo(url)) ?? null;
 }

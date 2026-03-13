@@ -21,10 +21,10 @@ export class DashboardController {
     return { data: await this.dashboardService.getStats(market) };
   }
 
-  @Get('top-brands')
-  @ApiOperation({ summary: 'En populer markalar' })
+  @Get('top-companies')
+  @ApiOperation({ summary: 'En populer sirketler' })
   @ApiQuery({ name: 'market', enum: Market, required: false })
-  async getTopBrands(@Query('market') market?: Market) {
-    return { data: await this.dashboardService.getTopBrands(5, market) };
+  async getTopCompanies(@Query('market') market?: Market) {
+    return { data: await this.dashboardService.getTopCompanies(5, market) };
   }
 }

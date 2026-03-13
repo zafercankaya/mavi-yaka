@@ -27,68 +27,35 @@ export class UploadController {
     private prisma: PrismaService,
   ) {}
 
-  @Post('brands/:id/logo')
+  @Post('companies/:id/logo')
   @ApiConsumes('multipart/form-data')
   @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
   @UseInterceptors(FileInterceptor('file'))
-  async uploadBrandLogo(
+  async uploadCompanyLogo(
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
   ) {
     if (!file) throw new BadRequestException('Dosya gerekli.');
-    const brand = await this.prisma.brand.findUnique({ where: { id } });
-    if (!brand) throw new BadRequestException('Marka bulunamadı.');
+    const company = await this.prisma.company.findUnique({ where: { id } });
+    if (!company) throw new BadRequestException('Firma bulunamadı.');
 
-    // Delete old logo if exists
-    if (brand.logoUrl) {
-      await this.upload.delete(brand.logoUrl);
+    if (company.logoUrl) {
+      await this.upload.delete(company.logoUrl);
     }
 
-    const url = await this.upload.upload('brands', id, file);
-    await this.prisma.brand.update({ where: { id }, data: { logoUrl: url } });
+    const url = await this.upload.upload('companies', id, file);
+    await this.prisma.company.update({ where: { id }, data: { logoUrl: url } });
     return { logoUrl: url };
   }
 
-  @Delete('brands/:id/logo')
-  async deleteBrandLogo(@Param('id') id: string) {
-    const brand = await this.prisma.brand.findUnique({ where: { id } });
-    if (!brand) throw new BadRequestException('Marka bulunamadı.');
-    if (brand.logoUrl) {
-      await this.upload.delete(brand.logoUrl);
-      await this.prisma.brand.update({ where: { id }, data: { logoUrl: null } });
+  @Delete('companies/:id/logo')
+  async deleteCompanyLogo(@Param('id') id: string) {
+    const company = await this.prisma.company.findUnique({ where: { id } });
+    if (!company) throw new BadRequestException('Firma bulunamadı.');
+    if (company.logoUrl) {
+      await this.upload.delete(company.logoUrl);
+      await this.prisma.company.update({ where: { id }, data: { logoUrl: null } });
     }
     return { message: 'Logo silindi.' };
-  }
-
-  @Post('categories/:id/icon')
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
-  @UseInterceptors(FileInterceptor('file'))
-  async uploadCategoryIcon(
-    @Param('id') id: string,
-    @UploadedFile() file: Express.Multer.File,
-  ) {
-    if (!file) throw new BadRequestException('Dosya gerekli.');
-    const category = await this.prisma.category.findUnique({ where: { id } });
-    if (!category) throw new BadRequestException('Kategori bulunamadı.');
-
-    if (category.iconUrl) {
-      await this.upload.delete(category.iconUrl);
-    }
-
-    const url = await this.upload.upload('categories', id, file);
-    await this.prisma.category.update({ where: { id }, data: { iconUrl: url } });
-    return { iconUrl: url };
-  }
-
-  @Delete('categories/:id/icon')
-  async deleteCategoryIcon(@Param('id') id: string) {
-    const category = await this.prisma.category.findUnique({ where: { id } });
-    if (!category) throw new BadRequestException('Kategori bulunamadı.');
-    if (category.iconUrl) {
-      await this.upload.delete(category.iconUrl);
-      await this.prisma.category.update({ where: { id }, data: { iconUrl: null } });
-    }
-    return { message: 'İkon silindi.' };
   }
 }

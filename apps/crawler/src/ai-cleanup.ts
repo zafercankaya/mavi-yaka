@@ -1,5 +1,5 @@
 /**
- * One-time script: Run all existing DB campaigns through Gemini AI.
+ * One-time script: Run all existing DB job listings through Gemini AI.
  * - isCampaign=false + confidence >= 0.7 → DELETE
  * - isCampaign=true → UPDATE missing endDate/startDate/discountRate
  *
@@ -22,15 +22,15 @@ interface Stats {
 }
 
 async function main() {
-  console.log(`=== AI Campaign Cleanup ${DRY_RUN ? '(DRY RUN)' : ''} ===\n`);
+  console.log(`=== AI Job Listing Cleanup ${DRY_RUN ? '(DRY RUN)' : ''} ===\n`);
 
-  const campaigns = await prisma.campaign.findMany({
-    include: { brand: { select: { name: true } } },
+  const jobListings = await prisma.jobListing.findMany({
+    include: { company: { select: { name: true } } },
     orderBy: { createdAt: 'desc' },
   });
 
   const stats: Stats = {
-    total: campaigns.length,
+    total: jobListings.length,
     processed: 0,
     deleted: 0,
     updated: 0,
@@ -38,20 +38,20 @@ async function main() {
     errors: 0,
   };
 
-  console.log(`Found ${stats.total} campaigns to process.\n`);
+  console.log(`Found ${stats.total} job listings to process.\n`);
 
-  for (const campaign of campaigns) {
+  for (const jobListing of jobListings) {
     stats.processed++;
     const prefix = `[${stats.processed}/${stats.total}]`;
-    const brandName = campaign.brand?.name || 'Unknown';
-    const shortTitle = campaign.title.substring(0, 55);
+    const companyName = jobListing.company?.name || 'Unknown';
+    const shortTitle = jobListing.title.substring(0, 55);
 
     try {
       const result = await classifyAndEnrich(
-        campaign.title,
-        campaign.description,
-        campaign.sourceUrl || '',
-        brandName,
+        jobListing.title,
+        jobListing.description,
+        jobListing.sourceUrl || '',
+        companyName,
       );
 
       // AI unavailable / fallback — skip
@@ -61,28 +61,22 @@ async function main() {
         continue;
       }
 
-      // NOT a campaign → delete
+      // NOT a valid listing → delete
       if (!result.isCampaign && result.confidence >= 0.7) {
         console.log(`${prefix} DELETE (${result.confidence.toFixed(2)}): "${shortTitle}" — ${result.reason}`);
         if (!DRY_RUN) {
-          await prisma.campaign.delete({ where: { id: campaign.id } });
+          await prisma.jobListing.delete({ where: { id: jobListing.id } });
         }
         stats.deleted++;
         continue;
       }
 
-      // IS a campaign → check for enrichment updates
+      // IS a valid listing → check for enrichment updates
       if (result.isCampaign) {
         const updates: Record<string, any> = {};
 
-        if (result.endDate && !campaign.endDate) {
-          updates.endDate = new Date(result.endDate);
-        }
-        if (result.startDate && !campaign.startDate) {
-          updates.startDate = new Date(result.startDate);
-        }
-        if (result.discountRate && !campaign.discountRate) {
-          updates.discountRate = result.discountRate;
+        if (result.endDate && !jobListing.deadline) {
+          updates.deadline = new Date(result.endDate);
         }
 
         if (Object.keys(updates).length > 0) {
@@ -91,7 +85,7 @@ async function main() {
             .join(', ');
           console.log(`${prefix} UPDATE (${result.confidence.toFixed(2)}): "${shortTitle}" → ${updateDesc}`);
           if (!DRY_RUN) {
-            await prisma.campaign.update({ where: { id: campaign.id }, data: updates });
+            await prisma.jobListing.update({ where: { id: jobListing.id }, data: updates });
           }
           stats.updated++;
         } else {

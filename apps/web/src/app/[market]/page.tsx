@@ -48,7 +48,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!config) return {};
 
   const listing = LISTINGS[config.storeListingFile];
-  const BASE_URL = 'https://kampanyasepeti.com';
+  const BASE_URL = 'https://maviyaka.com';
 
   return {
     title: `${config.appName} - ${listing.shortDescription}`,
@@ -75,7 +75,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       ),
     },
     other: {
-      'google-play-app': 'app-id=com.kampanyasepeti.app',
+      'google-play-app': 'app-id=com.maviyaka.app',
     },
   };
 }

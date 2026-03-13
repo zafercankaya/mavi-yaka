@@ -20,15 +20,15 @@ export class SourcesController {
 
   @Get()
   @ApiOperation({ summary: 'Tüm kaynakları listele' })
-  @ApiQuery({ name: 'categoryId', required: false })
-  @ApiQuery({ name: 'brandId', required: false })
+  @ApiQuery({ name: 'sector', required: false })
+  @ApiQuery({ name: 'companyId', required: false })
   @ApiQuery({ name: 'market', enum: Market, required: false })
   async findAll(
-    @Query('categoryId') categoryId?: string,
-    @Query('brandId') brandId?: string,
+    @Query('sector') sector?: string,
+    @Query('companyId') companyId?: string,
     @Query('market') market?: Market,
   ) {
-    return { data: await this.sourcesService.findAll(categoryId, brandId, market) };
+    return { data: await this.sourcesService.findAll(sector, companyId, market) };
   }
 
   @Get(':id')

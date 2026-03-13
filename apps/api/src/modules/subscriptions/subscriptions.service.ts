@@ -11,9 +11,9 @@ import type { RevenueCatEvent } from './dto/revenuecat-webhook.dto';
 /** Free plan defaults when user has no subscription */
 const FREE_PLAN = {
   planName: 'Free',
-  maxBrandFollows: 1,
-  maxCampaignFollows: 1,
-  dailyNotifLimit: 1,
+  maxCompanyFollows: 1,
+  maxSavedJobs: 1,
+  dailyViewLimit: 20,
   hasAdvancedFilter: false,
   adFree: false,
   weeklyDigest: false,
@@ -40,9 +40,9 @@ export class SubscriptionsService {
             plan: {
               select: {
                 name: true,
-                maxBrandFollows: true,
-                maxCampaignFollows: true,
-                dailyNotifLimit: true,
+                maxCompanyFollows: true,
+                maxSavedJobs: true,
+                dailyViewLimit: true,
                 hasAdvancedFilter: true,
                 adFree: true,
                 weeklyDigest: true,
@@ -50,7 +50,7 @@ export class SubscriptionsService {
             },
           },
         },
-        _count: { select: { follows: true, favorites: true } },
+        _count: { select: { followedCompanies: true, savedJobs: true } },
       },
     });
 
@@ -62,53 +62,53 @@ export class SubscriptionsService {
       (sub.status === SubStatus.ACTIVE || sub.status === SubStatus.GRACE_PERIOD) &&
       (!sub.currentPeriodEnd || sub.currentPeriodEnd > new Date());
 
-    // Frozen counts + active-only favorite count (exclude expired campaigns)
-    const [frozenFollows, frozenFavorites, activeFavoriteCount] = await Promise.all([
-      this.prisma.follow.count({ where: { userId, isFrozen: true } }),
-      this.prisma.favorite.count({ where: { userId, isFrozen: true } }),
-      this.prisma.favorite.count({ where: { userId, campaign: { status: 'ACTIVE' } } }),
+    // Frozen counts + active-only saved job count (exclude expired jobs)
+    const [frozenFollows, frozenSavedJobs, activeSavedJobCount] = await Promise.all([
+      this.prisma.followedCompany.count({ where: { userId, isFrozen: true } }),
+      this.prisma.savedJob.count({ where: { userId, isFrozen: true } }),
+      this.prisma.savedJob.count({ where: { userId, jobListing: { status: 'ACTIVE' } } }),
     ]);
 
     if (!isActive) {
       // Lazy freeze: premium değilse ve limit aşılıyorsa dondur
-      const activeFollows = user._count.follows - frozenFollows;
-      const activeFavs = activeFavoriteCount - frozenFavorites;
-      if (activeFollows > FREE_PLAN.maxBrandFollows || activeFavs > FREE_PLAN.maxCampaignFollows) {
+      const activeFollows = user._count.followedCompanies - frozenFollows;
+      const activeSavedJobs = activeSavedJobCount - frozenSavedJobs;
+      if (activeFollows > FREE_PLAN.maxCompanyFollows || activeSavedJobs > FREE_PLAN.maxSavedJobs) {
         await this.freezeUserFollows(userId);
         // Recount after freeze
-        const newFrozenFollows = await this.prisma.follow.count({ where: { userId, isFrozen: true } });
-        const newFrozenFavorites = await this.prisma.favorite.count({ where: { userId, isFrozen: true } });
+        const newFrozenFollows = await this.prisma.followedCompany.count({ where: { userId, isFrozen: true } });
+        const newFrozenSavedJobs = await this.prisma.savedJob.count({ where: { userId, isFrozen: true } });
         return {
           ...FREE_PLAN,
-          currentBrandFollowCount: user._count.follows,
-          currentCampaignFollowCount: activeFavoriteCount,
-          frozenBrandFollowCount: newFrozenFollows,
-          frozenCampaignFollowCount: newFrozenFavorites,
+          currentCompanyFollowCount: user._count.followedCompanies,
+          currentSavedJobCount: activeSavedJobCount,
+          frozenCompanyFollowCount: newFrozenFollows,
+          frozenSavedJobCount: newFrozenSavedJobs,
         };
       }
 
       return {
         ...FREE_PLAN,
-        currentBrandFollowCount: user._count.follows,
-        currentCampaignFollowCount: activeFavoriteCount,
-        frozenBrandFollowCount: frozenFollows,
-        frozenCampaignFollowCount: frozenFavorites,
+        currentCompanyFollowCount: user._count.followedCompanies,
+        currentSavedJobCount: activeSavedJobCount,
+        frozenCompanyFollowCount: frozenFollows,
+        frozenSavedJobCount: frozenSavedJobs,
       };
     }
 
     return {
       planName: sub!.plan.name,
-      maxBrandFollows: sub!.plan.maxBrandFollows,
-      maxCampaignFollows: sub!.plan.maxCampaignFollows,
-      dailyNotifLimit: sub!.plan.dailyNotifLimit,
+      maxCompanyFollows: sub!.plan.maxCompanyFollows,
+      maxSavedJobs: sub!.plan.maxSavedJobs,
+      dailyViewLimit: sub!.plan.dailyViewLimit,
       hasAdvancedFilter: sub!.plan.hasAdvancedFilter,
       adFree: sub!.plan.adFree,
       weeklyDigest: sub!.plan.weeklyDigest,
       isPremium: true,
-      currentBrandFollowCount: user._count.follows,
-      currentCampaignFollowCount: activeFavoriteCount,
-      frozenBrandFollowCount: frozenFollows,
-      frozenCampaignFollowCount: frozenFavorites,
+      currentCompanyFollowCount: user._count.followedCompanies,
+      currentSavedJobCount: activeSavedJobCount,
+      frozenCompanyFollowCount: frozenFollows,
+      frozenSavedJobCount: frozenSavedJobs,
     };
   }
 
@@ -131,9 +131,9 @@ export class SubscriptionsService {
         googleProductId: true,
         priceMonthly: true,
         priceYearly: true,
-        maxBrandFollows: true,
-        maxCampaignFollows: true,
-        dailyNotifLimit: true,
+        maxCompanyFollows: true,
+        maxSavedJobs: true,
+        dailyViewLimit: true,
         hasAdvancedFilter: true,
         adFree: true,
         weeklyDigest: true,
@@ -219,100 +219,100 @@ export class SubscriptionsService {
   }
 
   /**
-   * Kullanıcının marka takip limiti dahilinde olup olmadığını kontrol eder.
+   * Kullanıcının şirket takip limiti dahilinde olup olmadığını kontrol eder.
    */
-  async canAddBrandFollow(userId: string): Promise<boolean> {
+  async canAddCompanyFollow(userId: string): Promise<boolean> {
     const entitlement = await this.getEntitlement(userId);
-    if (entitlement.maxBrandFollows === -1) return true;
-    const activeCount = entitlement.currentBrandFollowCount - entitlement.frozenBrandFollowCount;
-    return activeCount < entitlement.maxBrandFollows;
+    if (entitlement.maxCompanyFollows === -1) return true;
+    const activeCount = entitlement.currentCompanyFollowCount - entitlement.frozenCompanyFollowCount;
+    return activeCount < entitlement.maxCompanyFollows;
   }
 
   /**
-   * Kullanıcının kampanya takip (favori) limiti dahilinde olup olmadığını kontrol eder.
+   * Kullanıcının kayıtlı ilan limiti dahilinde olup olmadığını kontrol eder.
    */
-  async canAddCampaignFollow(userId: string): Promise<boolean> {
+  async canAddSavedJob(userId: string): Promise<boolean> {
     const entitlement = await this.getEntitlement(userId);
-    if (entitlement.maxCampaignFollows === -1) return true;
-    const activeCount = entitlement.currentCampaignFollowCount - entitlement.frozenCampaignFollowCount;
-    return activeCount < entitlement.maxCampaignFollows;
+    if (entitlement.maxSavedJobs === -1) return true;
+    const activeCount = entitlement.currentSavedJobCount - entitlement.frozenSavedJobCount;
+    return activeCount < entitlement.maxSavedJobs;
   }
 
   /**
-   * Kullanıcının günlük bildirim limiti dahilinde olup olmadığını kontrol eder.
+   * Kullanıcının günlük görüntüleme limitini döndürür.
    */
-  async getDailyNotifLimit(userId: string): Promise<number> {
+  async getDailyViewLimit(userId: string): Promise<number> {
     const entitlement = await this.getEntitlement(userId);
-    return entitlement.dailyNotifLimit;
+    return entitlement.dailyViewLimit;
   }
 
   /**
    * Premium sona erdiğinde: en son takip edilen N kayıt aktif kalır, kalanlar frozen.
    */
   async freezeUserFollows(userId: string) {
-    const follows = await this.prisma.follow.findMany({
+    const follows = await this.prisma.followedCompany.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
       select: { id: true },
     });
 
     // İlk N aktif kalır (free limit), kalanlar frozen
-    const toFreeze = follows.slice(FREE_PLAN.maxBrandFollows).map((f) => f.id);
+    const toFreeze = follows.slice(FREE_PLAN.maxCompanyFollows).map((f) => f.id);
     if (toFreeze.length > 0) {
-      await this.prisma.follow.updateMany({
+      await this.prisma.followedCompany.updateMany({
         where: { id: { in: toFreeze } },
         data: { isFrozen: true },
       });
     }
     // Aktif kalanları unfreeze et (eğer daha önce frozen ise)
-    const toUnfreeze = follows.slice(0, FREE_PLAN.maxBrandFollows).map((f) => f.id);
+    const toUnfreeze = follows.slice(0, FREE_PLAN.maxCompanyFollows).map((f) => f.id);
     if (toUnfreeze.length > 0) {
-      await this.prisma.follow.updateMany({
+      await this.prisma.followedCompany.updateMany({
         where: { id: { in: toUnfreeze }, isFrozen: true },
         data: { isFrozen: false },
       });
     }
 
-    // Favoriler
-    const favorites = await this.prisma.favorite.findMany({
+    // Saved Jobs
+    const savedJobs = await this.prisma.savedJob.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
       select: { id: true },
     });
-    const toFreezeFav = favorites.slice(FREE_PLAN.maxCampaignFollows).map((f) => f.id);
-    if (toFreezeFav.length > 0) {
-      await this.prisma.favorite.updateMany({
-        where: { id: { in: toFreezeFav } },
+    const toFreezeSaved = savedJobs.slice(FREE_PLAN.maxSavedJobs).map((f) => f.id);
+    if (toFreezeSaved.length > 0) {
+      await this.prisma.savedJob.updateMany({
+        where: { id: { in: toFreezeSaved } },
         data: { isFrozen: true },
       });
     }
-    const toUnfreezeFav = favorites.slice(0, FREE_PLAN.maxCampaignFollows).map((f) => f.id);
-    if (toUnfreezeFav.length > 0) {
-      await this.prisma.favorite.updateMany({
-        where: { id: { in: toUnfreezeFav }, isFrozen: true },
+    const toUnfreezeSaved = savedJobs.slice(0, FREE_PLAN.maxSavedJobs).map((f) => f.id);
+    if (toUnfreezeSaved.length > 0) {
+      await this.prisma.savedJob.updateMany({
+        where: { id: { in: toUnfreezeSaved }, isFrozen: true },
         data: { isFrozen: false },
       });
     }
 
-    this.logger.log(`Follows frozen: user=${userId} follows=${toFreeze.length} favs=${toFreezeFav.length}`);
+    this.logger.log(`Follows frozen: user=${userId} follows=${toFreeze.length} savedJobs=${toFreezeSaved.length}`);
   }
 
   /**
    * Premium aktif olduğunda: tüm frozen takipleri aç.
    */
   async unfreezeUserFollows(userId: string) {
-    const [follows, favorites] = await Promise.all([
-      this.prisma.follow.updateMany({
+    const [follows, savedJobs] = await Promise.all([
+      this.prisma.followedCompany.updateMany({
         where: { userId, isFrozen: true },
         data: { isFrozen: false },
       }),
-      this.prisma.favorite.updateMany({
+      this.prisma.savedJob.updateMany({
         where: { userId, isFrozen: true },
         data: { isFrozen: false },
       }),
     ]);
-    if (follows.count > 0 || favorites.count > 0) {
-      this.logger.log(`Follows unfrozen: user=${userId} follows=${follows.count} favs=${favorites.count}`);
+    if (follows.count > 0 || savedJobs.count > 0) {
+      this.logger.log(`Follows unfrozen: user=${userId} follows=${follows.count} savedJobs=${savedJobs.count}`);
     }
   }
 

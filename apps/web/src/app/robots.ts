@@ -6,6 +6,6 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: '*',
       allow: '/',
     },
-    sitemap: 'https://kampanyasepeti.com/sitemap.xml',
+    sitemap: 'https://maviyaka.com/sitemap.xml',
   };
 }

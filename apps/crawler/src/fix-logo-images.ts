@@ -1,9 +1,9 @@
 /**
- * One-time script: Fix campaigns that have brand logo URLs instead of campaign images.
+ * One-time script: Fix job listings that have company logo URLs instead of listing images.
  *
- * For each campaign with a logo-like image URL:
- * 1. Try to fetch og:image from the campaign's source URL
- * 2. If og:image is a real campaign image, update the DB
+ * For each listing with a logo-like image URL:
+ * 1. Try to fetch og:image from the listing's source URL
+ * 2. If og:image is a real listing image, update the DB
  * 3. If og:image is also a logo, clear the images (UI will show gradient fallback)
  *
  * Usage: npx ts-node src/fix-logo-images.ts
@@ -63,32 +63,30 @@ async function fetchOgImage(url: string): Promise<string | null> {
 }
 
 async function main() {
-  const campaigns = await prisma.campaign.findMany({
+  const listings = await prisma.jobListing.findMany({
     where: { status: 'ACTIVE' },
-    select: { id: true, title: true, imageUrls: true, sourceUrl: true },
+    select: { id: true, title: true, imageUrl: true, sourceUrl: true },
   });
 
-  console.log(`Found ${campaigns.length} active campaigns`);
+  console.log(`Found ${listings.length} active job listings`);
 
   let fixed = 0;
   let cleared = 0;
   let skipped = 0;
 
-  for (const c of campaigns) {
-    const images = c.imageUrls as string[];
-    if (!images || images.length === 0) {
+  for (const c of listings) {
+    if (!c.imageUrl) {
       skipped++;
       continue;
     }
 
-    const allLogos = images.every(isLikelyLogo);
-    if (!allLogos) {
+    if (!isLikelyLogo(c.imageUrl)) {
       skipped++;
       continue;
     }
 
     console.log(`\n[Logo] ${c.title}`);
-    console.log(`  Current: ${images[0]}`);
+    console.log(`  Current: ${c.imageUrl}`);
 
     if (c.sourceUrl) {
       // Small delay to be polite
@@ -96,9 +94,9 @@ async function main() {
       const ogImage = await fetchOgImage(c.sourceUrl);
       if (ogImage) {
         console.log(`  Fixed → ${ogImage}`);
-        await prisma.campaign.update({
+        await prisma.jobListing.update({
           where: { id: c.id },
-          data: { imageUrls: [ogImage] },
+          data: { imageUrl: ogImage },
         });
         fixed++;
         continue;
@@ -107,9 +105,9 @@ async function main() {
 
     // No better image found — clear the logo
     console.log(`  Cleared (no better image found)`);
-    await prisma.campaign.update({
+    await prisma.jobListing.update({
       where: { id: c.id },
-      data: { imageUrls: [] },
+      data: { imageUrl: null },
     });
     cleared++;
   }

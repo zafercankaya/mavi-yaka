@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
-import { CampaignStatus, Market } from '@prisma/client';
+import { JobStatus, Market } from '@prisma/client';
 
 @Injectable()
 export class DashboardService {
@@ -12,36 +12,36 @@ export class DashboardService {
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
     const mf = market ? { market } : {};
-    const campaignMf = market ? { market } : {};
+    const jobMf = market ? { country: market } : {};
 
     const [
       totalUsers,
-      activeFollows,
-      activeCampaigns,
-      expiredCampaigns,
-      hiddenCampaigns,
-      todayCampaigns,
-      weekCampaigns,
-      totalBrands,
-      totalCategories,
+      followedCompanies,
+      followedSectors,
+      activeJobs,
+      expiredJobs,
+      removedJobs,
+      todayJobs,
+      weekJobs,
+      totalCompanies,
       totalSources,
-      totalFavorites,
+      totalSavedJobs,
       recentCrawls,
     ] = await Promise.all([
       this.prisma.user.count(),
-      this.prisma.follow.count(),
-      this.prisma.campaign.count({ where: { status: CampaignStatus.ACTIVE, ...campaignMf } }),
-      this.prisma.campaign.count({ where: { status: CampaignStatus.EXPIRED, ...campaignMf } }),
-      this.prisma.campaign.count({ where: { status: CampaignStatus.HIDDEN, ...campaignMf } }),
-      this.prisma.campaign.count({ where: { createdAt: { gte: todayStart }, ...campaignMf } }),
-      this.prisma.campaign.count({ where: { createdAt: { gte: weekAgo }, ...campaignMf } }),
-      this.prisma.brand.count({ where: mf }),
-      this.prisma.category.count(),
+      this.prisma.followedCompany.count(),
+      this.prisma.followedSector.count(),
+      this.prisma.jobListing.count({ where: { status: JobStatus.ACTIVE, ...jobMf } }),
+      this.prisma.jobListing.count({ where: { status: JobStatus.EXPIRED, ...jobMf } }),
+      this.prisma.jobListing.count({ where: { status: JobStatus.REMOVED, ...jobMf } }),
+      this.prisma.jobListing.count({ where: { createdAt: { gte: todayStart }, ...jobMf } }),
+      this.prisma.jobListing.count({ where: { createdAt: { gte: weekAgo }, ...jobMf } }),
+      this.prisma.company.count({ where: mf }),
       this.prisma.crawlSource.count({ where: mf }),
-      this.prisma.favorite.count(),
+      this.prisma.savedJob.count(),
       this.prisma.crawlLog.findMany({
         include: {
-          source: { select: { name: true, brand: { select: { name: true } } } },
+          source: { select: { name: true, company: { select: { name: true } } } },
         },
         orderBy: { createdAt: 'desc' },
         take: 10,
@@ -50,40 +50,39 @@ export class DashboardService {
 
     return {
       totalUsers,
-      activeFollows,
-      activeCampaigns,
-      expiredCampaigns,
-      hiddenCampaigns,
-      totalCampaigns: activeCampaigns + expiredCampaigns + hiddenCampaigns,
-      todayCampaigns,
-      weekCampaigns,
-      totalBrands,
-      totalCategories,
+      activeFollows: followedCompanies + followedSectors,
+      activeJobs,
+      expiredJobs,
+      removedJobs,
+      totalJobs: activeJobs + expiredJobs + removedJobs,
+      todayJobs,
+      weekJobs,
+      totalCompanies,
       totalSources,
-      totalFavorites,
+      totalSavedJobs,
       recentCrawls,
     };
   }
 
-  async getTopBrands(limit = 5, market?: Market) {
-    const brands = await this.prisma.brand.findMany({
+  async getTopCompanies(limit = 5, market?: Market) {
+    const companies = await this.prisma.company.findMany({
       where: market ? { market } : {},
       select: {
         id: true,
         name: true,
         logoUrl: true,
-        _count: { select: { follows: true, campaigns: true } },
+        _count: { select: { followers: true, jobListings: true } },
       },
-      orderBy: { follows: { _count: 'desc' } },
+      orderBy: { followers: { _count: 'desc' } },
       take: limit,
     });
 
-    return brands.map((b) => ({
-      id: b.id,
-      name: b.name,
-      logoUrl: b.logoUrl,
-      activeCampaigns: b._count.campaigns,
-      followers: b._count.follows,
+    return companies.map((c) => ({
+      id: c.id,
+      name: c.name,
+      logoUrl: c.logoUrl,
+      activeJobs: c._count.jobListings,
+      followers: c._count.followers,
     }));
   }
 }

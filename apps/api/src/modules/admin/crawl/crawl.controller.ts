@@ -20,16 +20,16 @@ export class CrawlController {
   @Get('logs')
   @ApiOperation({ summary: 'Crawl loglarını listele' })
   @ApiQuery({ name: 'sourceId', required: false })
-  @ApiQuery({ name: 'brandId', required: false })
-  @ApiQuery({ name: 'categoryId', required: false })
+  @ApiQuery({ name: 'companyId', required: false })
+  @ApiQuery({ name: 'sector', required: false })
   @ApiQuery({ name: 'status', required: false })
   @ApiQuery({ name: 'market', enum: Market, required: false })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'sortOrder', required: false, enum: ['asc', 'desc'] })
   async getLogs(
     @Query('sourceId') sourceId?: string,
-    @Query('brandId') brandId?: string,
-    @Query('categoryId') categoryId?: string,
+    @Query('companyId') companyId?: string,
+    @Query('sector') sector?: string,
     @Query('status') status?: string,
     @Query('market') market?: Market,
     @Query('limit') limit?: string,
@@ -38,8 +38,8 @@ export class CrawlController {
     return {
       data: await this.crawlService.getLogs({
         sourceId,
-        brandId,
-        categoryId,
+        companyId,
+        sector,
         status,
         market,
         limit: limit ? parseInt(limit) : 50,

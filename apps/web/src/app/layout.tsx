@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { MARKETS } from '@/data/markets';
 import './globals.css';
 
-const BASE_URL = 'https://kampanyasepeti.com';
+const BASE_URL = 'https://maviyaka.com';
 
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     },
   },
   other: {
-    'google-play-app': 'app-id=com.kampanyasepeti.app',
+    'google-play-app': 'app-id=com.maviyaka.app',
   },
 };
 

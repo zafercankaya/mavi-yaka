@@ -11,49 +11,49 @@ async function main() {
   const marketMap: Record<string, any> = { US: Market.US, TR: Market.TR, DE: Market.DE, UK: Market.UK };
   const market = marketMap[marketArg] || undefined;
 
-  const where: any = { isActive: true, brand: { category: { slug: categorySlug } } };
+  const where: any = { isActive: true, company: { category: { slug: categorySlug } } };
   if (market) where.market = market;
 
   const sources = await p.crawlSource.findMany({
     where,
-    include: { brand: { select: { name: true } } },
-    orderBy: { brand: { name: 'asc' } },
+    include: { company: { select: { name: true } } },
+    orderBy: { company: { name: 'asc' } },
   });
 
   const marketLabel = market ? ` [${market}]` : '';
   console.log(`\n=== Crawling ${sources.length} sources in category: ${categorySlug}${marketLabel} ===\n`);
 
-  const results: { brand: string; found: number; new_: number; updated: number; status: string; ms: number }[] = [];
+  const results: { company: string; found: number; new_: number; updated: number; status: string; ms: number }[] = [];
 
   for (let i = 0; i < sources.length; i++) {
     const s = sources[i];
-    console.log(`\n[${i + 1}/${sources.length}] Crawling: ${s.brand.name}...`);
+    console.log(`\n[${i + 1}/${sources.length}] Crawling: ${s.company.name}...`);
 
     try {
       const r = await crawlSource(p, s.id);
       results.push({
-        brand: s.brand.name,
-        found: r.campaignsFound,
-        new_: r.campaignsNew,
-        updated: r.campaignsUpdated,
+        company: s.company.name,
+        found: r.jobsFound,
+        new_: r.jobsNew,
+        updated: r.jobsUpdated,
         status: r.status,
         ms: r.durationMs,
       });
-      console.log(`  → ${r.status}: found=${r.campaignsFound}, new=${r.campaignsNew}, updated=${r.campaignsUpdated} (${(r.durationMs / 1000).toFixed(1)}s)`);
+      console.log(`  → ${r.status}: found=${r.jobsFound}, new=${r.jobsNew}, updated=${r.jobsUpdated} (${(r.durationMs / 1000).toFixed(1)}s)`);
     } catch (err) {
       console.error(`  → ERROR: ${(err as Error).message}`);
-      results.push({ brand: s.brand.name, found: 0, new_: 0, updated: 0, status: 'ERROR', ms: 0 });
+      results.push({ company: s.company.name, found: 0, new_: 0, updated: 0, status: 'ERROR', ms: 0 });
     }
   }
 
   await closeBrowser();
 
   console.log('\n\n=== RESULTS SUMMARY ===\n');
-  console.log('Brand'.padEnd(20) + 'Status'.padEnd(10) + 'Found'.padEnd(8) + 'New'.padEnd(6) + 'Updated'.padEnd(10) + 'Time');
+  console.log('Company'.padEnd(20) + 'Status'.padEnd(10) + 'Found'.padEnd(8) + 'New'.padEnd(6) + 'Updated'.padEnd(10) + 'Time');
   console.log('-'.repeat(70));
   for (const r of results) {
     console.log(
-      r.brand.padEnd(20) +
+      r.company.padEnd(20) +
       r.status.padEnd(10) +
       String(r.found).padEnd(8) +
       String(r.new_).padEnd(6) +

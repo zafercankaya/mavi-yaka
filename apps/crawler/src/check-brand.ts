@@ -1,23 +1,22 @@
 import './config';
 import { PrismaClient } from '@prisma/client';
 
-const brandName = process.argv[2] || 'Fiat';
+const companyName = process.argv[2] || 'Fiat';
 const prisma = new PrismaClient();
 
 async function main() {
-  const campaigns = await prisma.campaign.findMany({
-    where: { brand: { name: { contains: brandName, mode: 'insensitive' } } },
-    select: { id: true, title: true, imageUrls: true, status: true },
+  const listings = await prisma.jobListing.findMany({
+    where: { company: { name: { contains: companyName, mode: 'insensitive' } } },
+    select: { id: true, title: true, imageUrl: true, status: true },
     orderBy: { updatedAt: 'desc' },
     take: 15,
   });
 
-  console.log(`Found ${campaigns.length} ${brandName} campaigns:\n`);
-  for (const c of campaigns) {
-    const imgs = c.imageUrls as string[];
+  console.log(`Found ${listings.length} ${companyName} job listings:\n`);
+  for (const c of listings) {
     console.log(`[${c.status}] ${c.title.substring(0, 60)}`);
-    if (imgs.length > 0) {
-      for (const u of imgs) console.log(`  IMG: ${u.substring(0, 110)}`);
+    if (c.imageUrl) {
+      console.log(`  IMG: ${c.imageUrl.substring(0, 110)}`);
     } else {
       console.log(`  IMG: (yok)`);
     }

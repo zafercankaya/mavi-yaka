@@ -29,8 +29,8 @@ async function bootstrap() {
   );
 
   const config = new DocumentBuilder()
-    .setTitle('Kampanya Sepeti API')
-    .setDescription('Kampanya ve indirim aggregator API')
+    .setTitle('Mavi Yaka API')
+    .setDescription('İş ilanı aggregator API')
     .setVersion('0.1.0')
     .addBearerAuth()
     .build();

@@ -1,11 +1,26 @@
 import { PrismaClient, Market } from '@prisma/client';
-import { generateFingerprint } from '@maviyaka/shared';
-import { NormalizedCampaign } from './normalize';
+// import { generateFingerprint } from '@maviyaka/shared';
+import { NormalizedJobListing } from './normalize';
+import crypto from 'crypto';
+
+function generateFingerprint(sourceId: string, url: string): string {
+  return crypto.createHash('md5').update(`${sourceId}:${url}`).digest('hex');
+}
 
 export interface DedupeResult {
   isNew: boolean;
   fingerprint: string;
-  campaignId: string;
+  jobListingId: string;
+}
+
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .substring(0, 120)
+    .replace(/^-|-$/g, '') || 'job';
 }
 
 /**
@@ -13,7 +28,6 @@ export interface DedupeResult {
  * - lowercase
  * - remove special chars except spaces
  * - collapse whitespace
- * - remove common filler words
  */
 function normalizeTitle(title: string): string {
   return title
@@ -25,7 +39,7 @@ function normalizeTitle(title: string): string {
 
 /**
  * Get URL path without query params for broader matching.
- * e.g., "https://example.com/kampanya/abc?ref=123" → "example.com/kampanya/abc"
+ * e.g., "https://example.com/kariyer/abc?ref=123" → "example.com/kariyer/abc"
  */
 function getUrlPathKey(url: string): string | null {
   try {
@@ -39,7 +53,7 @@ function getUrlPathKey(url: string): string | null {
 
 /**
  * Check similarity between two normalized titles.
- * Returns true if they're "similar enough" to be considered the same campaign.
+ * Returns true if they're "similar enough" to be considered the same listing.
  */
 function isSimilarTitle(a: string, b: string): boolean {
   if (a === b) return true;
@@ -63,187 +77,235 @@ function isSimilarTitle(a: string, b: string): boolean {
 export async function checkAndUpsert(
   prisma: PrismaClient,
   sourceId: string,
-  brandId: string,
-  categoryId: string | null,
-  campaign: NormalizedCampaign,
+  companyId: string,
+  _sectorIgnored: string | null,
+  listing: NormalizedJobListing,
   market?: Market,
 ): Promise<DedupeResult> {
   // ===== TIER 1: Exact fingerprint match (source + canonical URL) =====
-  const fingerprint = generateFingerprint(sourceId, campaign.canonicalUrl);
+  const fingerprint = generateFingerprint(sourceId, listing.canonicalUrl);
 
-  const existing = await prisma.campaign.findUnique({
+  const existing = await prisma.jobListing.findFirst({
     where: { fingerprint },
     select: { id: true },
   });
 
   if (existing) {
-    await prisma.campaign.update({
-      where: { fingerprint },
+    await prisma.jobListing.update({
+      where: { id: existing.id },
       data: {
-        title: campaign.title,
-        description: campaign.description,
-        discountRate: campaign.discountRate,
-        promoCode: campaign.promoCode,
-        imageUrls: campaign.imageUrls,
-        endDate: campaign.endDate,
+        title: listing.title,
+        description: listing.description,
+        requirements: listing.requirements,
+        benefits: listing.benefits,
+        imageUrl: listing.imageUrls[0] || null,
+        deadline: listing.deadline,
+        postedDate: listing.postedDate,
+        salaryMin: listing.salaryMin,
+        salaryMax: listing.salaryMax,
+        salaryCurrency: listing.salaryCurrency,
+        salaryPeriod: listing.salaryPeriod,
+        jobType: listing.jobType ?? 'FULL_TIME',
+        workMode: listing.workMode ?? 'ON_SITE',
+        experienceLevel: listing.experienceLevel,
+        sector: listing.sector ?? 'OTHER',
+        city: listing.city,
+        state: listing.state,
         lastSeenAt: new Date(),
       },
     });
-    return { isNew: false, fingerprint, campaignId: existing.id };
+    return { isNew: false, fingerprint, jobListingId: existing.id };
   }
 
-  // ===== TIER 2: Same brand + market + (exact title OR same canonical URL) =====
-  const existingByTitleOrUrl = await prisma.campaign.findFirst({
+  // ===== TIER 2: Same company + country + (exact title OR same canonical URL) =====
+  const existingByTitleOrUrl = await prisma.jobListing.findFirst({
     where: {
-      brandId,
-      ...(market && { market }),
+      companyId,
+      ...(market && { country: market }),
       OR: [
-        { title: campaign.title },
-        { canonicalUrl: campaign.canonicalUrl },
+        { title: listing.title },
+        { canonicalUrl: listing.canonicalUrl },
       ],
     },
     select: { id: true, fingerprint: true },
   });
 
   if (existingByTitleOrUrl) {
-    await prisma.campaign.update({
+    await prisma.jobListing.update({
       where: { id: existingByTitleOrUrl.id },
       data: {
-        description: campaign.description || undefined,
-        discountRate: campaign.discountRate,
-        promoCode: campaign.promoCode,
-        imageUrls: campaign.imageUrls,
-        endDate: campaign.endDate,
+        description: listing.description || undefined,
+        requirements: listing.requirements || undefined,
+        benefits: listing.benefits || undefined,
+        imageUrl: listing.imageUrls[0] || null,
+        deadline: listing.deadline,
+        postedDate: listing.postedDate,
+        salaryMin: listing.salaryMin,
+        salaryMax: listing.salaryMax,
+        salaryCurrency: listing.salaryCurrency,
+        salaryPeriod: listing.salaryPeriod,
+        jobType: listing.jobType ?? 'FULL_TIME',
+        workMode: listing.workMode ?? 'ON_SITE',
+        experienceLevel: listing.experienceLevel,
+        sector: listing.sector ?? 'OTHER',
+        city: listing.city,
+        state: listing.state,
         lastSeenAt: new Date(),
       },
     });
-    return { isNew: false, fingerprint: existingByTitleOrUrl.fingerprint, campaignId: existingByTitleOrUrl.id };
+    return { isNew: false, fingerprint: existingByTitleOrUrl.fingerprint ?? fingerprint, jobListingId: existingByTitleOrUrl.id };
   }
 
-  // ===== TIER 3: Fuzzy matching — same brand + (similar title OR same URL path) =====
-  const urlPathKey = getUrlPathKey(campaign.sourceUrl);
-  const normalizedNewTitle = normalizeTitle(campaign.title);
+  // ===== TIER 3: Fuzzy matching — same company + (similar title OR same URL path) =====
+  const urlPathKey = getUrlPathKey(listing.sourceUrl);
+  const normalizedNewTitle = normalizeTitle(listing.title);
 
-  // Get all campaigns for this brand + market to do fuzzy comparison
-  const brandCampaigns = await prisma.campaign.findMany({
-    where: { brandId, ...(market && { market }) },
+  // Get all job listings for this company + country to do fuzzy comparison
+  const companyJobs = await prisma.jobListing.findMany({
+    where: { companyId, ...(market && { country: market }) },
     select: { id: true, fingerprint: true, title: true, sourceUrl: true, canonicalUrl: true },
   });
 
-  for (const bc of brandCampaigns) {
+  for (const bc of companyJobs) {
     // Check URL path match (ignore query params)
     if (urlPathKey) {
       const existingPathKey = getUrlPathKey(bc.sourceUrl);
       if (existingPathKey && existingPathKey === urlPathKey) {
-        console.log(`  [Dedup] URL path match: "${campaign.title.substring(0, 40)}" ≈ "${bc.title.substring(0, 40)}"`);
-        await prisma.campaign.update({
+        console.log(`  [Dedup] URL path match: "${listing.title.substring(0, 40)}" ≈ "${bc.title.substring(0, 40)}"`);
+        await prisma.jobListing.update({
           where: { id: bc.id },
           data: {
-            title: campaign.title.length > bc.title.length ? campaign.title : undefined,
-            description: campaign.description || undefined,
-            discountRate: campaign.discountRate,
-            promoCode: campaign.promoCode,
-            imageUrls: campaign.imageUrls,
-            endDate: campaign.endDate,
+            title: listing.title.length > bc.title.length ? listing.title : undefined,
+            description: listing.description || undefined,
+            requirements: listing.requirements || undefined,
+            benefits: listing.benefits || undefined,
+            imageUrl: listing.imageUrls[0] || null,
+            deadline: listing.deadline,
+            postedDate: listing.postedDate,
+            salaryMin: listing.salaryMin,
+            salaryMax: listing.salaryMax,
+            salaryCurrency: listing.salaryCurrency,
+            salaryPeriod: listing.salaryPeriod,
+            jobType: listing.jobType ?? 'FULL_TIME',
+            workMode: listing.workMode ?? 'ON_SITE',
+            experienceLevel: listing.experienceLevel,
+            sector: listing.sector ?? 'OTHER',
+            city: listing.city,
+            state: listing.state,
             lastSeenAt: new Date(),
           },
         });
-        return { isNew: false, fingerprint: bc.fingerprint, campaignId: bc.id };
+        return { isNew: false, fingerprint: bc.fingerprint ?? fingerprint, jobListingId: bc.id };
       }
     }
 
     // Check fuzzy title match
     const existingNormTitle = normalizeTitle(bc.title);
     if (isSimilarTitle(normalizedNewTitle, existingNormTitle)) {
-      console.log(`  [Dedup] Fuzzy title match: "${campaign.title.substring(0, 40)}" ≈ "${bc.title.substring(0, 40)}"`);
-      await prisma.campaign.update({
+      console.log(`  [Dedup] Fuzzy title match: "${listing.title.substring(0, 40)}" ≈ "${bc.title.substring(0, 40)}"`);
+      await prisma.jobListing.update({
         where: { id: bc.id },
         data: {
-          // Keep the longer/better title
-          title: campaign.title.length > bc.title.length ? campaign.title : undefined,
-          description: campaign.description || undefined,
-          discountRate: campaign.discountRate,
-          promoCode: campaign.promoCode,
-          imageUrls: campaign.imageUrls,
-          endDate: campaign.endDate,
+          title: listing.title.length > bc.title.length ? listing.title : undefined,
+          description: listing.description || undefined,
+          requirements: listing.requirements || undefined,
+          benefits: listing.benefits || undefined,
+          imageUrl: listing.imageUrls[0] || null,
+          deadline: listing.deadline,
+          postedDate: listing.postedDate,
+          salaryMin: listing.salaryMin,
+          salaryMax: listing.salaryMax,
+          salaryCurrency: listing.salaryCurrency,
+          salaryPeriod: listing.salaryPeriod,
+          jobType: listing.jobType ?? 'FULL_TIME',
+          workMode: listing.workMode ?? 'ON_SITE',
+          experienceLevel: listing.experienceLevel,
+          sector: listing.sector ?? 'OTHER',
+          city: listing.city,
+          state: listing.state,
           lastSeenAt: new Date(),
         },
       });
-      return { isNew: false, fingerprint: bc.fingerprint, campaignId: bc.id };
+      return { isNew: false, fingerprint: bc.fingerprint ?? fingerprint, jobListingId: bc.id };
     }
   }
 
-  // ===== No match found — create new campaign =====
-  // Use try/catch to handle race conditions: if a parallel crawl inserts the same
-  // campaign between our check and create, the DB unique partial indexes
-  // (brand_id+market+canonical_url, brand_id+market+md5(title)) will reject the duplicate.
+  // ===== No match found — create new job listing =====
   try {
-    const created = await prisma.campaign.create({
+    const created = await prisma.jobListing.create({
       data: {
-        title: campaign.title,
-        description: campaign.description,
-        brandId,
-        categoryId,
+        title: listing.title,
+        slug: slugify(listing.title) + '-' + Date.now().toString(36),
+        description: listing.description,
+        requirements: listing.requirements,
+        benefits: listing.benefits,
+        companyId,
         sourceId,
-        sourceUrl: campaign.sourceUrl,
-        canonicalUrl: campaign.canonicalUrl,
+        sourceUrl: listing.sourceUrl,
+        canonicalUrl: listing.canonicalUrl,
         fingerprint,
-        discountRate: campaign.discountRate,
-        promoCode: campaign.promoCode,
-        imageUrls: campaign.imageUrls,
-        startDate: campaign.startDate,
-        endDate: campaign.endDate,
-        market: market ?? Market.TR,
+        imageUrl: listing.imageUrls[0] || null,
+        deadline: listing.deadline,
+        postedDate: listing.postedDate,
+        salaryMin: listing.salaryMin,
+        salaryMax: listing.salaryMax,
+        salaryCurrency: listing.salaryCurrency,
+        salaryPeriod: listing.salaryPeriod,
+        jobType: listing.jobType ?? 'FULL_TIME',
+        workMode: listing.workMode ?? 'ON_SITE',
+        experienceLevel: listing.experienceLevel,
+        sector: listing.sector ?? 'OTHER',
+        city: listing.city,
+        state: listing.state,
+        country: market ?? Market.TR,
         status: 'ACTIVE',
         lastSeenAt: new Date(),
       },
     });
 
-    return { isNew: true, fingerprint, campaignId: created.id };
+    return { isNew: true, fingerprint, jobListingId: created.id };
   } catch (error: any) {
-    // P2002 = Unique constraint violation — a parallel crawl already inserted this campaign
+    // P2002 = Unique constraint violation — a parallel crawl already inserted this job listing
     if (error?.code === 'P2002') {
-      console.log(`  [Dedup] Race condition caught — duplicate prevented for: "${campaign.title.substring(0, 50)}"`);
-      // Find the existing campaign that was just inserted by the parallel crawl
-      const raceWinner = await prisma.campaign.findFirst({
+      console.log(`  [Dedup] Race condition caught — duplicate prevented for: "${listing.title.substring(0, 50)}"`);
+      const raceWinner = await prisma.jobListing.findFirst({
         where: {
-          brandId,
-          ...(market && { market }),
+          companyId,
+          ...(market && { country: market }),
           OR: [
-            { canonicalUrl: campaign.canonicalUrl },
-            { title: campaign.title },
+            { canonicalUrl: listing.canonicalUrl },
+            { title: listing.title },
           ],
           status: 'ACTIVE',
         },
         select: { id: true, fingerprint: true },
       });
       if (raceWinner) {
-        await prisma.campaign.update({
+        await prisma.jobListing.update({
           where: { id: raceWinner.id },
           data: { lastSeenAt: new Date() },
         });
-        return { isNew: false, fingerprint: raceWinner.fingerprint, campaignId: raceWinner.id };
+        return { isNew: false, fingerprint: raceWinner.fingerprint ?? fingerprint, jobListingId: raceWinner.id };
       }
-      // Fallback: couldn't find the winner, return as not-new with our fingerprint
-      return { isNew: false, fingerprint, campaignId: 'race-condition-unknown' };
+      return { isNew: false, fingerprint, jobListingId: 'race-condition-unknown' };
     }
-    throw error; // Re-throw non-duplicate errors
+    throw error;
   }
 }
 
 /**
  * In-batch deduplication: removes duplicates within a single crawl batch
- * BEFORE hitting the database. This prevents the same campaign being inserted
+ * BEFORE hitting the database. This prevents the same listing being inserted
  * twice when it appears at multiple URLs in the same crawl.
  */
-export function deduplicateBatch(campaigns: NormalizedCampaign[]): NormalizedCampaign[] {
-  const seen = new Map<string, NormalizedCampaign>();
+export function deduplicateBatch(listings: NormalizedJobListing[]): NormalizedJobListing[] {
+  const seen = new Map<string, NormalizedJobListing>();
 
-  for (const c of campaigns) {
+  for (const c of listings) {
     const titleKey = normalizeTitle(c.title);
     const urlPathKey = getUrlPathKey(c.sourceUrl);
 
-    // Check if we already have a campaign with the same normalized title
+    // Check if we already have a listing with the same normalized title
     let isDupe = false;
     for (const [key, existing] of seen) {
       // Same URL path
@@ -281,21 +343,24 @@ export function deduplicateBatch(campaigns: NormalizedCampaign[]): NormalizedCam
 }
 
 /** Returns true if candidate has more/better data than existing */
-function hasMoreData(candidate: NormalizedCampaign, existing: NormalizedCampaign): boolean {
+function hasMoreData(candidate: NormalizedJobListing, existing: NormalizedJobListing): boolean {
   let candidateScore = 0;
   let existingScore = 0;
 
   if (candidate.description && candidate.description.length > 20) candidateScore++;
   if (existing.description && existing.description.length > 20) existingScore++;
 
+  if (candidate.requirements && candidate.requirements.length > 10) candidateScore++;
+  if (existing.requirements && existing.requirements.length > 10) existingScore++;
+
   if (candidate.imageUrls.length > 0) candidateScore++;
   if (existing.imageUrls.length > 0) existingScore++;
 
-  if (candidate.endDate) candidateScore++;
-  if (existing.endDate) existingScore++;
+  if (candidate.deadline) candidateScore++;
+  if (existing.deadline) existingScore++;
 
-  if (candidate.discountRate) candidateScore++;
-  if (existing.discountRate) existingScore++;
+  if (candidate.salaryMin != null || candidate.salaryMax != null) candidateScore++;
+  if (existing.salaryMin != null || existing.salaryMax != null) existingScore++;
 
   if (candidate.title.length > existing.title.length) candidateScore++;
   else if (existing.title.length > candidate.title.length) existingScore++;

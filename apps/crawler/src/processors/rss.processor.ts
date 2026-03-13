@@ -87,7 +87,7 @@ function mapRssItem(item: any): RawCampaignData | null {
 
   const startDate = item.pubDate || undefined;
 
-  return { title, description, sourceUrl, imageUrls, startDate };
+  return { title, description, sourceUrl, imageUrls, postedDate: startDate };
 }
 
 function mapAtomEntry(entry: any): RawCampaignData | null {
@@ -121,5 +121,5 @@ function mapAtomEntry(entry: any): RawCampaignData | null {
     if (enclosure?.['@_href']) imageUrls.push(enclosure['@_href']);
   }
 
-  return { title, description, sourceUrl, startDate, imageUrls };
+  return { title, description, sourceUrl, postedDate: startDate, imageUrls };
 }

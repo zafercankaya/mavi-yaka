@@ -2,11 +2,10 @@ import api from './client';
 
 export interface Follow {
   id: string;
-  brandId: string | null;
-  categoryId: string | null;
+  companyId: string | null;
+  sector: string | null;
   isFrozen: boolean;
-  brand: { name: string; logoUrl: string | null } | null;
-  category: { name: string; slug: string } | null;
+  company: { name: string; logoUrl: string | null } | null;
   createdAt: string;
 }
 
@@ -15,7 +14,7 @@ export async function fetchFollows(): Promise<{ data: Follow[] }> {
   return data;
 }
 
-export async function createFollow(params: { brandId?: string; categoryId?: string }): Promise<{ data: Follow }> {
+export async function createFollow(params: { companyId?: string; sector?: string }): Promise<{ data: Follow }> {
   const { data } = await api.post<{ data: Follow }>('/follows', params);
   return data;
 }

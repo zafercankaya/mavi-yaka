@@ -82,7 +82,7 @@ async function handleTrigger(req: IncomingMessage, res: ServerResponse) {
       // Summarize
       const totalSuccess = results.filter(r => r.status === 'SUCCESS' || r.status === 'PARTIAL').length;
       const totalFailed = results.filter(r => r.status === 'FAILED').length;
-      const totalNewCampaigns = results.reduce((s, r) => s + r.campaignsNew, 0);
+      const totalNewCampaigns = results.reduce((s, r) => s + r.jobsNew, 0);
       crawlResults = [{ market: markets.join(','), success: totalSuccess, failed: totalFailed, newCampaigns: totalNewCampaigns }];
 
       const elapsed = Math.round((Date.now() - crawlStartTime) / 60000);
@@ -116,7 +116,7 @@ function handleStatus(res: ServerResponse) {
 }
 
 async function main() {
-  console.log('=== Kampanya Sepeti Crawler ===');
+  console.log('=== Mavi Yaka Crawler ===');
   console.log(`Mode: ${process.argv[2] || 'scheduler'}`);
 
   await prisma.$connect();
@@ -131,7 +131,7 @@ async function main() {
 
     console.log('\n--- Summary ---');
     for (const r of results) {
-      console.log(`  ${r.sourceName}: ${r.status} (found=${r.campaignsFound}, new=${r.campaignsNew})`);
+      console.log(`  ${r.sourceName}: ${r.status} (found=${r.jobsFound}, new=${r.jobsNew})`);
     }
 
     await closeBrowser();

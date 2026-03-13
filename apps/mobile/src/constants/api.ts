@@ -18,7 +18,7 @@ function getDevApiUrl(): string {
 }
 
 // Dev'de de production API kullan (local network sorunlarını atla)
-export const API_BASE_URL = 'https://kampanya-sepeti-api-3c9f.onrender.com';
+export const API_BASE_URL = 'https://mavi-yaka-api.onrender.com';
 
 if (__DEV__) {
   console.log('[API] Base URL:', API_BASE_URL);

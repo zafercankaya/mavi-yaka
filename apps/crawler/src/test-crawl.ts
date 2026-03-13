@@ -10,12 +10,12 @@ async function main() {
 
   if (!sourceId) {
     const sources = await prisma.crawlSource.findMany({
-      include: { brand: { select: { name: true } } },
+      include: { company: { select: { name: true } } },
     });
 
     console.log('Available crawl sources:');
     for (const s of sources) {
-      console.log(`  ${s.id}  ${s.brand.name} - ${s.name} (${s.crawlMethod}) [${s.isActive ? 'active' : 'inactive'}]`);
+      console.log(`  ${s.id}  ${s.company.name} - ${s.name} (${s.crawlMethod}) [${s.isActive ? 'active' : 'inactive'}]`);
       console.log(`    URLs: ${s.seedUrls.join(', ')}`);
     }
     console.log('\nUsage: npx ts-node src/test-crawl.ts <source_id>');

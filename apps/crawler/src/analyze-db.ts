@@ -3,82 +3,74 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  const total = await prisma.campaign.count();
+  const total = await prisma.jobListing.count();
   console.log('=== GENEL ISTATISTIKLER ===');
-  console.log('Toplam kampanya:', total);
+  console.log('Toplam ilan:', total);
 
-  // Per-brand distribution
-  const byBrand = await prisma.campaign.groupBy({
-    by: ['brandId'],
+  // Per-company distribution
+  const byCompany = await prisma.jobListing.groupBy({
+    by: ['companyId'],
     _count: true,
-    orderBy: { _count: { brandId: 'desc' } },
+    orderBy: { _count: { companyId: 'desc' } },
   });
 
-  const brands = await prisma.brand.findMany({
-    select: { id: true, name: true, category: { select: { name: true } } },
+  const companies = await prisma.company.findMany({
+    select: { id: true, name: true, sector: true },
   });
-  const brandMap = new Map(brands.map((b) => [b.id, { name: b.name, cat: b.category?.name }]));
+  const companyMap = new Map(companies.map((b) => [b.id, { name: b.name, cat: b.sector }]));
 
-  console.log('\n=== MARKA BAZINDA KAMPANYA SAYILARI ===');
-  for (const b of byBrand) {
-    const info = brandMap.get(b.brandId) || { name: 'Unknown', cat: '?' };
+  console.log('\n=== SIRKET BAZINDA ILAN SAYILARI ===');
+  for (const b of byCompany) {
+    const info = companyMap.get(b.companyId) || { name: 'Unknown', cat: '?' };
     console.log(`  ${info.name} [${info.cat}]: ${b._count}`);
   }
 
   // Missing data analysis
-  const noEnd = await prisma.campaign.count({ where: { endDate: null } });
-  const noStart = await prisma.campaign.count({ where: { startDate: null } });
-  const noImage = await prisma.campaign.count({ where: { imageUrls: { isEmpty: true } } });
-  const noDiscount = await prisma.campaign.count({ where: { discountRate: null } });
-  const noDesc = await prisma.campaign.count({
+  const noDeadline = await prisma.jobListing.count({ where: { deadline: null } });
+  const noImage = await prisma.jobListing.count({ where: { imageUrl: null } });
+  const noDesc = await prisma.jobListing.count({
     where: { OR: [{ description: null }, { description: '' }] },
   });
 
   console.log('\n=== EKSIK VERI ANALIZI ===');
-  console.log(`  endDate yok: ${noEnd} / ${total}`);
-  console.log(`  startDate yok: ${noStart} / ${total}`);
+  console.log(`  deadline yok: ${noDeadline} / ${total}`);
   console.log(`  Gorsel yok: ${noImage} / ${total}`);
-  console.log(`  Indirim orani yok: ${noDiscount} / ${total}`);
   console.log(`  Aciklama yok: ${noDesc} / ${total}`);
 
-  // List ALL campaigns with details for manual review
-  const allCampaigns = await prisma.campaign.findMany({
+  // List ALL job listings with details for manual review
+  const allListings = await prisma.jobListing.findMany({
     include: {
-      brand: { select: { name: true } },
-      category: { select: { name: true } },
+      company: { select: { name: true } },
       source: { select: { name: true } },
     },
-    orderBy: { brand: { name: 'asc' } },
+    orderBy: { company: { name: 'asc' } },
   });
 
-  console.log('\n=== TUM KAMPANYALAR (DETAYLI) ===');
-  for (const c of allCampaigns) {
-    const brand = c.brand?.name || '?';
-    const cat = c.category?.name || '?';
+  console.log('\n=== TUM ILANLAR (DETAYLI) ===');
+  for (const c of allListings) {
+    const company = c.company?.name || '?';
     const src = c.source?.name || '?';
-    const endStr = c.endDate ? c.endDate.toISOString().split('T')[0] : 'YOK';
-    const startStr = c.startDate ? c.startDate.toISOString().split('T')[0] : 'YOK';
-    const imgs = c.imageUrls?.length || 0;
-    const disc = c.discountRate != null ? `%${c.discountRate}` : '-';
+    const deadlineStr = c.deadline ? c.deadline.toISOString().split('T')[0] : 'YOK';
+    const img = c.imageUrl ? '1' : '0';
     const titleShort = c.title.substring(0, 80);
     const descShort = (c.description || '').substring(0, 100);
 
-    console.log(`\n--- [${brand}] ${titleShort}`);
-    console.log(`    Kategori: ${cat} | Kaynak: ${src}`);
-    console.log(`    Tarih: ${startStr} → ${endStr} | Gorsel: ${imgs} | Indirim: ${disc}`);
+    console.log(`\n--- [${company}] ${titleShort}`);
+    console.log(`    Sektor: ${c.sector} | Kaynak: ${src}`);
+    console.log(`    Deadline: ${deadlineStr} | Gorsel: ${img}`);
     console.log(`    URL: ${c.sourceUrl || 'yok'}`);
     if (descShort) console.log(`    Aciklama: ${descShort}`);
   }
 
   // Suspicious patterns
-  console.log('\n\n=== SUPHELI KAMPANYALAR ===');
+  console.log('\n\n=== SUPHELI ILANLAR ===');
 
   // 1. Very short titles
-  const shortTitles = allCampaigns.filter((c) => c.title.length < 10);
+  const shortTitles = allListings.filter((c) => c.title.length < 10);
   if (shortTitles.length > 0) {
     console.log('\n--- Cok kisa basliklar (<10 karakter):');
     for (const c of shortTitles) {
-      console.log(`  [${c.brand?.name}] "${c.title}"`);
+      console.log(`  [${c.company?.name}] "${c.title}"`);
     }
   }
 
@@ -89,55 +81,54 @@ async function main() {
     'cookie', 'çerez', 'cerez', 'sss', 'faq', 'yardım', 'yardim', 'kargo',
     'iade', 'şikayet', 'sikayet', 'mağaza', 'magaza',
   ];
-  const navItems = allCampaigns.filter((c) => {
+  const navItems = allListings.filter((c) => {
     const lower = c.title.toLowerCase();
     return navKeywords.some((kw) => lower === kw || lower.includes('giriş yap') || lower.includes('giris yap'));
   });
   if (navItems.length > 0) {
     console.log('\n--- Navigasyon/menu item gibi gorunen:');
     for (const c of navItems) {
-      console.log(`  [${c.brand?.name}] "${c.title}"`);
+      console.log(`  [${c.company?.name}] "${c.title}"`);
     }
   }
 
-  // 3. Duplicate titles (same title, different brands)
+  // 3. Duplicate titles (same title, different companies)
   const titleCount = new Map<string, string[]>();
-  for (const c of allCampaigns) {
+  for (const c of allListings) {
     const t = c.title.toLowerCase().trim();
     if (!titleCount.has(t)) titleCount.set(t, []);
-    titleCount.get(t)!.push(c.brand?.name || '?');
+    titleCount.get(t)!.push(c.company?.name || '?');
   }
-  const dupes = [...titleCount.entries()].filter(([, brands]) => brands.length > 1);
+  const dupes = [...titleCount.entries()].filter(([, companies]) => companies.length > 1);
   if (dupes.length > 0) {
     console.log('\n--- Tekrarlayan basliklar:');
-    for (const [title, brands] of dupes) {
-      console.log(`  "${title}" → ${brands.join(', ')}`);
+    for (const [title, companies] of dupes) {
+      console.log(`  "${title}" → ${companies.join(', ')}`);
     }
   }
 
-  // 4. Campaigns with no useful data
-  const useless = allCampaigns.filter(
+  // 4. Listings with no useful data
+  const useless = allListings.filter(
     (c) =>
       !c.description &&
-      (c.imageUrls?.length || 0) === 0 &&
-      c.discountRate == null &&
-      !c.endDate,
+      !c.imageUrl &&
+      !c.deadline,
   );
   if (useless.length > 0) {
-    console.log('\n--- Hicbir ek verisi olmayan (desc yok, gorsel yok, indirim yok, tarih yok):');
+    console.log('\n--- Hicbir ek verisi olmayan (desc yok, gorsel yok, deadline yok):');
     for (const c of useless) {
-      console.log(`  [${c.brand?.name}] "${c.title.substring(0, 60)}"`);
+      console.log(`  [${c.company?.name}] "${c.title.substring(0, 60)}"`);
     }
   }
 
-  // 5. Very old startDate (before 2024)
-  const oldCampaigns = allCampaigns.filter(
-    (c) => c.startDate && c.startDate < new Date('2024-01-01'),
+  // 5. Very old postedDate (before 2024)
+  const oldListings = allListings.filter(
+    (c) => c.postedDate && c.postedDate < new Date('2024-01-01'),
   );
-  if (oldCampaigns.length > 0) {
-    console.log('\n--- Cok eski kampanyalar (2024 oncesi):');
-    for (const c of oldCampaigns) {
-      console.log(`  [${c.brand?.name}] "${c.title.substring(0, 50)}" start=${c.startDate?.toISOString().split('T')[0]}`);
+  if (oldListings.length > 0) {
+    console.log('\n--- Cok eski ilanlar (2024 oncesi):');
+    for (const c of oldListings) {
+      console.log(`  [${c.company?.name}] "${c.title.substring(0, 50)}" posted=${c.postedDate?.toISOString().split('T')[0]}`);
     }
   }
 

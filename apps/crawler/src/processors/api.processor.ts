@@ -82,7 +82,7 @@ function mapApiItem(item: any, baseUrl?: string): RawCampaignData | null {
   const discountRate = parseNumber(findStringField(item, DISCOUNT_FIELDS));
   const imageUrls = extractImageUrls(item, baseUrl);
 
-  return { title, description, sourceUrl, imageUrls, startDate, endDate, discountRate };
+  return { title, description, sourceUrl, imageUrls, postedDate: startDate, deadline: endDate };
 }
 
 function findStringField(obj: any, fieldNames: string[]): string | undefined {

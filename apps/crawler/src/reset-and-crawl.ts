@@ -5,27 +5,27 @@ import { closeBrowser } from './processors/scrape.processor';
 const prisma = new PrismaClient();
 
 async function main() {
-  // 1. Tüm kampanyaları sil
+  // 1. Delete all job listings
   console.log('=== VERITABANI TEMIZLENIYOR ===');
-  const deleted = await prisma.campaign.deleteMany({});
-  console.log(`${deleted.count} kampanya silindi.`);
+  const deleted = await prisma.jobListing.deleteMany({});
+  console.log(`${deleted.count} ilan silindi.`);
 
-  // Crawl loglarını da temizle
+  // Crawl loglarini da temizle
   const logsDeleted = await prisma.crawlLog.deleteMany({});
   console.log(`${logsDeleted.count} crawl log silindi.`);
 
   console.log('\n=== FULL CRAWL BASLIYOR ===\n');
 
-  // 2. Tüm aktif kaynakları çek
+  // 2. Get all active sources
   const sources = await prisma.crawlSource.findMany({
     where: { isActive: true },
-    include: { brand: { include: { category: true } } },
+    include: { company: true },
     orderBy: { name: 'asc' },
   });
 
   console.log(`Toplam ${sources.length} aktif kaynak.\n`);
 
-  const results: (CrawlResult & { brandName?: string; categoryName?: string })[] = [];
+  const results: (CrawlResult & { companyName?: string; sectorName?: string })[] = [];
   let totalNew = 0;
   let totalUpdated = 0;
   let totalFound = 0;
@@ -38,7 +38,7 @@ async function main() {
     const progress = `[${i + 1}/${sources.length}]`;
     console.log(`\n${progress} Crawling: ${source.name} (${source.crawlMethod})`);
     console.log(`  URL: ${source.seedUrls[0] || 'none'}`);
-    console.log(`  Brand: ${source.brand?.name || 'none'}, Category: ${source.brand?.category?.name || 'none'}`);
+    console.log(`  Company: ${source.company?.name || 'none'}, Sector: ${source.company?.sector || 'none'}`);
 
     try {
       const result = await Promise.race([
@@ -47,19 +47,19 @@ async function main() {
       ]);
       results.push({
         ...result,
-        brandName: source.brand?.name,
-        categoryName: source.brand?.category?.name,
+        companyName: source.company?.name,
+        sectorName: source.company?.sector,
       });
 
-      totalFound += result.campaignsFound;
-      totalNew += result.campaignsNew;
-      totalUpdated += result.campaignsUpdated;
+      totalFound += result.jobsFound;
+      totalNew += result.jobsNew;
+      totalUpdated += result.jobsUpdated;
 
       if (result.status === 'SUCCESS') successCount++;
       else if (result.status === 'FAILED') failCount++;
       else if (result.status === 'PARTIAL') partialCount++;
 
-      console.log(`  Result: ${result.status} | found=${result.campaignsFound} new=${result.campaignsNew} updated=${result.campaignsUpdated} (${result.durationMs}ms)`);
+      console.log(`  Result: ${result.status} | found=${result.jobsFound} new=${result.jobsNew} updated=${result.jobsUpdated} (${result.durationMs}ms)`);
       if (result.errorMessage) {
         console.log(`  Error: ${result.errorMessage.substring(0, 200)}`);
       }
@@ -70,13 +70,13 @@ async function main() {
         sourceId: source.id,
         sourceName: source.name,
         status: 'FAILED' as any,
-        campaignsFound: 0,
-        campaignsNew: 0,
-        campaignsUpdated: 0,
+        jobsFound: 0,
+        jobsNew: 0,
+        jobsUpdated: 0,
         errorMessage: (err as Error).message,
         durationMs: 0,
-        brandName: source.brand?.name,
-        categoryName: source.brand?.category?.name,
+        companyName: source.company?.name,
+        sectorName: source.company?.sector,
       });
     }
   }
@@ -87,7 +87,7 @@ async function main() {
   console.log(`\n\n========== CRAWL SUMMARY ==========`);
   console.log(`Total sources: ${sources.length}`);
   console.log(`Success: ${successCount} | Partial: ${partialCount} | Failed: ${failCount}`);
-  console.log(`Campaigns: found=${totalFound} new=${totalNew} updated=${totalUpdated}`);
+  console.log(`Job listings: found=${totalFound} new=${totalNew} updated=${totalUpdated}`);
 
   const failed = results.filter(r => r.status === 'FAILED');
   if (failed.length > 0) {
@@ -97,7 +97,7 @@ async function main() {
     }
   }
 
-  const empty = results.filter(r => r.status !== 'FAILED' && r.campaignsFound === 0);
+  const empty = results.filter(r => r.status !== 'FAILED' && r.jobsFound === 0);
   if (empty.length > 0) {
     console.log(`\n--- EMPTY SOURCES (${empty.length}) ---`);
     for (const e of empty) {
@@ -105,25 +105,23 @@ async function main() {
     }
   }
 
-  const withCampaigns = results.filter(r => r.campaignsNew > 0 || r.campaignsUpdated > 0);
-  if (withCampaigns.length > 0) {
-    console.log(`\n--- SOURCES WITH CAMPAIGNS (${withCampaigns.length}) ---`);
-    for (const s of withCampaigns) {
-      console.log(`  ${s.sourceName} [${s.categoryName}]: new=${s.campaignsNew} updated=${s.campaignsUpdated}`);
+  const withListings = results.filter(r => r.jobsNew > 0 || r.jobsUpdated > 0);
+  if (withListings.length > 0) {
+    console.log(`\n--- SOURCES WITH LISTINGS (${withListings.length}) ---`);
+    for (const s of withListings) {
+      console.log(`  ${s.sourceName} [${s.sectorName}]: new=${s.jobsNew} updated=${s.jobsUpdated}`);
     }
   }
 
   // DB stats
-  const campaignCount = await prisma.campaign.count();
-  const withDates = await prisma.campaign.count({ where: { endDate: { not: null } } });
-  const withImages = await prisma.campaign.count({ where: { imageUrls: { isEmpty: false } } });
-  const withDiscount = await prisma.campaign.count({ where: { discountRate: { not: null } } });
+  const listingCount = await prisma.jobListing.count();
+  const withDeadline = await prisma.jobListing.count({ where: { deadline: { not: null } } });
+  const withImages = await prisma.jobListing.count({ where: { imageUrl: { not: null } } });
 
   console.log(`\n--- DB STATS ---`);
-  console.log(`Total campaigns in DB: ${campaignCount}`);
-  console.log(`With endDate: ${withDates}`);
+  console.log(`Total job listings in DB: ${listingCount}`);
+  console.log(`With deadline: ${withDeadline}`);
   console.log(`With image: ${withImages}`);
-  console.log(`With discount: ${withDiscount}`);
 
   await prisma.$disconnect();
 }

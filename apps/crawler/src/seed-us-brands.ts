@@ -474,56 +474,45 @@ const US_BRANDS: CategoryBrands[] = [
 ];
 
 async function main() {
-  console.log('Starting US brand & source seeding...\n');
+  console.log('Starting US company & source seeding...\n');
 
-  let totalBrands = 0;
+  let totalCompanies = 0;
   let totalSources = 0;
 
   for (const entry of US_BRANDS) {
-    const category = await prisma.category.findUnique({
-      where: { slug: entry.categorySlug },
-    });
-
-    if (!category) {
-      console.warn(`⚠ Category not found: ${entry.categorySlug}, skipping...`);
-      continue;
-    }
-
-    console.log(`\n── ${category.name} (${category.nameEn}) ──`);
+    console.log(`\n-- ${entry.categorySlug} --`);
 
     for (const b of entry.brands) {
       try {
-        // Upsert brand (slug + market unique)
-        const brand = await prisma.brand.upsert({
+        // Upsert company (slug + market unique)
+        const company = await prisma.company.upsert({
           where: { slug_market: { slug: b.slug, market: Market.US } },
           update: {
             name: b.name,
             websiteUrl: b.websiteUrl,
-            categoryId: category.id,
             isActive: true,
           },
           create: {
             name: b.name,
             slug: b.slug,
             websiteUrl: b.websiteUrl,
-            categoryId: category.id,
             market: Market.US,
             isActive: true,
           },
         });
-        totalBrands++;
+        totalCompanies++;
 
-        // Check if source already exists for this brand + US market
+        // Check if source already exists for this company + US market
         const existingSource = await prisma.crawlSource.findFirst({
-          where: { brandId: brand.id, market: Market.US },
+          where: { companyId: company.id, market: Market.US },
         });
 
         if (!existingSource) {
           await prisma.crawlSource.create({
             data: {
-              brandId: brand.id,
-              name: `${b.name} Deals`,
-              crawlMethod: CrawlMethod.CAMPAIGN,
+              companyId: company.id,
+              name: `${b.name} Jobs`,
+              crawlMethod: CrawlMethod.HTML,
               seedUrls: b.dealUrls,
               maxDepth: 2,
               schedule: '0 4 * * *', // 4 AM daily
@@ -533,20 +522,20 @@ async function main() {
             },
           });
           totalSources++;
-          console.log(`  ✓ ${b.name} — brand + source (${b.dealUrls.length} URLs)`);
+          console.log(`  + ${b.name} — company + source (${b.dealUrls.length} URLs)`);
         } else {
-          console.log(`  ✓ ${b.name} — brand updated, source exists`);
+          console.log(`  + ${b.name} — company updated, source exists`);
         }
       } catch (err: any) {
-        console.error(`  ✕ ${b.name}: ${err.message}`);
+        console.error(`  x ${b.name}: ${err.message}`);
       }
     }
   }
 
-  console.log(`\n════════════════════════════════`);
-  console.log(`Total brands upserted: ${totalBrands}`);
+  console.log(`\n================================`);
+  console.log(`Total companies upserted: ${totalCompanies}`);
   console.log(`Total new sources created: ${totalSources}`);
-  console.log(`════════════════════════════════`);
+  console.log(`================================`);
 
   await prisma.$disconnect();
 }
