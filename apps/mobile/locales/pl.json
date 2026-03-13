@@ -1,0 +1,6 @@
+{
+  "CFBundleDisplayName": "Deal Box",
+  "CFBundleName": "Deal Box",
+  "NSLocationWhenInUseUsageDescription": "Uprawnienie do lokalizacji jest potrzebne, aby wyświetlać oferty w Twojej okolicy.",
+  "NSCameraUsageDescription": "Uprawnienie do aparatu jest potrzebne, aby przesłać zdjęcie profilowe."
+}

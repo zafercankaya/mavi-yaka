@@ -1,0 +1,6 @@
+{
+  "CFBundleDisplayName": "Fyndboxen",
+  "CFBundleName": "Fyndboxen",
+  "NSLocationWhenInUseUsageDescription": "Platstillstånd behövs för att visa erbjudanden nära dig.",
+  "NSCameraUsageDescription": "Kameratillstånd behövs för att ladda upp en profilbild."
+}

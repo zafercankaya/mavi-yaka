@@ -1,0 +1,6 @@
+{
+  "CFBundleDisplayName": "ดีลบ็อกซ์",
+  "CFBundleName": "ดีลบ็อกซ์",
+  "NSLocationWhenInUseUsageDescription": "ต้องการสิทธิ์การเข้าถึงตำแหน่งเพื่อแสดงดีลใกล้คุณ",
+  "NSCameraUsageDescription": "ต้องการสิทธิ์การเข้าถึงกล้องเพื่ออัปโหลดรูปโปรไฟล์"
+}

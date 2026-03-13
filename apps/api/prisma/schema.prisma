@@ -1,0 +1,411 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Users & Auth ────────────────────────────────────────
+
+model User {
+  id           String                  @id @default(uuid())
+  email        String                  @unique
+  passwordHash String?                 @map("password_hash")
+  displayName  String?                 @map("display_name")
+  role         UserRole                @default(USER)
+  authProvider AuthProvider            @default(EMAIL) @map("auth_provider")
+  providerId   String?                 @map("provider_id")
+  market       Market                  @default(TR)
+  referralCode String?                 @unique @map("referral_code")
+  referredById String?                 @map("referred_by_id")
+  referredBy   User?                   @relation("UserReferrals", fields: [referredById], references: [id])
+  referrals    User[]                  @relation("UserReferrals")
+  fcmTokens     FcmToken[]
+  follows       Follow[]
+  favorites     Favorite[]
+  subscription  Subscription?
+  notifPref     NotificationPreference?
+  notifications Notification[]
+  lastActivityAt DateTime?             @map("last_activity_at")
+  createdAt    DateTime                @default(now()) @map("created_at")
+  updatedAt    DateTime                @updatedAt @map("updated_at")
+
+  @@unique([authProvider, providerId])
+  @@map("users")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum AuthProvider {
+  EMAIL
+  GOOGLE
+  APPLE
+}
+
+model FcmToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  platform  Platform
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("fcm_tokens")
+}
+
+enum Platform {
+  IOS
+  ANDROID
+}
+
+// ─── Subscriptions ───────────────────────────────────────
+
+model SubscriptionPlan {
+  id                String         @id @default(uuid())
+  name              String
+  market            Market         @default(TR)
+  currency          String         @default("TRY") @db.VarChar(3)
+  appleProductId    String?        @map("apple_product_id")
+  googleProductId   String?        @map("google_product_id")
+  priceMonthly      Decimal?       @map("price_monthly") @db.Decimal(10, 2)
+  priceYearly       Decimal?       @map("price_yearly") @db.Decimal(10, 2)
+  maxBrandFollows   Int            @default(1) @map("max_brand_follows")
+  maxCampaignFollows Int           @default(1) @map("max_campaign_follows")
+  dailyNotifLimit   Int            @default(3) @map("daily_notif_limit")
+  hasAdvancedFilter Boolean        @default(false) @map("has_advanced_filter")
+  adFree            Boolean        @default(false) @map("ad_free")
+  weeklyDigest      Boolean        @default(false) @map("weekly_digest")
+  isActive          Boolean        @default(true) @map("is_active")
+  subscriptions     Subscription[]
+  createdAt         DateTime       @default(now()) @map("created_at")
+
+  @@unique([name, market])
+  @@map("subscription_plans")
+}
+
+model Subscription {
+  id               String           @id @default(uuid())
+  userId           String           @unique @map("user_id")
+  planId           String           @map("plan_id")
+  status           SubStatus        @default(ACTIVE)
+  provider         PaymentProvider
+  providerSubId    String?          @map("provider_sub_id")
+  currentPeriodEnd DateTime?        @map("current_period_end")
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan             SubscriptionPlan @relation(fields: [planId], references: [id])
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  @@map("subscriptions")
+}
+
+enum SubStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+  GRACE_PERIOD
+}
+
+enum PaymentProvider {
+  APPLE
+  GOOGLE
+  REFERRAL
+}
+
+// ─── Market ──────────────────────────────────────────────
+
+enum Market {
+  TR
+  US
+  DE
+  UK
+  IN
+  BR
+  ID
+  RU
+  MX
+  JP
+  PH
+  TH
+  CA
+  AU
+  FR
+  IT
+  ES
+  EG
+  SA
+  KR
+  AR
+  AE
+  VN
+  PL
+  MY
+  CO
+  ZA
+  PT
+  NL
+  PK
+  SE
+}
+
+// ─── Content ─────────────────────────────────────────────
+
+model Brand {
+  id         String        @id @default(uuid())
+  name       String
+  slug       String
+  logoUrl    String?       @map("logo_url")
+  websiteUrl String?       @map("website_url")
+  categoryId String?       @map("category_id")
+  market     Market        @default(TR)
+  isActive   Boolean       @default(true) @map("is_active")
+  category   Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  campaigns  Campaign[]
+  sources    CrawlSource[]
+  follows    Follow[]
+  createdAt  DateTime      @default(now()) @map("created_at")
+
+  @@unique([slug, market])
+  @@index([market, isActive])
+  @@map("brands")
+}
+
+model Category {
+  id        String     @id @default(uuid())
+  name      String     @unique
+  nameEn    String?    @map("name_en")
+  nameDe    String?    @map("name_de")
+  slug      String     @unique
+  iconName  String?    @map("icon_name")
+  iconUrl   String?    @map("icon_url")
+  sortOrder Int        @default(0) @map("sort_order")
+  campaigns Campaign[]
+  brands    Brand[]
+  follows   Follow[]
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  @@map("categories")
+}
+
+model Campaign {
+  id           String         @id @default(uuid())
+  title        String
+  description  String?        @db.Text
+  categoryId   String?        @map("category_id")
+  brandId      String         @map("brand_id")
+  sourceId     String         @map("source_id")
+  sourceUrl    String         @map("source_url")
+  canonicalUrl String?        @map("canonical_url")
+  fingerprint  String         @unique
+  discountRate Decimal?       @map("discount_rate") @db.Decimal(5, 2)
+  promoCode    String?        @map("promo_code")
+  imageUrls    String[]       @map("image_urls")
+  startDate    DateTime?      @map("start_date")
+  endDate      DateTime?      @map("end_date")
+  market       Market         @default(TR)
+  status       CampaignStatus @default(ACTIVE)
+  lastSeenAt   DateTime       @default(now()) @map("last_seen_at")
+  metadata     Json?
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  category  Category?   @relation(fields: [categoryId], references: [id])
+  brand     Brand       @relation(fields: [brandId], references: [id])
+  source    CrawlSource @relation(fields: [sourceId], references: [id])
+  favorites Favorite[]
+
+  @@index([market, status, createdAt(sort: Desc)])
+  @@index([status, createdAt(sort: Desc)])
+  @@index([brandId, status])
+  @@index([categoryId, status])
+  @@index([lastSeenAt])
+  @@map("campaigns")
+}
+
+enum CampaignStatus {
+  ACTIVE
+  EXPIRED
+  HIDDEN
+}
+
+// ─── Follows ─────────────────────────────────────────────
+
+model Follow {
+  id         String    @id @default(uuid())
+  userId     String    @map("user_id")
+  brandId    String?   @map("brand_id")
+  categoryId String?   @map("category_id")
+  isFrozen   Boolean   @default(false) @map("is_frozen")
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  brand      Brand?    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@unique([userId, brandId])
+  @@unique([userId, categoryId])
+  @@map("follows")
+}
+
+// ─── Favorites ──────────────────────────────────────────
+
+model Favorite {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  campaignId String   @map("campaign_id")
+  isFrozen   Boolean  @default(false) @map("is_frozen")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, campaignId])
+  @@map("favorites")
+}
+
+// ─── Notifications ──────────────────────────────────────
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  title     String
+  body      String
+  data      Json?
+  isRead    Boolean  @default(false) @map("is_read")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  id        String   @id @default(uuid())
+  userId    String   @unique @map("user_id")
+  enabled   Boolean  @default(true)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("notification_preferences")
+}
+
+// ─── Crawling ────────────────────────────────────────────
+
+model CrawlSource {
+  id                String      @id @default(uuid())
+  brandId           String      @map("brand_id")
+  name              String
+  crawlMethod       CrawlMethod @map("crawl_method")
+  seedUrls          String[]    @map("seed_urls")
+  maxDepth          Int         @default(2) @map("max_depth")
+  selectors         Json?
+  schedule          String      @default("0 3 * * *")
+  agingDays         Int         @default(7) @map("aging_days")
+  market            Market      @default(TR)
+  isActive          Boolean     @default(true) @map("is_active")
+  lastCrawledAt     DateTime?   @map("last_crawled_at")
+  discoveredFeedUrl String?     @map("discovered_feed_url")
+  discoveredApiUrl  String?     @map("discovered_api_url")
+  brand             Brand       @relation(fields: [brandId], references: [id])
+  campaigns         Campaign[]
+  crawlLogs         CrawlLog[]
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+
+  @@index([market, isActive])
+  @@map("crawl_sources")
+}
+
+enum CrawlMethod {
+  CAMPAIGN
+  PRODUCT
+  RSS
+  FEED
+  API
+}
+
+model CrawlLog {
+  id               String      @id @default(uuid())
+  sourceId         String      @map("source_id")
+  status           CrawlStatus
+  campaignsFound   Int         @default(0) @map("campaigns_found")
+  campaignsNew     Int         @default(0) @map("campaigns_new")
+  campaignsUpdated Int         @default(0) @map("campaigns_updated")
+  errorMessage     String?     @map("error_message") @db.Text
+  durationMs       Int?        @map("duration_ms")
+  source           CrawlSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  createdAt        DateTime    @default(now()) @map("created_at")
+
+  @@index([sourceId, createdAt(sort: Desc)])
+  @@map("crawl_logs")
+}
+
+enum CrawlStatus {
+  RUNNING
+  SUCCESS
+  PARTIAL
+  FAILED
+}
+
+// ─── App Config (key-value) ────────────────────────────────
+
+model AppConfig {
+  key       String   @id
+  value     String
+  label     String?
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("app_config")
+}
+
+// ─── Daily Reports ────────────────────────────────────────
+
+model DailyReport {
+  id               String   @id @default(uuid())
+  date             DateTime @unique @map("report_date") @db.Date
+
+  // Crawl stats (all markets combined)
+  totalSources     Int      @default(0) @map("total_sources")
+  sourcesSuccess   Int      @default(0) @map("sources_success")
+  sourcesFailed    Int      @default(0) @map("sources_failed")
+  campaignsFound   Int      @default(0) @map("campaigns_found")
+  campaignsNew     Int      @default(0) @map("campaigns_new")
+  campaignsUpdated Int      @default(0) @map("campaigns_updated")
+  campaignsExpired Int      @default(0) @map("campaigns_expired")
+  crawlDurationMs  Int      @default(0) @map("crawl_duration_ms")
+
+  // Maintenance stats
+  maintenanceActions Int    @default(0) @map("maintenance_actions")
+  maintenanceErrors  Int    @default(0) @map("maintenance_errors")
+
+  // Per-market detail (JSON array)
+  marketStats      Json     @default("[]") @map("market_stats")
+
+  // Maintenance task detail (JSON array)
+  maintenanceTasks Json     @default("[]") @map("maintenance_tasks")
+
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@index([date(sort: Desc)])
+  @@map("daily_reports")
+}
+
+// ─── Analytics ─────────────────────────────────────────
+
+model AnalyticsEvent {
+  id        String   @id @default(uuid())
+  event     String
+  userId    String?  @map("user_id")
+  params    Json     @default("{}")
+  timestamp DateTime @default(now())
+
+  @@index([event, timestamp])
+  @@index([userId])
+  @@map("analytics_events")
+}

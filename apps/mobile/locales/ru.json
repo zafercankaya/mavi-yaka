@@ -1,0 +1,6 @@
+{
+  "CFBundleDisplayName": "Бокс Акций",
+  "CFBundleName": "Бокс Акций",
+  "NSLocationWhenInUseUsageDescription": "Разрешение на определение местоположения необходимо для показа акций рядом с вами.",
+  "NSCameraUsageDescription": "Разрешение на использование камеры необходимо для загрузки фото профиля."
+}

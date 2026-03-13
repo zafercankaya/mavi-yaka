@@ -1,0 +1,29 @@
+node_modules/
+dist/
+.turbo/
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store
+coverage/
+.next/
+.expo/
+nul
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Claude Code local
+.claude/settings.local.json
+.playwright-mcp/
+
+# Screenshots (debug/docs)
+admin-campaigns.png
+admin-dashboard.png
+crawl-logs.png
+swagger-api-docs.png
+logo.png

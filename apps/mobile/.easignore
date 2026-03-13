@@ -1,0 +1,28 @@
+# Browser profiles and temp files
+.rc-profile/
+.rc-profile2/
+.rc-profile3/
+.edge-profile/
+.pw-userdata/
+
+# Large/unnecessary files
+*.aab
+*.png
+*.p8
+node_modules/
+.claude/
+
+# API temp scripts
+apps/api/*.js
+apps/api/*.json
+!apps/api/package.json
+
+# Root temp files
+/*.js
+/*.png
+/*.sh
+/*.json
+!package.json
+!app.json
+!eas.json
+!tsconfig.json

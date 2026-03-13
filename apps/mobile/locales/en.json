@@ -1,0 +1,6 @@
+{
+  "CFBundleDisplayName": "Deal Box",
+  "CFBundleName": "Deal Box",
+  "NSLocationWhenInUseUsageDescription": "Location permission is needed to show deals near you.",
+  "NSCameraUsageDescription": "Camera permission is needed to upload a profile photo."
+}

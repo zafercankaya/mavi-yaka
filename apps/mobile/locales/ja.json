@@ -1,0 +1,6 @@
+{
+  "CFBundleDisplayName": "セールボックス",
+  "CFBundleName": "セールボックス",
+  "NSLocationWhenInUseUsageDescription": "お近くのセール情報を表示するために位置情報の許可が必要です。",
+  "NSCameraUsageDescription": "プロフィール写真をアップロードするためにカメラの許可が必要です。"
+}

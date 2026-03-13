@@ -1,0 +1,6 @@
+{
+  "CFBundleDisplayName": "صندوق العروض",
+  "CFBundleName": "صندوق العروض",
+  "NSLocationWhenInUseUsageDescription": "يلزم إذن الموقع لعرض العروض القريبة منك.",
+  "NSCameraUsageDescription": "يلزم إذن الكاميرا لتحميل صورة الملف الشخصي."
+}

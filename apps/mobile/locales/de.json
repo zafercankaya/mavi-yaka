@@ -1,0 +1,6 @@
+{
+  "CFBundleDisplayName": "Angebot Box",
+  "CFBundleName": "Angebot Box",
+  "NSLocationWhenInUseUsageDescription": "Standortberechtigung wird benötigt, um Angebote in Ihrer Nähe anzuzeigen.",
+  "NSCameraUsageDescription": "Kameraberechtigung wird benötigt, um ein Profilbild hochzuladen."
+}

@@ -1,0 +1,6 @@
+{
+  "CFBundleDisplayName": "Caixa de Ofertas",
+  "CFBundleName": "Caixa de Ofertas",
+  "NSLocationWhenInUseUsageDescription": "A permissão de localização é necessária para mostrar ofertas perto de você.",
+  "NSCameraUsageDescription": "A permissão da câmera é necessária para enviar uma foto de perfil."
+}

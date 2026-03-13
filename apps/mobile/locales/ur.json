@@ -1,0 +1,6 @@
+{
+  "CFBundleDisplayName": "Deal Box",
+  "CFBundleName": "Deal Box",
+  "NSLocationWhenInUseUsageDescription": "آپ کے قریب ڈیلز دکھانے کے لیے مقام کی اجازت درکار ہے۔",
+  "NSCameraUsageDescription": "پروفائل تصویر اپ لوڈ کرنے کے لیے کیمرے کی اجازت درکار ہے۔"
+}

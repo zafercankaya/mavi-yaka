@@ -1,0 +1,30 @@
+{
+  "name": "kampanya-sepeti",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev --workspace=apps/api",
+    "dev:admin": "npm run dev --workspace=apps/admin",
+    "dev:crawler": "npm run dev --workspace=apps/crawler",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "db:migrate": "npm run db:migrate --workspace=apps/api",
+    "db:seed": "npm run db:seed --workspace=apps/api",
+    "db:studio": "npm run db:studio --workspace=apps/api",
+    "postinstall": "node apps/mobile/scripts/patch-expo-router.js"
+  },
+  "devDependencies": {
+    "googleapis": "^171.4.0",
+    "turbo": "^2.4.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "packageManager": "npm@11.9.0"
+}

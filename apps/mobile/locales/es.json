@@ -1,0 +1,6 @@
+{
+  "CFBundleDisplayName": "Caja de Ofertas",
+  "CFBundleName": "Caja de Ofertas",
+  "NSLocationWhenInUseUsageDescription": "Se necesita permiso de ubicación para mostrar ofertas cerca de ti.",
+  "NSCameraUsageDescription": "Se necesita permiso de cámara para subir una foto de perfil."
+}

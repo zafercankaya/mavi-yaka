@@ -1,0 +1,6 @@
+{
+  "CFBundleDisplayName": "Boîte à Offres",
+  "CFBundleName": "Boîte à Offres",
+  "NSLocationWhenInUseUsageDescription": "L'autorisation de localisation est nécessaire pour afficher les offres près de chez vous.",
+  "NSCameraUsageDescription": "L'autorisation de la caméra est nécessaire pour télécharger une photo de profil."
+}

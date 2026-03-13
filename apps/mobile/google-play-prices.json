@@ -1,0 +1,188 @@
+{
+  "TR": {
+    "region": "TR",
+    "currency": "TRY",
+    "monthly": 35.99,
+    "yearly": 214.99
+  },
+  "US": {
+    "region": "US",
+    "currency": "USD",
+    "monthly": 2.99,
+    "yearly": 19.99
+  },
+  "CA": {
+    "region": "CA",
+    "currency": "CAD",
+    "monthly": 3.99,
+    "yearly": 27.99
+  },
+  "AU": {
+    "region": "AU",
+    "currency": "AUD",
+    "monthly": 4.89,
+    "yearly": 32.99
+  },
+  "UK": {
+    "region": "GB",
+    "currency": "GBP",
+    "monthly": 2.99,
+    "yearly": 20.49
+  },
+  "JP": {
+    "region": "JP",
+    "currency": "JPY",
+    "monthly": 440,
+    "yearly": 3080
+  },
+  "KR": {
+    "region": "KR",
+    "currency": "KRW",
+    "monthly": 4300,
+    "yearly": 27000
+  },
+  "DE": {
+    "region": "DE",
+    "currency": "EUR",
+    "monthly": 3.59,
+    "yearly": 19.99
+  },
+  "FR": {
+    "region": "FR",
+    "currency": "EUR",
+    "monthly": 3.59,
+    "yearly": 23.99
+  },
+  "IT": {
+    "region": "IT",
+    "currency": "EUR",
+    "monthly": 2.99,
+    "yearly": 20.99
+  },
+  "ES": {
+    "region": "ES",
+    "currency": "EUR",
+    "monthly": 3.09,
+    "yearly": 20.99
+  },
+  "PT": {
+    "region": "PT",
+    "currency": "EUR",
+    "monthly": 3.19,
+    "yearly": 20.99
+  },
+  "NL": {
+    "region": "NL",
+    "currency": "EUR",
+    "monthly": 3.09,
+    "yearly": 20.99
+  },
+  "SE": {
+    "region": "SE",
+    "currency": "SEK",
+    "monthly": 34,
+    "yearly": 229
+  },
+  "PL": {
+    "region": "PL",
+    "currency": "PLN",
+    "monthly": 13.99,
+    "yearly": 89.99
+  },
+  "BR": {
+    "region": "BR",
+    "currency": "BRL",
+    "monthly": 12.99,
+    "yearly": 69.99
+  },
+  "MX": {
+    "region": "MX",
+    "currency": "MXN",
+    "monthly": 46,
+    "yearly": 289
+  },
+  "AR": {
+    "region": "AR",
+    "currency": "USD",
+    "monthly": 2.99,
+    "yearly": 19.99
+  },
+  "CO": {
+    "region": "CO",
+    "currency": "COP",
+    "monthly": 11500,
+    "yearly": 76000
+  },
+  "RU": {
+    "region": "RU",
+    "currency": "RUB",
+    "monthly": 199,
+    "yearly": 1290
+  },
+  "EG": {
+    "region": "EG",
+    "currency": "EGP",
+    "monthly": 169.99,
+    "yearly": 1149.99
+  },
+  "SA": {
+    "region": "SA",
+    "currency": "SAR",
+    "monthly": 12.99,
+    "yearly": 85.99
+  },
+  "AE": {
+    "region": "AE",
+    "currency": "AED",
+    "monthly": 11.99,
+    "yearly": 76.99
+  },
+  "ZA": {
+    "region": "ZA",
+    "currency": "ZAR",
+    "monthly": 56.99,
+    "yearly": 379.99
+  },
+  "IN": {
+    "region": "IN",
+    "currency": "INR",
+    "monthly": 95,
+    "yearly": 590
+  },
+  "ID": {
+    "region": "ID",
+    "currency": "IDR",
+    "monthly": 20000,
+    "yearly": 119000
+  },
+  "PH": {
+    "region": "PH",
+    "currency": "PHP",
+    "monthly": 88,
+    "yearly": 559
+  },
+  "TH": {
+    "region": "TH",
+    "currency": "THB",
+    "monthly": 74,
+    "yearly": 475
+  },
+  "VN": {
+    "region": "VN",
+    "currency": "VND",
+    "monthly": 78000,
+    "yearly": 524000
+  },
+  "MY": {
+    "region": "MY",
+    "currency": "MYR",
+    "monthly": 12.99,
+    "yearly": 84.99
+  },
+  "PK": {
+    "region": "PK",
+    "currency": "PKR",
+    "monthly": 850,
+    "yearly": 5600
+  }
+}

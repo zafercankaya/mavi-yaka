@@ -1,0 +1,6 @@
+{
+  "CFBundleDisplayName": "Box Offerte",
+  "CFBundleName": "Box Offerte",
+  "NSLocationWhenInUseUsageDescription": "L'autorizzazione alla posizione è necessaria per mostrare le offerte vicino a te.",
+  "NSCameraUsageDescription": "L'autorizzazione alla fotocamera è necessaria per caricare una foto del profilo."
+}

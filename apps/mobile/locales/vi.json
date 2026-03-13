@@ -1,0 +1,6 @@
+{
+  "CFBundleDisplayName": "Deal Box",
+  "CFBundleName": "Deal Box",
+  "NSLocationWhenInUseUsageDescription": "Cần quyền truy cập vị trí để hiển thị ưu đãi gần bạn.",
+  "NSCameraUsageDescription": "Cần quyền truy cập camera để tải ảnh đại diện."
+}

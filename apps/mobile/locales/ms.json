@@ -1,0 +1,6 @@
+{
+  "CFBundleDisplayName": "Kotak Tawaran",
+  "CFBundleName": "Kotak Tawaran",
+  "NSLocationWhenInUseUsageDescription": "Kebenaran lokasi diperlukan untuk menunjukkan tawaran berhampiran anda.",
+  "NSCameraUsageDescription": "Kebenaran kamera diperlukan untuk memuat naik foto profil."
+}

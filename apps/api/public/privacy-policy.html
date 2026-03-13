@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kampanya Sepeti - Gizlilik Politikası / Privacy Policy</title>
+    <style>
+        :root {
+            --primary: #e53e3e;
+            --primary-dark: #c53030;
+            --bg: #ffffff;
+            --bg-alt: #f7f7f8;
+            --text: #1a1a2e;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --accent: #2563eb;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            color: var(--text); background: var(--bg); line-height: 1.7; font-size: 16px;
+        }
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white; padding: 48px 24px; text-align: center;
+        }
+        .header h1 { font-size: 2rem; font-weight: 700; margin-bottom: 8px; }
+        .header p { font-size: 1rem; opacity: 0.9; }
+        .lang-switcher {
+            display: flex; justify-content: center; gap: 12px; padding: 24px;
+            background: var(--bg-alt); border-bottom: 1px solid var(--border);
+            position: sticky; top: 0; z-index: 100;
+        }
+        .lang-btn {
+            padding: 10px 28px; border: 2px solid var(--primary); background: white;
+            color: var(--primary); border-radius: 8px; cursor: pointer;
+            font-size: 0.95rem; font-weight: 600; transition: all 0.2s ease;
+        }
+        .lang-btn:hover { background: #fff5f5; }
+        .lang-btn.active { background: var(--primary); color: white; }
+        .container { max-width: 800px; margin: 0 auto; padding: 40px 24px 80px; }
+        .lang-section { display: none; }
+        .lang-section.active { display: block; }
+        .effective-date {
+            display: inline-block; background: var(--bg-alt); border: 1px solid var(--border);
+            padding: 8px 16px; border-radius: 6px; font-size: 0.9rem;
+            color: var(--text-muted); margin-bottom: 32px;
+        }
+        h2 {
+            font-size: 1.5rem; font-weight: 700; margin-top: 40px; margin-bottom: 16px;
+            color: var(--text); padding-bottom: 8px; border-bottom: 2px solid var(--primary);
+        }
+        h3 { font-size: 1.15rem; font-weight: 600; margin-top: 24px; margin-bottom: 10px; }
+        p { margin-bottom: 14px; color: #334155; }
+        ul, ol { margin-bottom: 14px; padding-left: 24px; }
+        li { margin-bottom: 6px; color: #334155; }
+        .data-table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; font-size: 0.95rem; }
+        .data-table th, .data-table td { padding: 12px 16px; text-align: left; border: 1px solid var(--border); }
+        .data-table th { background: var(--bg-alt); font-weight: 600; }
+        .data-table tr:nth-child(even) td { background: #fafafa; }
+        .third-party-card {
+            background: var(--bg-alt); border: 1px solid var(--border);
+            border-radius: 10px; padding: 20px; margin-bottom: 16px;
+        }
+        .third-party-card h4 { font-size: 1.05rem; font-weight: 600; margin-bottom: 8px; color: var(--primary-dark); }
+        .third-party-card p { font-size: 0.93rem; margin-bottom: 6px; }
+        .third-party-card a { color: var(--accent); text-decoration: none; }
+        .third-party-card a:hover { text-decoration: underline; }
+        .rights-list { list-style: none; padding: 0; }
+        .rights-list li { padding: 10px 0 10px 32px; position: relative; border-bottom: 1px solid var(--border); }
+        .rights-list li:last-child { border-bottom: none; }
+        .rights-list li::before {
+            content: "\2713"; position: absolute; left: 0; top: 10px;
+            color: var(--primary); font-weight: 700; font-size: 1.1rem;
+        }
+        .contact-box {
+            background: linear-gradient(135deg, #fff5f5 0%, #fef2f2 100%);
+            border: 1px solid #fecaca; border-radius: 12px; padding: 28px; margin-top: 24px;
+        }
+        .contact-box p { margin-bottom: 8px; }
+        .contact-box a { color: var(--accent); text-decoration: none; }
+        .contact-box a:hover { text-decoration: underline; }
+        .footer {
+            text-align: center; padding: 24px; color: var(--text-muted);
+            font-size: 0.85rem; border-top: 1px solid var(--border);
+        }
+        @media (max-width: 600px) {
+            .header h1 { font-size: 1.5rem; }
+            .container { padding: 24px 16px 60px; }
+            h2 { font-size: 1.25rem; }
+            .data-table { font-size: 0.85rem; }
+            .data-table th, .data-table td { padding: 8px 10px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>Kampanya Sepeti</h1>
+    <p>Gizlilik Politikası / Privacy Policy</p>
+</div>
+
+<div class="lang-switcher">
+    <button class="lang-btn active" onclick="switchLang('tr')" id="btn-tr">Türkçe</button>
+    <button class="lang-btn" onclick="switchLang('en')" id="btn-en">English</button>
+</div>
+
+<div class="container">
+
+<!-- ===================== TÜRKÇE ===================== -->
+<div class="lang-section active" id="section-tr">
+
+<span class="effective-date">Yürürlük Tarihi: 3 Mart 2026</span>
+
+<p>
+    Kampanya Sepeti ("Uygulama", "biz", "bizim"), com.kampanyasepeti.app paket adlı
+    mobil uygulamamızı kullanan siz değerli kullanıcılarımızın kişisel verilerinin korunmasına
+    büyük önem vermektedir. Bu Gizlilik Politikası, 6698 sayılı Kişisel Verilerin Korunması
+    Kanunu (KVKK) ve ilgili mevzuat kapsamında hazırlanmıştır.
+</p>
+
+<h2>1. Veri Sorumlusu</h2>
+<p>
+    <strong>Unvan:</strong> zafer77can (Bireysel Geliştirici)<br>
+    <strong>Uygulama:</strong> Kampanya Sepeti<br>
+    <strong>Paket Adı:</strong> com.kampanyasepeti.app<br>
+    <strong>E-posta:</strong> <a href="mailto:zafer77can@gmail.com">zafer77can@gmail.com</a>
+</p>
+
+<h2>2. Toplanan Kişisel Veriler</h2>
+<p>Uygulamamız aşağıdaki kişisel verileri toplamakta ve işlemektedir:</p>
+
+<table class="data-table">
+    <thead>
+        <tr><th>Veri Kategorisi</th><th>Toplanan Veriler</th><th>Toplama Yöntemi</th></tr>
+    </thead>
+    <tbody>
+        <tr><td><strong>Kimlik Bilgileri</strong></td><td>E-posta adresi, görüntü adı (isteğe bağlı)</td><td>Kayıt formu / Sosyal giriş</td></tr>
+        <tr><td><strong>Hesap Güvenlik Bilgileri</strong></td><td>Şifreli (hash) parola, kimlik doğrulama sağlayıcısı (Email/Google/Apple), sağlayıcı kimlik numarası</td><td>Kayıt / Giriş işlemi</td></tr>
+        <tr><td><strong>Cihaz Bilgileri</strong></td><td>Firebase Cloud Messaging (FCM) token, cihaz platformu (iOS/Android)</td><td>Bildirim izni verildiğinde otomatik</td></tr>
+        <tr><td><strong>Kullanım Verileri</strong></td><td>Takip edilen markalar ve kategoriler, favori kampanyalar, bildirim tercihleri</td><td>Uygulama içi etkileşimler</td></tr>
+        <tr><td><strong>Abonelik Bilgileri</strong></td><td>Abonelik planı, abonelik durumu, ödeme sağlayıcısı (Apple/Google), abonelik dönemi</td><td>Uygulama içi satın alma</td></tr>
+        <tr><td><strong>Teknik Veriler</strong></td><td>Hata raporları, uygulama performans verileri</td><td>Sentry SDK (otomatik)</td></tr>
+    </tbody>
+</table>
+
+<h3>Toplamadığımız Veriler</h3>
+<ul>
+    <li>Konum bilgisi (GPS, IP tabanlı konum)</li>
+    <li>Rehber/kişiler listesi</li>
+    <li>Telefon numarası</li>
+    <li>Fotoğraflar, kamera veya mikrofon erişimi</li>
+    <li>Reklam kimliği (IDFA/GAID) — doğrudan toplanmaz</li>
+</ul>
+
+<h2>3. Verilerin İşlenme Amacı</h2>
+<ol>
+    <li><strong>Hesap yönetimi:</strong> Kullanıcı kaydının oluşturulması, giriş işlemi ve kimlik doğrulaması</li>
+    <li><strong>Hizmet sunumu:</strong> Kampanya/indirim bilgilerinin listelenmesi, filtrelenmesi ve sunulması</li>
+    <li><strong>Kişiselleştirme:</strong> Takip edilen marka ve kategorilere göre içerik önceliklendirmesi</li>
+    <li><strong>Bildirimler:</strong> Yeni kampanya ve indirim bildirimlerinin gönderilmesi (izninize bağlı)</li>
+    <li><strong>Abonelik yönetimi:</strong> Premium abonelik işlemlerinin yürütülmesi</li>
+    <li><strong>Hata takibi:</strong> Uygulama hatalarının tespit edilmesi ve giderilmesi</li>
+    <li><strong>Hizmet iyileştirme:</strong> Uygulama deneyiminin geliştirilmesi</li>
+</ol>
+
+<h2>4. Verilerin Paylaşılması ve Üçüncü Taraf Hizmetler</h2>
+<p>Kişisel verileriniz hiçbir koşulda üçüncü taraflara satılmaz. Aşağıdaki hizmet sağlayıcıları ile yalnızca gerekli olduğu ölçüde veri paylaşımı yapılmaktadır:</p>
+
+<div class="third-party-card">
+    <h4>Google Sign-In (Google OAuth 2.0)</h4>
+    <p><strong>Amaç:</strong> Google hesabı ile hızlı ve güvenli giriş</p>
+    <p><strong>Paylaşılan veri:</strong> E-posta adresi, ad-soyad, Google kullanıcı kimlik numarası</p>
+    <p><a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google Gizlilik Politikası</a></p>
+</div>
+
+<div class="third-party-card">
+    <h4>Apple Sign In</h4>
+    <p><strong>Amaç:</strong> Apple hesabı ile hızlı ve güvenli giriş (yalnızca iOS)</p>
+    <p><strong>Paylaşılan veri:</strong> E-posta adresi, Apple kullanıcı kimlik numarası</p>
+    <p><a href="https://www.apple.com/legal/privacy/" target="_blank" rel="noopener">Apple Gizlilik Politikası</a></p>
+</div>
+
+<div class="third-party-card">
+    <h4>RevenueCat</h4>
+    <p><strong>Amaç:</strong> Uygulama içi abonelik yönetimi ve satın alma işlemlerinin doğrulanması</p>
+    <p><strong>Paylaşılan veri:</strong> Kullanıcı kimlik numarası (UUID), abonelik durumu</p>
+    <p><a href="https://www.revenuecat.com/privacy" target="_blank" rel="noopener">RevenueCat Gizlilik Politikası</a></p>
+</div>
+
+<div class="third-party-card">
+    <h4>Firebase Cloud Messaging (FCM)</h4>
+    <p><strong>Amaç:</strong> Push bildirim gönderimi</p>
+    <p><strong>Paylaşılan veri:</strong> FCM cihaz token, platform bilgisi</p>
+    <p><a href="https://firebase.google.com/support/privacy" target="_blank" rel="noopener">Firebase Gizlilik Politikası</a></p>
+</div>
+
+<div class="third-party-card">
+    <h4>Supabase (Depolama)</h4>
+    <p><strong>Amaç:</strong> Kampanya görsellerinin depolanması</p>
+    <p><strong>Paylaşılan veri:</strong> Kişisel veri paylaşılmaz; yalnızca içerik görselleri depolanır</p>
+    <p><a href="https://supabase.com/privacy" target="_blank" rel="noopener">Supabase Gizlilik Politikası</a></p>
+</div>
+
+<div class="third-party-card">
+    <h4>Sentry</h4>
+    <p><strong>Amaç:</strong> Uygulama hata izleme ve performans takibi</p>
+    <p><strong>Paylaşılan veri:</strong> Hata raporları, cihaz bilgileri, stack trace</p>
+    <p><a href="https://sentry.io/privacy/" target="_blank" rel="noopener">Sentry Gizlilik Politikası</a></p>
+</div>
+
+<div class="third-party-card">
+    <h4>Neon (PostgreSQL Veritabanı)</h4>
+    <p><strong>Amaç:</strong> Veritabanı barındırma hizmeti</p>
+    <p><strong>Paylaşılan veri:</strong> Yukarıda belirtilen tüm kullanıcı verileri veritabanında saklanır</p>
+    <p><a href="https://neon.tech/privacy" target="_blank" rel="noopener">Neon Gizlilik Politikası</a></p>
+</div>
+
+<h2>5. Verilerin Saklanması ve Güvenliği</h2>
+<h3>Saklama Süresi</h3>
+<ul>
+    <li><strong>Hesap verileri:</strong> Hesabınız aktif olduğu sürece saklanır. Hesap silme talebiniz üzerine 30 gün içinde kalıcı olarak silinir.</li>
+    <li><strong>Abonelik verileri:</strong> Yasal yükümlülükler gereği abonelik bitiminden itibaren 5 yıl saklanır.</li>
+    <li><strong>FCM tokenleri:</strong> Cihaz değişikliği veya hesap silme durumunda otomatik olarak silinir.</li>
+    <li><strong>Hata raporları (Sentry):</strong> 90 gün boyunca saklanır.</li>
+</ul>
+<h3>Güvenlik Önlemleri</h3>
+<ul>
+    <li>Parolalar bcrypt algoritması (12 round) ile tek yönlü olarak şifrelenir</li>
+    <li>Kimlik doğrulama JWT ile yapılır; erişim tokeni 15 dakika, yenileme tokeni 30 gün geçerlidir</li>
+    <li>Mobil cihazdaki hassas veriler Expo SecureStore ile şifrelenmiş olarak saklanır</li>
+    <li>API iletişimi TLS/SSL (HTTPS) protokolü ile şifrelenir</li>
+    <li>Veritabanı erişimi yalnızca yetkili sunucu uygulaması üzerinden mümkündür</li>
+</ul>
+
+<h2>6. Kullanıcı Hakları (KVKK Madde 11)</h2>
+<p>6698 sayılı Kişisel Verilerin Korunması Kanunu kapsamında aşağıdaki haklara sahipsiniz:</p>
+<ul class="rights-list">
+    <li>Kişisel verilerinizin işlenip işlenmediğini öğrenme</li>
+    <li>Kişisel verileriniz işlenmişse buna ilişkin bilgi talep etme</li>
+    <li>Kişisel verilerinizin işlenme amacını ve bunların amacına uygun kullanılıp kullanılmadığını öğrenme</li>
+    <li>Yurt içinde veya yurt dışında kişisel verilerinizin aktarıldığı üçüncü kişileri bilme</li>
+    <li>Kişisel verilerinizin eksik veya yanlış işlenmiş olması halinde bunların düzeltilmesini isteme</li>
+    <li>KVKK'nın 7. maddesindeki şartlar çerçevesinde kişisel verilerinizin silinmesini veya yok edilmesini isteme</li>
+    <li>İşlenen verilerin münhasıran otomatik sistemler vasıtasıyla analiz edilmesi suretiyle kişi aleyhine bir sonucun ortaya çıkmasına itiraz etme</li>
+    <li>Kişisel verilerinizin kanuna aykırı olarak işlenmesi sebebiyle zarara uğramanız halinde zararın giderilmesini talep etme</li>
+</ul>
+
+<h2>7. Çocukların Gizliliği</h2>
+<p>Kampanya Sepeti, 13 yaşından küçük çocuklara yönelik değildir. Bilerek 13 yaş altı kullanıcılardan kişisel veri toplamayız.</p>
+
+<h2>8. Politika Değişiklikleri</h2>
+<p>Bu Gizlilik Politikası zaman zaman güncellenebilir. Önemli değişiklikler yapıldığında sizi uygulama içi bildirim veya e-posta yoluyla bilgilendiririz.</p>
+
+<h2>9. İletişim</h2>
+<div class="contact-box">
+    <p><strong>Geliştirici:</strong> zafer77can</p>
+    <p><strong>E-posta:</strong> <a href="mailto:zafer77can@gmail.com">zafer77can@gmail.com</a></p>
+    <p><strong>Uygulama:</strong> Kampanya Sepeti (com.kampanyasepeti.app)</p>
+</div>
+
+</div>
+
+<!-- ===================== ENGLISH ===================== -->
+<div class="lang-section" id="section-en">
+
+<span class="effective-date">Effective Date: March 3, 2026</span>
+
+<p>
+    Kampanya Sepeti ("Application", "we", "our", "us"), operating under the package name com.kampanyasepeti.app,
+    is committed to protecting the personal data of our valued users. This Privacy Policy has been
+    prepared in accordance with the Turkish Personal Data Protection Law No. 6698 (KVKK) and relevant
+    legislation.
+</p>
+
+<h2>1. Data Controller</h2>
+<p>
+    <strong>Name:</strong> zafer77can (Individual Developer)<br>
+    <strong>Application:</strong> Kampanya Sepeti<br>
+    <strong>Package Name:</strong> com.kampanyasepeti.app<br>
+    <strong>Email:</strong> <a href="mailto:zafer77can@gmail.com">zafer77can@gmail.com</a>
+</p>
+
+<h2>2. Personal Data We Collect</h2>
+<table class="data-table">
+    <thead>
+        <tr><th>Data Category</th><th>Data Collected</th><th>Collection Method</th></tr>
+    </thead>
+    <tbody>
+        <tr><td><strong>Identity Information</strong></td><td>Email address, display name (optional)</td><td>Registration form / Social login</td></tr>
+        <tr><td><strong>Account Security</strong></td><td>Hashed password, auth provider (Email/Google/Apple), provider identifier</td><td>Registration / Login</td></tr>
+        <tr><td><strong>Device Information</strong></td><td>Firebase Cloud Messaging (FCM) token, device platform (iOS/Android)</td><td>Automatically when notification permission is granted</td></tr>
+        <tr><td><strong>Usage Data</strong></td><td>Followed brands and categories, favorite campaigns, notification preferences</td><td>In-app interactions</td></tr>
+        <tr><td><strong>Subscription Information</strong></td><td>Subscription plan, status, payment provider (Apple/Google), subscription period</td><td>In-app purchases</td></tr>
+        <tr><td><strong>Technical Data</strong></td><td>Error reports, app performance data</td><td>Sentry SDK (automatic)</td></tr>
+    </tbody>
+</table>
+
+<h3>Data We Do NOT Collect</h3>
+<ul>
+    <li>Location data (GPS or IP-based)</li>
+    <li>Contacts / address book</li>
+    <li>Phone number</li>
+    <li>Photos, camera, or microphone access</li>
+    <li>Advertising identifiers (IDFA/GAID)</li>
+</ul>
+
+<h2>3. Purpose of Data Processing</h2>
+<ol>
+    <li><strong>Account management:</strong> User registration, login, and authentication</li>
+    <li><strong>Service delivery:</strong> Listing, filtering, and presenting campaign/discount information</li>
+    <li><strong>Personalization:</strong> Prioritizing content based on followed brands and categories</li>
+    <li><strong>Notifications:</strong> Sending new campaign notifications (subject to your consent)</li>
+    <li><strong>Subscription management:</strong> Processing premium subscriptions</li>
+    <li><strong>Error tracking:</strong> Detecting and resolving application errors</li>
+    <li><strong>Service improvement:</strong> Enhancing the application experience</li>
+</ol>
+
+<h2>4. Data Sharing and Third-Party Services</h2>
+<p>Your personal data is never sold to third parties. Data is shared with the following service providers only to the extent necessary:</p>
+
+<div class="third-party-card">
+    <h4>Google Sign-In (Google OAuth 2.0)</h4>
+    <p><strong>Purpose:</strong> Quick and secure login via Google account</p>
+    <p><strong>Data shared:</strong> Email address, name, Google user identifier</p>
+    <p><a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google Privacy Policy</a></p>
+</div>
+
+<div class="third-party-card">
+    <h4>Apple Sign In</h4>
+    <p><strong>Purpose:</strong> Quick and secure login via Apple account (iOS only)</p>
+    <p><strong>Data shared:</strong> Email address, Apple user identifier</p>
+    <p><a href="https://www.apple.com/legal/privacy/" target="_blank" rel="noopener">Apple Privacy Policy</a></p>
+</div>
+
+<div class="third-party-card">
+    <h4>RevenueCat</h4>
+    <p><strong>Purpose:</strong> In-app subscription management and purchase verification</p>
+    <p><strong>Data shared:</strong> User identifier (UUID), subscription status</p>
+    <p><a href="https://www.revenuecat.com/privacy" target="_blank" rel="noopener">RevenueCat Privacy Policy</a></p>
+</div>
+
+<div class="third-party-card">
+    <h4>Firebase Cloud Messaging (FCM)</h4>
+    <p><strong>Purpose:</strong> Push notification delivery</p>
+    <p><strong>Data shared:</strong> FCM device token, platform information</p>
+    <p><a href="https://firebase.google.com/support/privacy" target="_blank" rel="noopener">Firebase Privacy Policy</a></p>
+</div>
+
+<div class="third-party-card">
+    <h4>Supabase (Storage)</h4>
+    <p><strong>Purpose:</strong> Campaign image storage</p>
+    <p><strong>Data shared:</strong> No personal data; only content images are stored</p>
+    <p><a href="https://supabase.com/privacy" target="_blank" rel="noopener">Supabase Privacy Policy</a></p>
+</div>
+
+<div class="third-party-card">
+    <h4>Sentry</h4>
+    <p><strong>Purpose:</strong> Application error monitoring and performance tracking</p>
+    <p><strong>Data shared:</strong> Error reports, device information, stack traces</p>
+    <p><a href="https://sentry.io/privacy/" target="_blank" rel="noopener">Sentry Privacy Policy</a></p>
+</div>
+
+<div class="third-party-card">
+    <h4>Neon (PostgreSQL Database)</h4>
+    <p><strong>Purpose:</strong> Database hosting service</p>
+    <p><strong>Data shared:</strong> All user data mentioned above is stored in the database</p>
+    <p><a href="https://neon.tech/privacy" target="_blank" rel="noopener">Neon Privacy Policy</a></p>
+</div>
+
+<h2>5. Data Storage and Security</h2>
+<h3>Retention Period</h3>
+<ul>
+    <li><strong>Account data:</strong> Retained while your account is active. Permanently deleted within 30 days upon request.</li>
+    <li><strong>Subscription data:</strong> Retained for 5 years after subscription ends per legal obligations.</li>
+    <li><strong>FCM tokens:</strong> Automatically deleted upon device change or account deletion.</li>
+    <li><strong>Error reports (Sentry):</strong> Retained for 90 days.</li>
+</ul>
+<h3>Security Measures</h3>
+<ul>
+    <li>Passwords are hashed using bcrypt (12 rounds) and never stored in plain text</li>
+    <li>Authentication uses JWT; access tokens expire in 15 minutes, refresh tokens in 30 days</li>
+    <li>Sensitive data on mobile devices is stored encrypted using Expo SecureStore</li>
+    <li>API communication is encrypted via TLS/SSL (HTTPS)</li>
+    <li>Database access is restricted to authorized server applications only</li>
+</ul>
+
+<h2>6. User Rights (KVKK Article 11)</h2>
+<ul class="rights-list">
+    <li>To learn whether your personal data is being processed</li>
+    <li>To request information about the processing</li>
+    <li>To learn the purpose of processing and whether it is used accordingly</li>
+    <li>To know the third parties to whom your data has been transferred</li>
+    <li>To request correction if your data is incomplete or incorrect</li>
+    <li>To request deletion or destruction under KVKK Article 7</li>
+    <li>To object to results arising from automated analysis of your data</li>
+    <li>To claim compensation for damages from unlawful processing</li>
+</ul>
+
+<h2>7. Children's Privacy</h2>
+<p>Kampanya Sepeti is not intended for children under 13. We do not knowingly collect personal data from children under 13.</p>
+
+<h2>8. Changes to This Policy</h2>
+<p>This Privacy Policy may be updated from time to time. Significant changes will be communicated through in-app notifications or email.</p>
+
+<h2>9. Contact</h2>
+<div class="contact-box">
+    <p><strong>Developer:</strong> zafer77can</p>
+    <p><strong>Email:</strong> <a href="mailto:zafer77can@gmail.com">zafer77can@gmail.com</a></p>
+    <p><strong>Application:</strong> Kampanya Sepeti (com.kampanyasepeti.app)</p>
+</div>
+
+</div>
+</div>
+
+<div class="footer">
+    &copy; 2026 Kampanya Sepeti. Tüm hakları saklıdır / All rights reserved.
+</div>
+
+<script>
+    function switchLang(lang) {
+        document.querySelectorAll('.lang-section').forEach(function(el) { el.classList.remove('active'); });
+        document.querySelectorAll('.lang-btn').forEach(function(el) { el.classList.remove('active'); });
+        document.getElementById('section-' + lang).classList.add('active');
+        document.getElementById('btn-' + lang).classList.add('active');
+    }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,6 @@
+{
+  "CFBundleDisplayName": "딜박스",
+  "CFBundleName": "딜박스",
+  "NSLocationWhenInUseUsageDescription": "주변 딜을 표시하려면 위치 권한이 필요합니다.",
+  "NSCameraUsageDescription": "프로필 사진을 업로드하려면 카메라 권한이 필요합니다."
+}

@@ -1,0 +1,6 @@
+{
+  "CFBundleDisplayName": "Dealbox",
+  "CFBundleName": "Dealbox",
+  "NSLocationWhenInUseUsageDescription": "Locatietoestemming is nodig om aanbiedingen bij u in de buurt te tonen.",
+  "NSCameraUsageDescription": "Cameratoestemming is nodig om een profielfoto te uploaden."
+}
