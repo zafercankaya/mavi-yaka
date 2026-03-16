@@ -12,7 +12,8 @@ const INTERNAL_KEY = process.env.INTERNAL_API_KEY || '';
 const ALL_MARKETS: Market[] = [
   'TR', 'US', 'UK', 'DE', 'IN', 'BR', 'ID', 'RU',
   'MX', 'JP', 'PH', 'TH', 'CA', 'AU', 'FR', 'IT',
-  'ES', 'EG', 'SA', 'KR', 'AR',
+  'ES', 'EG', 'SA', 'KR', 'AR', 'AE', 'VN', 'PL',
+  'MY', 'CO', 'ZA', 'PT', 'NL', 'PK', 'SE',
 ];
 
 // ── Crawl state ──

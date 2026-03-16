@@ -7,6 +7,8 @@ import { scrapeGeneric } from './processors/generic-scraper';
 import { scrapeGenericPlaywright } from './processors/playwright-fallback';
 import { fetchRssCampaigns } from './processors/rss.processor';
 import { fetchApiCampaigns } from './processors/api.processor';
+import { fetchGovApiJobs, hasGovApiHandler } from './processors/gov-api.processor';
+import { fetchAllPlatformJobs } from './processors/job-platform-api.processor';
 import { normalizeCampaign, RawCampaignData } from './pipeline/normalize';
 import { filterCampaigns, filterCampaignsWithAI } from './pipeline/quality-filter';
 import { checkAndUpsert, deduplicateBatch } from './pipeline/deduplicate';
@@ -198,8 +200,16 @@ async function crawlSourceInternal(
               break;
             }
             case CrawlMethod.API: {
-              const baseUrl = source.seedUrls[0] || url;
-              urlCampaigns = await fetchApiCampaigns(url, baseUrl);
+              // Government sources with API handler → use specialized gov-api processor
+              if (source.type === 'GOVERNMENT' && hasGovApiHandler(source.market as any)) {
+                urlCampaigns = await fetchGovApiJobs(source.market as any, url);
+              } else if (source.type === 'JOB_PLATFORM') {
+                // Job platform aggregator APIs (Adzuna, Jooble, CareerJet)
+                urlCampaigns = await fetchAllPlatformJobs(source.market as any);
+              } else {
+                const baseUrl = source.seedUrls[0] || url;
+                urlCampaigns = await fetchApiCampaigns(url, baseUrl);
+              }
               break;
             }
             case CrawlMethod.HTML:

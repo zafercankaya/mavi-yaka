@@ -149,31 +149,31 @@ async function main() {
   const marketArg = process.argv[2]?.toUpperCase();
   const limitArg = parseInt(process.argv[3] || '200', 10);
 
-  const hasMarket = marketArg && ['TR', 'US', 'DE', 'UK', 'IN', 'BR'].includes(marketArg);
+  const hasMarket = marketArg && marketArg.length === 2;
 
-  // Find campaigns without images
+  // Find job listings without images
   const campaigns = hasMarket
     ? await p.$queryRawUnsafe<
         { id: string; title: string; source_url: string; market: string; brand_name: string }[]
       >(`
-        SELECT c.id, c.title, c.source_url, c.market, b.name as brand_name
-        FROM campaigns c
-        JOIN brands b ON c.brand_id = b.id
-        WHERE c.status = 'ACTIVE'
-          AND (array_length(c.image_urls, 1) IS NULL OR array_length(c.image_urls, 1) = 0)
-          AND c.market = $1
-        ORDER BY c.created_at DESC
+        SELECT jl.id, jl.title, jl.source_url, jl.market, co.name as brand_name
+        FROM job_listings jl
+        JOIN companies co ON jl.company_id = co.id
+        WHERE jl.status = 'ACTIVE'
+          AND jl.image_url IS NULL
+          AND jl.market = $1
+        ORDER BY jl.created_at DESC
         LIMIT $2
       `, marketArg, limitArg)
     : await p.$queryRawUnsafe<
         { id: string; title: string; source_url: string; market: string; brand_name: string }[]
       >(`
-        SELECT c.id, c.title, c.source_url, c.market, b.name as brand_name
-        FROM campaigns c
-        JOIN brands b ON c.brand_id = b.id
-        WHERE c.status = 'ACTIVE'
-          AND (array_length(c.image_urls, 1) IS NULL OR array_length(c.image_urls, 1) = 0)
-        ORDER BY c.created_at DESC
+        SELECT jl.id, jl.title, jl.source_url, jl.market, co.name as brand_name
+        FROM job_listings jl
+        JOIN companies co ON jl.company_id = co.id
+        WHERE jl.status = 'ACTIVE'
+          AND jl.image_url IS NULL
+        ORDER BY jl.created_at DESC
         LIMIT $1
       `, limitArg);
 

@@ -250,11 +250,29 @@ const JOB_PATH_PATTERNS = [
   // Italian (IT)
   /lavora-con-noi/i, /posizioni-aperte/i, /carriera/i,
   // Indonesian (ID)
-  /lowongan/i, /karir/i,
+  /lowongan/i, /karir/i, /karier/i,
   // Russian (RU)
   /vakansii/i, /rabota/i, /kariera/i,
   // Japanese (JP)
-  /recruit/i, /saiyo/i,
+  /recruit/i, /saiyo/i, /saiyou/i,
+  // Thai (TH)
+  /สมัครงาน/i, /ร่วมงาน/i, /ตำแหน่งงาน/i,
+  // Korean (KR)
+  /채용/i, /구인/i, /취업/i,
+  // Arabic (EG, SA, AE)
+  /وظائف/i, /توظيف/i, /فرص/i,
+  // Vietnamese (VN)
+  /tuyen-dung/i, /viec-lam/i, /nhan-su/i,
+  // Polish (PL)
+  /kariera/i, /praca/i, /oferty-pracy/i, /rekrutacja/i,
+  // Malay (MY)
+  /kerjaya/i, /jawatan-kosong/i,
+  // Dutch (NL)
+  /vacatures/i, /werken-bij/i, /sollicit/i,
+  // Swedish (SE)
+  /lediga-jobb/i, /karriar/i, /jobba-hos-oss/i,
+  // Hindi/Urdu (IN, PK)
+  /naukri/i, /rozgar/i,
 ];
 
 // Patterns to EXCLUDE (non-campaign pages)

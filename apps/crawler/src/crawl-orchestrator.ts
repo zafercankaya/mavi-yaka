@@ -21,6 +21,8 @@ const ALL_MARKETS = [
   'MX', 'JP', 'PH', 'TH',
   'CA', 'AU', 'FR', 'IT',
   'ES', 'EG', 'SA', 'KR', 'AR',
+  'AE', 'VN', 'PL', 'MY', 'CO',
+  'ZA', 'PT', 'NL', 'PK', 'SE',
 ];
 
 // Parse args

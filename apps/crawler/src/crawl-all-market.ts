@@ -48,7 +48,7 @@ async function main() {
     `SELECT b.sector, COUNT(cs.id)::int as count
     FROM crawl_sources cs
     JOIN companies b ON cs.company_id = b.id
-    WHERE b.market = $1 AND cs.is_active = true
+    WHERE b.market = $1::"Market" AND cs.is_active = true
     GROUP BY b.sector
     ORDER BY b.sector`,
     market,
