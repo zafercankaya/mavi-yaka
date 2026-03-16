@@ -310,7 +310,7 @@ async function getFranceToken(): Promise<string | null> {
       body: `grant_type=client_credentials&client_id=${clientId}&client_secret=${clientSecret}&scope=api_offresdemploiv2 o2dsoffre`,
     },
   );
-  const data = await resp.json();
+  const data: any = await resp.json();
   if (!data.access_token) {
     console.error('[GovAPI:FR] OAuth2 token failed:', JSON.stringify(data).substring(0, 200));
     return null;
@@ -334,7 +334,7 @@ async function fetchFR(): Promise<RawJobData[]> {
         `https://api.francetravail.io/partenaire/offresdemploi/v2/offres/search?motsCles=${encodeURIComponent(q)}&range=0-${MAX_RESULTS_PER_QUERY - 1}`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
-      const data = await resp.json();
+      const data: any = await resp.json();
 
       for (const offre of data.resultats || []) {
         const id = offre.id;
