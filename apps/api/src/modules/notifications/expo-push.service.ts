@@ -48,7 +48,7 @@ export class ExpoPushService implements OnModuleInit {
       body,
       data,
       sound: 'default' as const,
-      channelId: 'campaigns',
+      channelId: 'jobs',
       priority: 'high' as const,
     }));
 

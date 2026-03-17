@@ -129,9 +129,9 @@ export default function SavedJobsScreen() {
                     <Text style={[styles.title, frozen && { color: Colors.textLight }]} numberOfLines={2}>{c.title}</Text>
                     <View style={styles.meta}>
                       {frozen && (
-                        <View style={[styles.discountBadge, { backgroundColor: Colors.textLight }]}>
+                        <View style={[styles.frozenBadge, { backgroundColor: Colors.textLight }]}>
                           <Ionicons name="lock-closed" size={10} color={Colors.white} />
-                          <Text style={[styles.discountText, { marginLeft: 2 }]}>{t('follows.frozen')}</Text>
+                          <Text style={[styles.frozenBadgeText, { marginLeft: 2 }]}>{t('follows.frozen')}</Text>
                         </View>
                       )}
                       {c.deadline && !frozen && (
@@ -229,13 +229,13 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: FontSize.md, fontWeight: '600', color: Colors.text, lineHeight: 20 },
   meta: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.xs },
-  discountBadge: {
-    backgroundColor: Colors.discount,
+  frozenBadge: {
+    backgroundColor: Colors.badge,
     borderRadius: BorderRadius.sm,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 1,
   },
-  discountText: { color: Colors.white, fontSize: FontSize.xs, fontWeight: '700' },
+  frozenBadgeText: { color: Colors.white, fontSize: FontSize.xs, fontWeight: '700' },
   dateText: { fontSize: FontSize.xs, color: Colors.textSecondary },
   removeButton: { padding: Spacing.sm },
   emptyTitle: { fontSize: FontSize.lg, fontWeight: '600', color: Colors.text, textAlign: 'center' },

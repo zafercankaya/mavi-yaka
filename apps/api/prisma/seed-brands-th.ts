@@ -530,7 +530,7 @@ async function main() {
 
       // Check if crawl source already exists for this brand
       const existingSource = await prisma.crawlSource.findFirst({
-        where: { brandId: brand.id, crawlMethod: CrawlMethod.CAMPAIGN },
+        where: { brandId: brand.id, crawlMethod: CrawlMethod.HTML },
       });
 
       if (!existingSource) {
@@ -538,7 +538,7 @@ async function main() {
           data: {
             brandId: brand.id,
             name: `${entry.name} Deals`,
-            crawlMethod: CrawlMethod.CAMPAIGN,
+            crawlMethod: CrawlMethod.HTML,
             seedUrls: entry.seedUrls,
             maxDepth: 2,
             schedule: '0 4 * * *',

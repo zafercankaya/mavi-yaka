@@ -310,7 +310,7 @@ async function main() {
         await prisma.crawlSource.create({
           data: {
             name: `${entry.name} BR`,
-            crawlMethod: CrawlMethod.CAMPAIGN,
+            crawlMethod: CrawlMethod.HTML,
             seedUrls: entry.seedUrls,
             brandId: brand.id,
             market: 'BR',

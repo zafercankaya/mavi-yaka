@@ -136,22 +136,22 @@ async function testRealCrawl() {
   console.log('\n=== Test 4: Real Crawl (single source) ===\n');
 
   try {
-    // Test the actual scrapeCampaigns function
-    const { scrapeCampaigns } = await import('./processors/scrape.processor');
+    // Test the actual scrapeJobListings function
+    const { scrapeJobListings } = await import('./processors/scrape.processor');
 
     // Use a simple TR source with known selectors
-    const result = await scrapeCampaigns(
-      'https://www.trendyol.com/butik/liste/erkek-kampanyalari',
+    const result = await scrapeJobListings(
+      'https://www.kariyer.net/is-ilanlari',
       {
-        list: '.campaign-card, .boutiqueCard, [class*="campaign"]',
-        title: '.campaign-title, .boutique-title, [class*="title"]',
+        list: '.job-listing, .job-card, [class*="job"]',
+        title: '.job-title, [class*="title"]',
         image: 'img',
         link: 'a',
       },
       1,
     );
 
-    console.log(`✓ scrapeCampaigns returned ${result.length} campaigns`);
+    console.log(`scrapeJobListings returned ${result.length} job listings`);
     if (result.length > 0) {
       console.log(`  → First: "${result[0].title?.substring(0, 50)}" (${result[0].sourceUrl?.substring(0, 50)})`);
     }

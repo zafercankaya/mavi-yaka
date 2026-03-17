@@ -38,6 +38,18 @@ const SHARED_BLUE_COLLAR_EN = [
   'tailor', 'seamstress', 'textile worker',
   'receptionist', 'porter', 'bellboy', 'doorman',
   'helper', 'assistant', 'attendant', 'handler',
+  // Additional blue-collar roles
+  'butcher', 'dishwasher', 'barista', 'valet', 'stocker',
+  'sorter', 'bundler', 'stacker', 'roofer', 'glazier',
+  'bricklayer', 'tiler', 'plasterer', 'scaffolder',
+  'dock worker', 'stevedore', 'longshoreman',
+  'laundry worker', 'ironer', 'presser',
+  'caretaker', 'groundskeeper', 'custodian',
+  'nail technician', 'hairdresser', 'barber',
+  'process worker', 'line worker', 'press operator',
+  'cnc operator', 'lathe operator', 'mill operator',
+  'maintenance engineer', 'field engineer', 'site engineer', 'process engineer',
+  'warehouse manager', 'shift manager', 'site manager',
 ];
 
 const SHARED_JOB_POSTING_EN = [
@@ -120,6 +132,8 @@ const TR_KEYWORDS: JobMarketKeywords = {
     'kaptan', 'gemici', 'denizci', 'balıkçı',
     'matbaacı', 'baskıcı', 'ambalajcı', 'paketçi',
     'montajcı', 'döşemeci', 'cam ustası', 'seramikçi',
+    'çamaşırcı', 'ütücü', 'vinçci', 'beko operatörü', 'kepçe operatörü',
+    'kasap', 'tornacı', 'frezeci', 'kalıpçı',
   ],
   jobPostingKeywords: [
     ...SHARED_JOB_POSTING_EN,
@@ -993,9 +1007,10 @@ function hardReject(
   return null; // Not rejected
 }
 
-/** Check if a "manager" title is actually blue-collar management */
+/** Check if a "manager" or "engineer" title is actually blue-collar */
 function isBlueCollarManager(titleLower: string, _wcTerm: string): boolean {
-  const blueCollarManagerPatterns = [
+  const blueCollarPatterns = [
+    // Manager roles in operational/blue-collar settings
     /\bshift\s+manager\b/i,
     /\bwarehouse\s+manager\b/i,
     /\bsite\s+manager\b/i,
@@ -1007,6 +1022,8 @@ function isBlueCollarManager(titleLower: string, _wcTerm: string): boolean {
     /\bfactory\s+manager\b/i,
     /\bplant\s+manager\b/i,
     /\boperations\s+manager\b/i,
+    /\bproduction\s+manager\b/i,
+    /\bfacilities?\s+manager\b/i,
     /\bvardiya\s+(müdürü|amiri|sorumlusu)\b/i,
     /\bdepo\s+(müdürü|sorumlusu)\b/i,
     /\bşantiye\s+(şefi|müdürü)\b/i,
@@ -1014,9 +1031,26 @@ function isBlueCollarManager(titleLower: string, _wcTerm: string): boolean {
     /\brestoran\s+müdürü\b/i,
     /\bfabrika\s+müdürü\b/i,
     /\büretim\s+müdürü\b/i,
+    // Engineer roles that are blue-collar / field work
+    /\bmaintenance\s+engineer\b/i,
+    /\bfield\s+engineer\b/i,
+    /\bsite\s+engineer\b/i,
+    /\bprocess\s+engineer\b/i,
+    /\bservice\s+engineer\b/i,
+    /\bplant\s+engineer\b/i,
+    /\bfacilities?\s+engineer\b/i,
+    /\bproduction\s+engineer\b/i,
+    /\bmanufacturing\s+engineer\b/i,
+    /\breliability\s+engineer\b/i,
+    /\btest\s+engineer\b/i,
+    /\bquality\s+engineer\b/i,
+    /\bbakım\s+mühendisi\b/i,
+    /\bsaha\s+mühendisi\b/i,
+    /\büretim\s+mühendisi\b/i,
+    /\bproses\s+mühendisi\b/i,
   ];
 
-  return blueCollarManagerPatterns.some(p => p.test(titleLower));
+  return blueCollarPatterns.some(p => p.test(titleLower));
 }
 
 function scoreJobListing(
@@ -1219,7 +1253,7 @@ export async function filterJobListingsWithAI(
       aiCalls++;
 
       if (aiResult.confidence >= AI_CONFIDENCE_THRESHOLD) {
-        if (aiResult.isCampaign) {
+        if (aiResult.isJobListing) {
           // AI says it's a valid job listing — enrich with AI-extracted data
           if (aiResult.endDate && !listing.deadline) {
             listing.deadline = new Date(aiResult.endDate);
@@ -1269,6 +1303,3 @@ export async function filterJobListingsWithAI(
   return { passed, rejected };
 }
 
-// ─── Backward-compatible aliases (Faz 2 geçiş) ──────────────────
-export const filterCampaigns = filterJobListings;
-export const filterCampaignsWithAI = filterJobListingsWithAI;

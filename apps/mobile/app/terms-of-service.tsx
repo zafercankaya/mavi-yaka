@@ -26,8 +26,8 @@ function TermsContentTR() {
 
       <Section title="1. Hizmet Tanımı">
         Mavi Yaka ("Uygulama"), Türkiye ve dünya genelindeki iş ilanlarını
-        toplayarak kullanıcılarına sunan bir bilgilendirme platformudur. Uygulama, kampanyaları
-        oluşturan markalar ile herhangi bir ticari ortaklık ilişkisi içinde değildir.
+        toplayarak kullanıcılarına sunan bir bilgilendirme platformudur. Uygulama, iş ilanlarını
+        yayınlayan firmalar ile herhangi bir ticari ortaklık ilişkisi içinde değildir.
       </Section>
 
       <Section title="2. Kullanım Şartları">
@@ -38,13 +38,13 @@ function TermsContentTR() {
         • Otomatik veri toplama araçları (bot, scraper vb.) kullanamazsınız
       </Section>
 
-      <Section title="3. Kampanya Bilgileri">
-        Uygulamada yer alan kampanya bilgileri ilgili markaların web sitelerinden otomatik olarak
+      <Section title="3. İş İlanı Bilgileri">
+        Uygulamada yer alan iş ilanı bilgileri ilgili firmaların web sitelerinden otomatik olarak
         derlenmektedir. Mavi Yaka:{'\n\n'}
-        • Kampanya içeriklerinin doğruluğunu garanti etmez{'\n'}
-        • Kampanyaların geçerlilik süreleri değişiklik gösterebilir{'\n'}
-        • Kampanya koşulları ilgili markanın sorumluluğundadır{'\n'}
-        • Güncel bilgi için kampanyanın orijinal kaynağını kontrol etmenizi önerir
+        • İş ilanı içeriklerinin doğruluğunu garanti etmez{'\n'}
+        • İş ilanlarının geçerlilik süreleri değişiklik gösterebilir{'\n'}
+        • İş ilanı koşulları ilgili firmanın sorumluluğundadır{'\n'}
+        • Güncel bilgi için iş ilanının orijinal kaynağını kontrol etmenizi önerir
       </Section>
 
       <Section title="4. Üyelik ve Hesap">
@@ -65,15 +65,15 @@ function TermsContentTR() {
 
       <Section title="6. Fikri Mülkiyet">
         Uygulama tasarımı, logosu, yazılımı ve özgün içerikleri Mavi Yaka'ne aittir.
-        Kampanya görselleri ve içerikleri ilgili markaların mülkiyetindedir ve bilgilendirme
+        İş ilanı görselleri ve içerikleri ilgili firmaların mülkiyetindedir ve bilgilendirme
         amacıyla kullanılmaktadır.
       </Section>
 
       <Section title="7. Sorumluluk Sınırlaması">
         Mavi Yaka, aşağıdaki durumlardan sorumlu tutulamaz:{'\n\n'}
-        • Kampanya bilgilerindeki hatalar veya eksiklikler{'\n'}
-        • Kampanyaların sona ermesi veya koşullarının değişmesi{'\n'}
-        • Kullanıcının kampanyadan yararlanamaması{'\n'}
+        • İş ilanı bilgilerindeki hatalar veya eksiklikler{'\n'}
+        • İş ilanlarının sona ermesi veya koşullarının değişmesi{'\n'}
+        • Kullanıcının iş ilanından yararlanamaması{'\n'}
         • Teknik arızalar nedeniyle hizmet kesintileri{'\n'}
         • Üçüncü taraf web sitelerine yönlendirmeler
       </Section>
@@ -105,8 +105,8 @@ function TermsContentEN() {
 
       <Section title="1. Service Description">
         Mavi Yaka ("App") is an information platform that aggregates job listing
-        information from brands and presents them to users. The App is not commercially
-        affiliated with the brands whose deals are displayed.
+        information from companies and presents them to users. The App is not commercially
+        affiliated with the companies whose job listings are displayed.
       </Section>
 
       <Section title="2. Terms of Use">
@@ -117,12 +117,12 @@ function TermsContentEN() {
         • You may not use automated data collection tools (bots, scrapers, etc.)
       </Section>
 
-      <Section title="3. Deal Information">
-        Deal information displayed in the App is automatically compiled from brand websites.
+      <Section title="3. Job Listing Information">
+        Job listing information displayed in the App is automatically compiled from company websites.
         Mavi Yaka:{'\n\n'}
-        • Does not guarantee the accuracy of deal content{'\n'}
-        • Deal validity periods may change{'\n'}
-        • Deal terms are the responsibility of the respective brand{'\n'}
+        • Does not guarantee the accuracy of job listing content{'\n'}
+        • Job listing validity periods may change{'\n'}
+        • Job listing terms are the responsibility of the respective company{'\n'}
         • Recommends checking the original source for current information
       </Section>
 
@@ -144,15 +144,15 @@ function TermsContentEN() {
 
       <Section title="6. Intellectual Property">
         The App's design, logo, software, and original content belong to Mavi Yaka.
-        Deal images and content are the property of their respective brands and are used
+        Job listing images and content are the property of their respective companies and are used
         for informational purposes.
       </Section>
 
       <Section title="7. Limitation of Liability">
         Mavi Yaka cannot be held responsible for:{'\n\n'}
-        • Errors or omissions in deal information{'\n'}
-        • Expiration or changes in deal terms{'\n'}
-        • User's inability to take advantage of a deal{'\n'}
+        • Errors or omissions in job listing information{'\n'}
+        • Expiration or changes in job listing terms{'\n'}
+        • User's inability to apply for a job listing{'\n'}
         • Service interruptions due to technical issues{'\n'}
         • Redirections to third-party websites
       </Section>

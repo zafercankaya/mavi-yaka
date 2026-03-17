@@ -27,7 +27,8 @@ for (const dir of searchPaths) {
 
     let content = fs.readFileSync(filePath, 'utf8');
     if (content.includes('process.env.EXPO_ROUTER_APP_ROOT')) {
-      content = content.replace(/process\.env\.EXPO_ROUTER_APP_ROOT/g, "'./app'");
+      // '../../app' = from node_modules/expo-router/ up to apps/mobile/app/
+      content = content.replace(/process\.env\.EXPO_ROUTER_APP_ROOT/g, "'../../app'");
       content = content.replace(/process\.env\.EXPO_ROUTER_IMPORT_MODE/g, "'sync'");
       fs.writeFileSync(filePath, content);
       patched++;

@@ -128,11 +128,11 @@ export async function fetchHtmlWithPlaywright(url: string, market?: CrawlMarket,
   }
 }
 
-// Campaign-related URL patterns
-const CAMPAIGN_PATH_PATTERNS = [
-  /kampanya/i, /indirim/i, /firsat/i, /promosyon/i, /teklif/i,
-  /outlet/i, /sale/i, /deal/i, /offer/i, /promo/i, /special/i,
-  /discount/i, /campaign/i,
+// Job/career-related URL patterns
+const JOB_PATH_PATTERNS = [
+  /kariyer/i, /is-?ilanlari/i, /is-?ilani/i, /pozisyon/i, /basvuru/i,
+  /careers?/i, /jobs?/i, /openings?/i, /hiring/i, /vacancies/i, /vacancy/i,
+  /positions?/i, /opportunities/i, /recruitment/i, /work-with-us/i, /join-us/i,
 ];
 
 const EXCLUDE_PATTERNS = [
@@ -155,7 +155,7 @@ const EXCLUDE_PATTERNS = [
   /kargo|shipping|delivery|versand|livraison|spedizione/i,
   /iade|returns?|retoure|retour|reso/i,
   /magaza[_-]?bul|store[_-]?locator|store[_-]?finder|filial/i,
-  /kariyer|career|jobs|stelle|emploi|lavora/i,
+  // kariyer/career/jobs paths are NOT excluded in Mavi Yaka — they are our targets!
   /uyelik|membership|abonnement/i,
   /sikca[_-]?sorulan|frequently[_-]?asked/i,
   /kvkk|gdpr|ccpa|dsgvo/i,
@@ -211,7 +211,7 @@ export async function scrapeGenericPlaywright(
     }
   });
 
-  const campaigns: RawJobData[] = [];
+  const jobs: RawJobData[] = [];
   const seenUrls = new Set<string>();
 
   try {
@@ -233,17 +233,17 @@ export async function scrapeGenericPlaywright(
     const pageDates = extractDates($);
 
     // Phase 1: Extract cards directly
-    const directCampaigns = extractCardsFromPage($, seedUrl);
-    for (const c of directCampaigns) {
+    const directJobs = extractCardsFromPage($, seedUrl);
+    for (const c of directJobs) {
       if (!c.postedDate) c.postedDate = pageDates.startDate ?? undefined;
       if (!c.deadline) c.deadline = pageDates.endDate ?? undefined;
     }
-    campaigns.push(...directCampaigns);
+    jobs.push(...directJobs);
 
-    // Phase 2: Follow campaign links
+    // Phase 2: Follow job links
     if (maxDepth > 0 && !aborted) {
-      const campaignLinks = findCampaignLinks($, seedUrl);
-      const linksToVisit = campaignLinks.slice(0, 10);
+      const jobLinks = findJobLinks($, seedUrl);
+      const linksToVisit = jobLinks.slice(0, 10);
 
       for (const link of linksToVisit) {
         if (aborted || abortSignal?.aborted) break;
@@ -259,27 +259,27 @@ export async function scrapeGenericPlaywright(
           const detailHtml = await page.content();
           const detail$ = cheerio.load(detailHtml);
 
-          // First try extracting campaign cards from this page (listing pages
-          // like /kampanyalar have cards with images, while detail pages don't)
+          // First try extracting job cards from this page (listing pages
+          // like /kariyer have cards with images, while detail pages don't)
           const subCards = extractCardsFromPage(detail$, link);
           if (subCards.length > 0) {
             const subDates = extractDates(detail$);
             for (const sc of subCards) {
               if (!sc.postedDate) sc.postedDate = subDates.startDate ?? undefined;
               if (!sc.deadline) sc.deadline = subDates.endDate ?? undefined;
-              const isDupe = campaigns.some(
+              const isDupe = jobs.some(
                 (c) => c.title === sc.title || c.sourceUrl === sc.sourceUrl,
               );
-              if (!isDupe) campaigns.push(sc);
+              if (!isDupe) jobs.push(sc);
             }
           } else {
-            // No cards found — try meta tags (individual campaign page)
-            const campaign = extractFromMetaTags(detail$, link);
-            if (campaign) {
-              const isDupe = campaigns.some(
-                (c) => c.title === campaign.title || c.sourceUrl === campaign.sourceUrl,
+            // No cards found — try meta tags (individual job listing page)
+            const listing = extractFromMetaTags(detail$, link);
+            if (listing) {
+              const isDupe = jobs.some(
+                (j) => j.title === listing.title || j.sourceUrl === listing.sourceUrl,
               );
-              if (!isDupe) campaigns.push(campaign);
+              if (!isDupe) jobs.push(listing);
             }
           }
         } catch (err) {
@@ -290,12 +290,12 @@ export async function scrapeGenericPlaywright(
     }
 
     // Phase 3: Seed page fallback
-    if (campaigns.length === 0 && !aborted) {
-      const seedCampaign = extractFromMetaTags($, seedUrl);
-      if (seedCampaign) campaigns.push(seedCampaign);
+    if (jobs.length === 0 && !aborted) {
+      const seedListing = extractFromMetaTags($, seedUrl);
+      if (seedListing) jobs.push(seedListing);
     }
 
-    // Phase 4: og:image fallback for campaigns with no images
+    // Phase 4: og:image fallback for listings with no images
     if (!aborted) {
       const seedOgImage = $('meta[property="og:image"]').attr('content')
         || $('meta[name="twitter:image"]').attr('content');
@@ -303,7 +303,7 @@ export async function scrapeGenericPlaywright(
         let resolvedOg: string | null = null;
         try { resolvedOg = new URL(seedOgImage, seedUrl).toString(); } catch {}
         if (resolvedOg) {
-          for (const c of campaigns) {
+          for (const c of jobs) {
             if (!c.imageUrls || c.imageUrls.length === 0) {
               c.imageUrls = [resolvedOg];
             }
@@ -329,13 +329,13 @@ export async function scrapeGenericPlaywright(
   // Phase 4: Keep logo images as fallback — better than empty
   // (Previously cleared them, but empty images are worse UX than a brand logo)
 
-  console.log(`  [Playwright] Total: ${campaigns.length} campaigns`);
-  return campaigns;
+  console.log(`  [Playwright] Total: ${jobs.length} job listings`);
+  return jobs;
 }
 
 // ─── Shared extraction helpers ────────────────────────────
 
-function findCampaignLinks($: cheerio.CheerioAPI, baseUrl: string): string[] {
+function findJobLinks($: cheerio.CheerioAPI, baseUrl: string): string[] {
   const links = new Set<string>();
   const baseHost = new URL(baseUrl).hostname;
 
@@ -349,9 +349,9 @@ function findCampaignLinks($: cheerio.CheerioAPI, baseUrl: string): string[] {
       const path = url.pathname + url.search;
       if (EXCLUDE_PATTERNS.some((p) => p.test(path))) return;
       const text = $(el).text().trim().toLowerCase();
-      const isCampaignUrl = CAMPAIGN_PATH_PATTERNS.some((p) => p.test(path));
-      const isCampaignText = CAMPAIGN_PATH_PATTERNS.some((p) => p.test(text));
-      if (isCampaignUrl || isCampaignText) {
+      const isJobUrl = JOB_PATH_PATTERNS.some((p) => p.test(path));
+      const isJobText = JOB_PATH_PATTERNS.some((p) => p.test(text));
+      if (isJobUrl || isJobText) {
         if (fullUrl.replace(/\/$/, '') !== baseUrl.replace(/\/$/, '')) {
           links.add(fullUrl);
         }
@@ -363,15 +363,22 @@ function findCampaignLinks($: cheerio.CheerioAPI, baseUrl: string): string[] {
 }
 
 function extractCardsFromPage($: cheerio.CheerioAPI, baseUrl: string): RawJobData[] {
-  const campaigns: RawJobData[] = [];
+  const jobs: RawJobData[] = [];
   const cardSelectors = [
-    '.campaign-card', '.kampanya-card', '.campaign-item', '.kampanya-item',
-    '.promo-card', '.promo-item', '.deal-card', '.deal-item',
-    '.offer-card', '.offer-item',
-    '[class*="campaign"]', '[class*="kampanya"]', '[class*="promo"]',
-    '[class*="offer"]', '[class*="deal"]',
-    '.slider-item', '.banner-item', '.dot-card-content',
-    'a[href*="kampanya"]', 'a[href*="campaign"]', 'a[href*="offer"]', 'a[href*="deal"]',
+    // Job-specific selectors
+    '.job-card', '.job-item', '.job-listing', '.job-post',
+    '.vacancy-card', '.vacancy-item', '.position-card', '.position-item',
+    '.career-card', '.career-item', '.opening-card', '.opening-item',
+    '[data-job]', '[data-job-id]', '[data-vacancy]', '[data-position]',
+    '[class*="job"]', '[class*="vacancy"]', '[class*="position"]', '[class*="career"]',
+    '[class*="opening"]', '[class*="listing"]',
+    // Turkish
+    '[class*="ilan"]', '[class*="pozisyon"]', '[class*="kariyer"]',
+    'a[href*="kariyer"]', 'a[href*="is-ilani"]', 'a[href*="pozisyon"]',
+    // English
+    'a[href*="careers"]', 'a[href*="jobs"]', 'a[href*="openings"]', 'a[href*="vacancies"]',
+    // Generic
+    '.slider-item', '.banner-item',
     'article', '.card',
   ];
 
@@ -381,30 +388,30 @@ function extractCardsFromPage($: cheerio.CheerioAPI, baseUrl: string): RawJobDat
     cards.each((_i, el) => {
       // Skip wrapper elements that contain a tab list (not individual cards)
       if ($(el).find('[role="tablist"]').length > 0) return;
-      const campaign = extractCampaignFromElement($, el, baseUrl);
-      if (campaign) campaigns.push(campaign);
+      const job = extractJobFromElement($, el, baseUrl);
+      if (job) jobs.push(job);
     });
-    if (campaigns.length > 0) break;
+    if (jobs.length > 0) break;
   }
 
-  // Fallback: tab-based campaign layouts (e.g., ÇiçekSepeti)
-  if (campaigns.length === 0) {
-    const tabCampaigns = extractTabCampaigns($, baseUrl);
-    campaigns.push(...tabCampaigns);
+  // Fallback: tab-based job listing layouts
+  if (jobs.length === 0) {
+    const tabJobs = extractTabJobs($, baseUrl);
+    jobs.push(...tabJobs);
   }
 
-  return campaigns;
+  return jobs;
 }
 
 /**
- * Extract campaigns from tab-based layouts.
- * Some sites organize campaigns as tabs with role="tab" and role="tabpanel".
+ * Extract job listings from tab-based layouts.
+ * Some sites organize job listings as tabs with role="tab" and role="tabpanel".
  */
-function extractTabCampaigns($: cheerio.CheerioAPI, baseUrl: string): RawJobData[] {
+function extractTabJobs($: cheerio.CheerioAPI, baseUrl: string): RawJobData[] {
   const tabs = $('[role="tablist"] [role="tab"]');
   if (tabs.length === 0 || tabs.length > 30) return [];
 
-  const campaigns: RawJobData[] = [];
+  const jobs: RawJobData[] = [];
 
   tabs.each((_i, tabEl) => {
     const title = $(tabEl).text().trim();
@@ -437,7 +444,7 @@ function extractTabCampaigns($: cheerio.CheerioAPI, baseUrl: string): RawJobData
       }
     }
 
-    campaigns.push({
+    jobs.push({
       title,
       description: description && description.length > 10 ? description : undefined,
       sourceUrl: baseUrl,
@@ -445,11 +452,11 @@ function extractTabCampaigns($: cheerio.CheerioAPI, baseUrl: string): RawJobData
     });
   });
 
-  if (campaigns.length > 0) {
-    console.log(`  [Playwright] Extracted ${campaigns.length} campaigns from tab layout`);
+  if (jobs.length > 0) {
+    console.log(`  [Playwright] Extracted ${jobs.length} job listings from tab layout`);
   }
 
-  return campaigns;
+  return jobs;
 }
 
 // ─── HTML-based promo code extraction ────────────────────────
@@ -508,7 +515,7 @@ function findCouponInJsonLd(obj: any, depth = 0): string | null {
   return null;
 }
 
-function extractCampaignFromElement(
+function extractJobFromElement(
   $: cheerio.CheerioAPI, el: any, baseUrl: string,
 ): RawJobData | null {
   const title =
@@ -608,7 +615,7 @@ function extractFromMetaTags($: cheerio.CheerioAPI, pageUrl: string): RawJobData
 
   // Try content images first if og:image looks like a generic logo
   if (isGenericOg || !ogImage) {
-    const mainImg = $('article img, .campaign img, .content img, main img, [role="main"] img, [class*="detail"] img, [class*="banner"] img').first();
+    const mainImg = $('article img, .job img, .career img, .content img, main img, [role="main"] img, [class*="detail"] img, [class*="banner"] img').first();
     if (mainImg.length) {
       const src = mainImg.attr('data-original') || mainImg.attr('data-src') || mainImg.attr('data-lazy-src') || mainImg.attr('data-image') || mainImg.attr('src');
       if (src) { try { imageUrls.push(new URL(src, pageUrl).toString()); } catch {} }

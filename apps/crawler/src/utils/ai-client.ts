@@ -1,7 +1,7 @@
 /**
  * AI client for job listing classification + enrichment.
  * Primary: Gemini 2.5 Flash — free tier: ~30 RPM (2s gap)
- * Secondary: Cerebras gpt-oss-120b — free tier: ~30 RPM (2s gap)
+ * Secondary: Cerebras qwen-3-235b — free tier: ~30 RPM (2s gap)
  * Tertiary: Groq (Llama 3.3 70B) — free tier: 30 RPM, 14,400 RPD
  * No external dependencies — uses native fetch().
  */
@@ -12,7 +12,7 @@ const GROQ_MODEL = 'llama-3.3-70b-versatile';
 
 // --- Cerebras config ---
 const CEREBRAS_API_URL = 'https://api.cerebras.ai/v1/chat/completions';
-const CEREBRAS_MODEL = 'gpt-oss-120b';
+const CEREBRAS_MODEL = 'qwen-3-235b-a22b-instruct-2507';
 
 // --- Gemini config ---
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
@@ -38,8 +38,8 @@ let geminiExhaustedUntil = 0;
 let cerebrasExhaustedUntil = 0;
 let groqExhaustedUntil = 0;
 
-export interface AICampaignResult {
-  isCampaign: boolean;      // true = valid job listing
+export interface AIJobResult {
+  isJobListing: boolean;    // true = valid job listing
   confidence: number;
   reason: string;
   endDate?: string | null;  // application deadline
@@ -55,8 +55,8 @@ export interface AICampaignResult {
   salaryCurrency?: string | null;
 }
 
-const FALLBACK_RESULT: AICampaignResult = {
-  isCampaign: true,
+const FALLBACK_RESULT: AIJobResult = {
+  isJobListing: true,
   confidence: 0.5,
   reason: 'AI unavailable, falling back to static score',
 };
@@ -94,7 +94,7 @@ BEYAZ YAKA (RET): CEO, CTO, direktör, genel müdür, yazılım geliştirici, ve
 SINIRDA (kararını kullan): vardiya amiri, takım lideri, depo müdürü, şantiye şefi, mağaza müdürü
 
 SADECE JSON cevap ver:
-{"isCampaign":true,"isBlueCollar":true,"confidence":0.95,"reason":"kısa açıklama","endDate":"YYYY-MM-DD veya null","jobType":"FULL_TIME veya null","workMode":"ON_SITE veya null","experienceLevel":"ENTRY veya null","sector":"MANUFACTURING veya null"}`;
+{"isJobListing":true,"isBlueCollar":true,"confidence":0.95,"reason":"kısa açıklama","endDate":"YYYY-MM-DD veya null","jobType":"FULL_TIME veya null","workMode":"ON_SITE veya null","experienceLevel":"ENTRY veya null","sector":"MANUFACTURING veya null"}`;
   }
 
   // Default: English prompt for all other markets
@@ -123,7 +123,7 @@ NOT A JOB:
 - General homepages, contact pages
 
 Reply with ONLY JSON, nothing else:
-{"isCampaign":true,"isBlueCollar":true,"confidence":0.95,"reason":"short explanation","endDate":"YYYY-MM-DD or null","jobType":"FULL_TIME or null","workMode":"ON_SITE or null","experienceLevel":"ENTRY or null","sector":"MANUFACTURING or null"}`;
+{"isJobListing":true,"isBlueCollar":true,"confidence":0.95,"reason":"short explanation","endDate":"YYYY-MM-DD or null","jobType":"FULL_TIME or null","workMode":"ON_SITE or null","experienceLevel":"ENTRY or null","sector":"MANUFACTURING or null"}`;
 }
 
 // ─── Rate Limiters ──────────────────────────────────────────────
@@ -157,16 +157,17 @@ async function waitForGeminiRateLimit(): Promise<void> {
 
 // ─── Response Parser ────────────────────────────────────────────
 
-function parseAIResponse(text: string): AICampaignResult | null {
-  const jsonMatch = text.match(/\{[\s\S]*?"isCampaign"[\s\S]*?\}/);
+function parseAIResponse(text: string): AIJobResult | null {
+  const jsonMatch = text.match(/\{[\s\S]*?"isJobListing"[\s\S]*?\}/);
   if (!jsonMatch) return null;
 
   try {
     const parsed = JSON.parse(jsonMatch[0]);
-    if (typeof parsed.isCampaign !== 'boolean') return null;
+    const flag = parsed.isJobListing;
+    if (typeof flag !== 'boolean') return null;
 
-    const result: AICampaignResult = {
-      isCampaign: parsed.isCampaign,
+    const result: AIJobResult = {
+      isJobListing: flag,
       confidence: typeof parsed.confidence === 'number' ? Math.min(1, Math.max(0, parsed.confidence)) : 0.5,
       reason: typeof parsed.reason === 'string' ? parsed.reason.substring(0, 200) : 'no reason',
     };
@@ -324,7 +325,7 @@ async function tryProvider(
   prompt: string,
   apiKey: string,
   titleSnippet: string,
-): Promise<AICampaignResult | null> {
+): Promise<AIJobResult | null> {
   const callFnMap = { groq: callGroqAPI, gemini: callGeminiAPI, cerebras: callCerebrasAPI };
   const waitFnMap = { groq: waitForGroqRateLimit, gemini: waitForGeminiRateLimit, cerebras: waitForCerebrasRateLimit };
   const labelMap = { groq: 'Groq', gemini: 'Gemini', cerebras: 'Cerebras' };
@@ -390,7 +391,7 @@ export async function classifyAndEnrich(
   sourceUrl: string,
   companyName: string,
   market: AIMarket = 'TR',
-): Promise<AICampaignResult> {
+): Promise<AIJobResult> {
   const geminiKey = process.env.GEMINI_API_KEY;
   const cerebrasKey = process.env.CEREBRAS_API_KEY;
   const groqKey = process.env.GROQ_API_KEY;

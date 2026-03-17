@@ -65,7 +65,7 @@ const PRIVACY_HTML = `<!DOCTYPE html>
 <tr><td><strong>Kimlik Bilgileri</strong></td><td>E-posta adresi, görüntü adı (isteğe bağlı)</td><td>Kayıt formu / Sosyal giriş</td></tr>
 <tr><td><strong>Hesap Güvenlik</strong></td><td>Şifreli parola, kimlik doğrulama sağlayıcısı (Email/Google/Apple)</td><td>Kayıt / Giriş</td></tr>
 <tr><td><strong>Cihaz Bilgileri</strong></td><td>FCM token, cihaz platformu (iOS/Android)</td><td>Bildirim izni verildiğinde</td></tr>
-<tr><td><strong>Kullanım Verileri</strong></td><td>Takip edilen markalar, favori kampanyalar, bildirim tercihleri</td><td>Uygulama içi etkileşimler</td></tr>
+<tr><td><strong>Kullanım Verileri</strong></td><td>Takip edilen şirketler, kaydedilen iş ilanları, bildirim tercihleri</td><td>Uygulama içi etkileşimler</td></tr>
 <tr><td><strong>Abonelik</strong></td><td>Abonelik planı, durumu, ödeme sağlayıcısı, dönem bilgisi</td><td>Uygulama içi satın alma</td></tr>
 <tr><td><strong>Teknik Veriler</strong></td><td>Hata raporları, performans verileri</td><td>Sentry SDK (otomatik)</td></tr>
 </tbody></table>
@@ -76,9 +76,9 @@ const PRIVACY_HTML = `<!DOCTYPE html>
 <h2>3. Verilerin İşlenme Amacı</h2>
 <ol>
 <li><strong>Hesap yönetimi:</strong> Kayıt, giriş ve kimlik doğrulama</li>
-<li><strong>Hizmet sunumu:</strong> Kampanya bilgilerinin listelenmesi ve sunulması</li>
-<li><strong>Kişiselleştirme:</strong> Takip edilen markalara göre içerik önceliklendirmesi</li>
-<li><strong>Bildirimler:</strong> Yeni kampanya bildirimleri (izninize bağlı)</li>
+<li><strong>Hizmet sunumu:</strong> İş ilanlarının listelenmesi ve sunulması</li>
+<li><strong>Kişiselleştirme:</strong> Takip edilen şirketlere ve sektörlere göre içerik önceliklendirmesi</li>
+<li><strong>Bildirimler:</strong> Yeni iş ilanı bildirimleri (izninize bağlı)</li>
 <li><strong>Abonelik yönetimi:</strong> Premium abonelik işlemleri</li>
 <li><strong>Hata takibi:</strong> Uygulama hatalarının tespiti ve giderilmesi</li>
 </ol>
@@ -146,7 +146,7 @@ const PRIVACY_HTML = `<!DOCTYPE html>
 <h2>3. Purpose</h2>
 <ol>
 <li>Account management and authentication</li>
-<li>Campaign listing and delivery</li>
+<li>Job listing and delivery</li>
 <li>Content personalization</li>
 <li>Push notifications (with consent)</li>
 <li>Subscription management</li>

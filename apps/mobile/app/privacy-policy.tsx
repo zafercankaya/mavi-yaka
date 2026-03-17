@@ -42,8 +42,8 @@ function PrivacyContentTR() {
       <Section title="3. Verilerin İşlenme Amaçları">
         Kişisel verileriniz aşağıdaki amaçlarla işlenmektedir:{'\n\n'}
         • Hesap oluşturulması ve kimlik doğrulama{'\n'}
-        • Kampanya bildirimlerinin gönderilmesi{'\n'}
-        • Kişiselleştirilmiş kampanya önerileri sunulması{'\n'}
+        • İş ilanı bildirimlerinin gönderilmesi{'\n'}
+        • Kişiselleştirilmiş iş ilanı önerileri sunulması{'\n'}
         • Abonelik yönetimi{'\n'}
         • Uygulama performansının iyileştirilmesi{'\n'}
         • Yasal yükümlülüklerin yerine getirilmesi
@@ -113,8 +113,8 @@ function PrivacyContentEN() {
       <Section title="3. Purposes of Data Processing">
         Your personal data is processed for the following purposes:{'\n\n'}
         • Account creation and authentication{'\n'}
-        • Sending deal notifications{'\n'}
-        • Providing personalized deal recommendations{'\n'}
+        • Sending job listing notifications{'\n'}
+        • Providing personalized job listing recommendations{'\n'}
         • Subscription management{'\n'}
         • Improving app performance{'\n'}
         • Fulfilling legal obligations

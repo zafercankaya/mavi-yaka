@@ -91,7 +91,7 @@ const SCHEDULED_MESSAGES: Record<string, {
   },
   nl: {
     winBack: { title: 'We missen je!', body: (n) => `${n} nieuwe vacatures terwijl je weg was. Mis ze niet!` },
-    weeklyDigest: { title: 'Weekoverzicht', body: (n) => `${n} nieuwe vacatures deze week. Ontdek de beste deals!` },
+    weeklyDigest: { title: 'Weekoverzicht', body: (n) => `${n} nieuwe vacatures deze week. Ontdek de beste kansen!` },
     favoriteExpiring: { title: 'Opgeslagen vacature verloopt!', body: (t) => `"${t}" eindigt morgen. Mis je laatste kans niet!` },
   },
   ur: {
@@ -101,7 +101,7 @@ const SCHEDULED_MESSAGES: Record<string, {
   },
   sv: {
     winBack: { title: 'Vi saknar dig!', body: (n) => `${n} nya lediga jobb medan du var borta. Missa inte!` },
-    weeklyDigest: { title: 'Veckans sammanfattning', body: (n) => `${n} nya lediga jobb denna vecka. Upptäck de bästa dealsen!` },
+    weeklyDigest: { title: 'Veckans sammanfattning', body: (n) => `${n} nya lediga jobb denna vecka. Upptäck de bästa möjligheterna!` },
     favoriteExpiring: { title: 'Sparat jobb löper ut!', body: (t) => `"${t}" slutar imorgon. Missa inte din sista chans!` },
   },
 };

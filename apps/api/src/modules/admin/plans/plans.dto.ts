@@ -23,7 +23,7 @@ export class CreatePlanDto {
   @IsOptional()
   currency?: string;
 
-  @ApiPropertyOptional({ example: 'com.indirim.premium.monthly' })
+  @ApiPropertyOptional({ example: 'com.maviyaka.premium.monthly' })
   @IsString()
   @IsOptional()
   appleProductId?: string;
@@ -45,17 +45,23 @@ export class CreatePlanDto {
   @IsOptional()
   priceYearly?: number;
 
-  @ApiPropertyOptional({ example: -1, description: '-1 = sınırsız (marka takip limiti)' })
+  @ApiPropertyOptional({ example: -1, description: '-1 = sınırsız (şirket takip limiti)' })
   @IsInt()
   @Min(-1)
   @IsOptional()
-  maxBrandFollows?: number;
+  maxCompanyFollows?: number;
 
-  @ApiPropertyOptional({ example: -1, description: '-1 = sınırsız (kampanya takip limiti)' })
+  @ApiPropertyOptional({ example: -1, description: '-1 = sınırsız (kaydedilen iş ilanı limiti)' })
   @IsInt()
   @Min(-1)
   @IsOptional()
-  maxCampaignFollows?: number;
+  maxSavedJobs?: number;
+
+  @ApiPropertyOptional({ example: -1, description: '-1 = sınırsız (alarm limiti)' })
+  @IsInt()
+  @Min(-1)
+  @IsOptional()
+  maxAlerts?: number;
 
   @ApiPropertyOptional({ example: -1, description: '-1 = sınırsız' })
   @IsInt()

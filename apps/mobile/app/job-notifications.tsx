@@ -51,7 +51,7 @@ export default function JobNotificationsScreen() {
     if (notif.data?.jobId) {
       router.push(`/job/${notif.data.jobId}`);
     } else {
-      router.push('/(tabs)?feedMode=following&sort=last_24h');
+      router.push('/(tabs)?feedMode=following&sort=posted_today');
     }
   };
 

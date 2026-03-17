@@ -1,13 +1,13 @@
 import { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View, FlatList, ActivityIndicator, RefreshControl, Text, Alert,
-  ScrollView, Pressable, StyleSheet, StatusBar, Dimensions,
+  ScrollView, Pressable, StyleSheet, StatusBar, Dimensions, TextInput,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useScrollToTop } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import {
-  TrendingUp, Heart, LayoutGrid,
+  TrendingUp, Heart, LayoutGrid, MapPin, X,
   Truck, Factory, ShoppingCart, HardHat, UtensilsCrossed,
   Car, Pickaxe, Stethoscope, Hotel,
   Wheat, ShieldCheck, Building2, Wrench,
@@ -34,7 +34,9 @@ type ListItem = JobListing | AdItem;
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
-const SORT_KEYS = ['recommended', 'newest', 'ending_soon', 'last_24h'] as const;
+const SORT_KEYS = ['recommended', 'newest', 'deadline', 'posted_today'] as const;
+
+const JOB_TYPE_KEYS = ['FULL_TIME', 'PART_TIME', 'DAILY', 'SEASONAL', 'INTERNSHIP', 'CONTRACT'] as const;
 
 // Sector icon & color mapping — matches Prisma Sector enum
 const SECTOR_META: Record<string, { icon: React.ComponentType<any>; color: string }> = {
@@ -58,11 +60,6 @@ const SECTOR_META: Record<string, { icon: React.ComponentType<any>; color: strin
   'OTHER':                    { icon: MoreHorizontal,  color: '#9CA3AF' },
 };
 
-function getSectorMeta(slug?: string) {
-  if (!slug) return { icon: LayoutGrid, color: Colors.textSecondary };
-  return SECTOR_META[slug] ?? { icon: LayoutGrid, color: Colors.textSecondary };
-}
-
 export default function HomeScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -75,6 +72,8 @@ export default function HomeScreen() {
   const [categoryId, setCategoryId] = useState<string | undefined>();
   const [selectedCompanyIds, setSelectedCompanyIds] = useState<Set<string>>(new Set());
   const [sort, setSort] = useState('recommended');
+  const [selectedJobType, setSelectedJobType] = useState<string | undefined>();
+  const [locationText, setLocationText] = useState('');
 
   // FlatList ref — useScrollToTop scrolls to top when active tab is tapped again
   const listRef = useRef<FlatList>(null);
@@ -124,9 +123,7 @@ export default function HomeScreen() {
     const newId = catId === categoryId ? undefined : catId;
     setCategoryId(newId);
     setSelectedCompanyIds(new Set());
-    // Reset company scroll when category changes (company list content changes)
     companyScrollRef.current?.scrollTo({ x: 0, animated: false });
-    // Scroll to selected category so it's visible
     if (newId && categoryPositions.current[newId] !== undefined) {
       const targetX = categoryPositions.current[newId];
       const scrollX = Math.max(0, targetX - SCREEN_WIDTH / 2 + 45);
@@ -142,7 +139,6 @@ export default function HomeScreen() {
 
   const handleCompanySelect = (bId: string | undefined) => {
     if (!bId) {
-      // "Tümü" tapped — clear all selections
       setSelectedCompanyIds(new Set());
       companyScrollRef.current?.scrollTo({ x: 0, animated: true });
       return;
@@ -156,7 +152,6 @@ export default function HomeScreen() {
       }
       return next;
     });
-    // Scroll to tapped company so it's visible
     if (companyPositions.current[bId] !== undefined) {
       const targetX = companyPositions.current[bId];
       const scrollX = Math.max(0, targetX - SCREEN_WIDTH / 2 + 45);
@@ -164,6 +159,10 @@ export default function HomeScreen() {
         companyScrollRef.current?.scrollTo({ x: scrollX, animated: true });
       }, 50);
     }
+  };
+
+  const handleJobTypeSelect = (jt: string) => {
+    setSelectedJobType(selectedJobType === jt ? undefined : jt);
   };
 
   const companyIdsArray = useMemo(() => Array.from(selectedCompanyIds), [selectedCompanyIds]);
@@ -178,14 +177,16 @@ export default function HomeScreen() {
     } else if (categoryId) {
       f.sector = categoryId;
     }
+    if (selectedJobType) f.jobType = selectedJobType;
+    if (locationText.trim().length >= 2) f.city = locationText.trim();
     if (feedMode === 'following') f.followingOnly = true;
     return f;
-  }, [companyIdsArray, categoryId, sort, feedMode]);
+  }, [companyIdsArray, categoryId, sort, feedMode, selectedJobType, locationText]);
 
   // Flat queryKey ensures React Query reliably detects filter changes
   const queryKey = useMemo(
-    () => ['jobs', market, companyIdsArray.join(','), categoryId ?? '', sort, feedMode] as const,
-    [market, companyIdsArray, categoryId, sort, feedMode],
+    () => ['jobs', market, companyIdsArray.join(','), categoryId ?? '', sort, feedMode, selectedJobType ?? '', locationText.trim()] as const,
+    [market, companyIdsArray, categoryId, sort, feedMode, selectedJobType, locationText],
   );
 
   const {
@@ -272,6 +273,24 @@ export default function HomeScreen() {
           <Text style={styles.followingBannerText}>{t('home.followingDescription')}</Text>
         </View>
       )}
+
+      {/* Location filter */}
+      <View style={styles.locationRow}>
+        <MapPin size={16} color={Colors.textTertiary} />
+        <TextInput
+          style={styles.locationInput}
+          placeholder={t('filter.city')}
+          placeholderTextColor={Colors.textTertiary}
+          value={locationText}
+          onChangeText={setLocationText}
+          returnKeyType="done"
+        />
+        {locationText.length > 0 && (
+          <Pressable onPress={() => setLocationText('')} hitSlop={8}>
+            <X size={14} color={Colors.textTertiary} />
+          </Pressable>
+        )}
+      </View>
 
       {/* Sectors with Icons */}
       <View style={styles.categoriesSection}>
@@ -381,6 +400,21 @@ export default function HomeScreen() {
         </ScrollView>
       </View>
 
+      {/* Job Type Chips */}
+      <View style={styles.jobTypeSection}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersList}>
+          {JOB_TYPE_KEYS.map((key) => (
+            <FilterChip
+              key={key}
+              label={t(`jobType.${key}`)}
+              selected={selectedJobType === key}
+              onPress={() => handleJobTypeSelect(key)}
+              color={Colors.primary}
+            />
+          ))}
+        </ScrollView>
+      </View>
+
       {/* Results Count — only when we have data */}
       {!isLoading && (
         <View style={styles.resultsRow}>
@@ -480,6 +514,26 @@ const styles = StyleSheet.create({
   },
   loading: { paddingVertical: 60, justifyContent: 'center', alignItems: 'center' },
   footerLoader: { paddingVertical: 24 },
+
+  // Location
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginBottom: 14,
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 40,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    gap: 8,
+  },
+  locationInput: {
+    flex: 1,
+    fontSize: 14,
+    color: Colors.text,
+  },
 
   // Segment
   segmentContainer: {
@@ -635,10 +689,15 @@ const styles = StyleSheet.create({
 
   // Sort
   sortSection: {
-    marginBottom: 12,
+    marginBottom: 8,
   },
   filtersList: {
     paddingHorizontal: 16,
+  },
+
+  // Job Type
+  jobTypeSection: {
+    marginBottom: 12,
   },
 
   // Results

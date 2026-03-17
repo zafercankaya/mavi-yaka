@@ -34,7 +34,10 @@
     "unavailable": "Unavailable",
     "free": "Free",
     "current": "Current",
-    "processing": "Processing..."
+    "processing": "Processing...",
+    "more": "Read more",
+    "less": "Show less",
+    "website": "Website"
   },
   "auth": {
     "emailRequired": "Email and password are required.",
@@ -98,17 +101,18 @@
     "last30d": "Last 30 Days",
     "apply": "Apply",
     "clear": "Clear",
+    "clearAll": "Clear All",
+    "activeFilters": "Active Filters",
     "saveFilter": "Save Filter"
   },
   "sort": {
     "recommended": "Recommended",
     "newest": "Newest",
-    "ending_soon": "Ending Soon",
-    "last_24h": "Last 24h",
+    "deadline": "Deadline",
+    "posted_today": "Posted Today",
     "salary_high": "Highest Salary",
     "salary_low": "Lowest Salary",
-    "nearest": "Nearest",
-    "deadline": "Deadline"
+    "nearest": "Nearest"
   },
   "jobType": {
     "FULL_TIME": "Full-Time",
@@ -124,10 +128,10 @@
     "HYBRID": "Hybrid"
   },
   "experience": {
-    "NONE": "No Experience",
-    "ENTRY": "1-3 Years",
-    "MID": "3-5 Years",
-    "SENIOR": "5+ Years"
+    "NONE": "No Experience Required",
+    "ENTRY": "Entry Level",
+    "MID": "Mid Level",
+    "SENIOR": "Senior"
   },
   "sector": {
     "LOGISTICS_TRANSPORTATION": "Logistics & Transportation",
@@ -232,6 +236,18 @@
     "deleteAccountFinalMessage": "This action cannot be undone! Your account and all your data will be permanently deleted.",
     "deleteAccountError": "Failed to delete account. Please try again."
   },
+  "salary": {
+    "range": "Salary Range",
+    "min": "Min Salary",
+    "max": "Max Salary",
+    "period": {
+      "HOURLY": "Hourly",
+      "DAILY": "Daily",
+      "WEEKLY": "Weekly",
+      "MONTHLY": "Monthly",
+      "YEARLY": "Yearly"
+    }
+  },
   "job": {
     "detail": "Job Details",
     "notFound": "Job listing not found",
@@ -243,6 +259,7 @@
     "postedDate": "Date Posted",
     "deadline": "Application Deadline",
     "goToListing": "Go to Listing",
+    "apply": "Apply",
     "lastDay": "Last Day!",
     "daysLeft": "{{days}} days left",
     "goToSource": "Go to Source",

@@ -3,12 +3,12 @@
  * Listings that fail are deleted from DB.
  */
 import { PrismaClient } from '@prisma/client';
-import { normalizeCampaign, RawCampaignData } from './pipeline/normalize';
-import { filterCampaigns } from './pipeline/quality-filter';
+import { normalizeJobListing, RawJobData } from './pipeline/normalize';
+import { filterJobListings } from './pipeline/quality-filter';
 
-// scoreCampaign is no longer exported; use filterCampaigns wrapper
-function scoreCampaign(normalized: any, companyName?: string) {
-  const { passed, rejected } = filterCampaigns([normalized], companyName);
+// scoreListing is no longer exported; use filterJobListings wrapper
+function scoreListing(normalized: any, companyName?: string) {
+  const { passed, rejected } = filterJobListings([normalized], companyName);
   if (passed.length > 0) {
     return { passed: true, score: 3, reasons: ['passed-filter'], hardRejected: null };
   }
@@ -32,8 +32,8 @@ async function main() {
   const toKeep: { id: string; title: string; company: string; score: number }[] = [];
 
   for (const c of listings) {
-    // Re-create a NormalizedCampaign from DB data for quality scoring
-    const raw: RawCampaignData = {
+    // Re-create a normalized listing from DB data for quality scoring
+    const raw: RawJobData = {
       title: c.title,
       description: c.description || undefined,
       sourceUrl: c.sourceUrl,
@@ -41,9 +41,9 @@ async function main() {
       deadline: c.deadline?.toISOString(),
     };
 
-    const normalized = normalizeCampaign(raw);
+    const normalized = normalizeJobListing(raw);
     const companyName = c.company?.name;
-    const result = scoreCampaign(normalized, companyName);
+    const result = scoreListing(normalized, companyName);
 
     if (!result.passed) {
       const reason = result.hardRejected

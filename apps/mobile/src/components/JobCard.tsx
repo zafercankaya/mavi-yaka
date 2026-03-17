@@ -7,7 +7,7 @@ import {
   Animated,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { Calendar, Clock, ExternalLink, Tag } from 'lucide-react-native';
+import { Calendar, Clock, ExternalLink, Tag, MapPin, Briefcase, Wifi } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { JobListing } from '../api/jobs';
@@ -71,6 +71,17 @@ function getCompanyColor(name: string): string {
   return colors[0];
 }
 
+function formatSalary(job: JobListing, t: any): string | null {
+  if (!job.salaryMin && !job.salaryMax) return null;
+  const currency = job.salaryCurrency || '';
+  const min = job.salaryMin;
+  const max = job.salaryMax;
+  if (min && max) return `${currency}${min.toLocaleString()} - ${currency}${max.toLocaleString()}`;
+  if (min) return `${currency}${min.toLocaleString()}+`;
+  if (max) return `${currency}${max.toLocaleString()}`;
+  return null;
+}
+
 function JobCardInner({ job, onPress }: JobCardProps) {
   const { t, i18n } = useTranslation();
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -81,6 +92,8 @@ function JobCardInner({ job, onPress }: JobCardProps) {
   const remaining = daysLeft(job.deadline);
   const isEndingSoon = remaining >= 0 && remaining <= 2;
   const companyName = job.company?.name || '';
+  const salary = formatSalary(job, t);
+  const location = [job.city, job.state].filter(Boolean).join(', ');
 
   const handlePressIn = useCallback(() => {
     Animated.spring(scaleAnim, {
@@ -150,6 +163,14 @@ function JobCardInner({ job, onPress }: JobCardProps) {
               </Text>
             </View>
           ) : null}
+
+          {/* Remote badge overlay */}
+          {job.workMode === 'REMOTE' && (
+            <View style={styles.remoteBadge}>
+              <Wifi size={10} color="#fff" />
+              <Text style={styles.remoteBadgeText}>{t('workMode.REMOTE')}</Text>
+            </View>
+          )}
         </View>
 
         {/* Content area */}
@@ -176,26 +197,44 @@ function JobCardInner({ job, onPress }: JobCardProps) {
 
           <Text style={styles.title} numberOfLines={2}>{job.title}</Text>
 
-          {/* Deadline */}
-          {job.deadline && (
-            <View style={styles.dateRow}>
-              <Calendar size={12} color={Colors.textTertiary} />
-              <Text style={styles.dateText}>
-                {new Date(job.deadline).toLocaleDateString(getDateLocale(i18n.language), { day: 'numeric', month: 'short' })}
-              </Text>
+          {/* Info chips row */}
+          <View style={styles.chipsRow}>
+            {job.jobType && (
+              <View style={styles.infoChip}>
+                <Briefcase size={11} color={Colors.primary} />
+                <Text style={styles.infoChipText}>{t(`jobType.${job.jobType}`, job.jobType)}</Text>
+              </View>
+            )}
+            {location ? (
+              <View style={styles.infoChip}>
+                <MapPin size={11} color={Colors.textSecondary} />
+                <Text style={styles.infoChipText} numberOfLines={1}>{location}</Text>
+              </View>
+            ) : null}
+            {job.workMode && job.workMode !== 'REMOTE' && (
+              <View style={styles.infoChip}>
+                <Wifi size={11} color={Colors.textSecondary} />
+                <Text style={styles.infoChipText}>{t(`workMode.${job.workMode}`, job.workMode)}</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Salary */}
+          {salary && (
+            <View style={styles.salaryRow}>
+              <Text style={styles.salaryText}>{salary}</Text>
+              {job.salaryPeriod && (
+                <Text style={styles.salaryPeriod}>/ {t(`salary.period.${job.salaryPeriod}`, job.salaryPeriod)}</Text>
+              )}
             </View>
           )}
 
           <View style={styles.footer}>
-            {!isEndingSoon && remaining > 0 ? (
+            {/* Deadline */}
+            {job.deadline ? (
               <View style={styles.timeRow}>
-                <Clock size={12} color={Colors.textTertiary} />
-                <Text style={styles.timeText}>{t('job.daysLeft', { days: remaining })}</Text>
-              </View>
-            ) : job.deadline ? (
-              <View style={styles.timeRow}>
-                <Clock size={12} color={Colors.textTertiary} />
-                <Text style={styles.timeText}>
+                <Calendar size={12} color={Colors.textTertiary} />
+                <Text style={styles.dateText}>
                   {new Date(job.deadline).toLocaleDateString(getDateLocale(i18n.language), { day: 'numeric', month: 'short' })}
                 </Text>
               </View>
@@ -280,6 +319,23 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 11,
   },
+  remoteBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: '#27AE60',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  remoteBadgeText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 11,
+  },
   content: {
     padding: 14,
   },
@@ -325,16 +381,41 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 6,
   },
-  dateRow: {
+  chipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 6,
+  },
+  infoChip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    backgroundColor: Colors.surfaceVariant,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  infoChipText: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: Colors.textSecondary,
+    maxWidth: 100,
+  },
+  salaryRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
     marginBottom: 8,
   },
-  dateText: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    fontWeight: '500',
+  salaryText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.success,
+  },
+  salaryPeriod: {
+    fontSize: 11,
+    color: Colors.textTertiary,
+    marginLeft: 2,
   },
   footer: {
     flexDirection: 'row',
@@ -346,9 +427,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
-  timeText: {
+  dateText: {
     fontSize: 12,
-    color: Colors.textTertiary,
+    color: Colors.textSecondary,
+    fontWeight: '500',
   },
   sourceRow: {
     flexDirection: 'row',

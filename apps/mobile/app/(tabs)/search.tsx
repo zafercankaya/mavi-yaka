@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useScrollToTop } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import {
-  Search, X, LayoutGrid, SlidersHorizontal,
+  Search, X, LayoutGrid, SlidersHorizontal, ChevronDown, ChevronUp,
   Truck, Factory, ShoppingCart, HardHat, UtensilsCrossed,
   Car, Shirt, Pickaxe, Stethoscope, Hotel,
   Wheat, ShieldCheck, Building2, Wrench, FlaskConical,
@@ -30,7 +30,11 @@ type ListItem = JobListing | AdItem;
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
-const SORT_KEYS = ['recommended', 'newest', 'ending_soon', 'last_24h'] as const;
+const SORT_KEYS = ['recommended', 'newest', 'deadline', 'posted_today', 'salary_high', 'salary_low'] as const;
+
+const JOB_TYPE_KEYS = ['FULL_TIME', 'PART_TIME', 'DAILY', 'SEASONAL', 'INTERNSHIP', 'CONTRACT'] as const;
+const WORK_MODE_KEYS = ['ON_SITE', 'REMOTE', 'HYBRID'] as const;
+const EXPERIENCE_KEYS = ['NONE', 'ENTRY', 'MID', 'SENIOR'] as const;
 
 const SECTOR_META: Record<string, { icon: React.ComponentType<any>; color: string }> = {
   'LOGISTICS_TRANSPORTATION': { icon: Truck,             color: '#4A90D9' },
@@ -53,11 +57,6 @@ const SECTOR_META: Record<string, { icon: React.ComponentType<any>; color: strin
   'OTHER':                    { icon: MoreHorizontal,    color: '#9CA3AF' },
 };
 
-function getSectorMeta(slug?: string) {
-  if (!slug) return { icon: LayoutGrid, color: Colors.textSecondary };
-  return SECTOR_META[slug] ?? { icon: LayoutGrid, color: Colors.textSecondary };
-}
-
 export default function SearchScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -74,10 +73,39 @@ export default function SearchScreen() {
   const [selectedCompanyIds, setSelectedCompanyIds] = useState<Set<string>>(new Set());
   const [filtersVisible, setFiltersVisible] = useState(false);
 
-  const activeFilterCount = (categoryId ? 1 : 0) + (selectedCompanyIds.size > 0 ? 1 : 0);
+  // Advanced filters
+  const [selectedJobType, setSelectedJobType] = useState<string | undefined>();
+  const [selectedWorkMode, setSelectedWorkMode] = useState<string | undefined>();
+  const [selectedExperience, setSelectedExperience] = useState<string | undefined>();
+  const [salaryMinText, setSalaryMinText] = useState('');
+  const [salaryMaxText, setSalaryMaxText] = useState('');
+  const [stateText, setStateText] = useState('');
+  const [cityText, setCityText] = useState('');
+
+  const activeFilterCount = (categoryId ? 1 : 0) +
+    (selectedCompanyIds.size > 0 ? 1 : 0) +
+    (selectedJobType ? 1 : 0) +
+    (selectedWorkMode ? 1 : 0) +
+    (selectedExperience ? 1 : 0) +
+    (salaryMinText ? 1 : 0) +
+    (salaryMaxText ? 1 : 0) +
+    (stateText ? 1 : 0) +
+    (cityText ? 1 : 0);
 
   const toggleFilters = () => {
     setFiltersVisible((v) => !v);
+  };
+
+  const clearAllFilters = () => {
+    setCategoryId(undefined);
+    setSelectedCompanyIds(new Set());
+    setSelectedJobType(undefined);
+    setSelectedWorkMode(undefined);
+    setSelectedExperience(undefined);
+    setSalaryMinText('');
+    setSalaryMaxText('');
+    setStateText('');
+    setCityText('');
   };
 
   const categoryScrollRef = useRef<ScrollView>(null);
@@ -131,7 +159,6 @@ export default function SearchScreen() {
 
   const handleCompanySelect = (bId: string | undefined) => {
     if (!bId) {
-      // "Tümü" tapped — clear all selections
       setSelectedCompanyIds(new Set());
       companyScrollRef.current?.scrollTo({ x: 0, animated: true });
       return;
@@ -167,12 +194,21 @@ export default function SearchScreen() {
     } else if (categoryId) {
       f.sector = categoryId;
     }
+    if (selectedJobType) f.jobType = selectedJobType;
+    if (selectedWorkMode) f.workMode = selectedWorkMode;
+    if (selectedExperience) f.experienceLevel = selectedExperience;
+    const salMin = parseInt(salaryMinText, 10);
+    const salMax = parseInt(salaryMaxText, 10);
+    if (salMin > 0) f.salaryMin = salMin;
+    if (salMax > 0) f.salaryMax = salMax;
+    if (stateText.trim().length >= 2) f.state = stateText.trim();
+    if (cityText.trim().length >= 2) f.city = cityText.trim();
     return f;
-  }, [companyIdsArray, categoryId, sort, debouncedQuery]);
+  }, [companyIdsArray, categoryId, sort, debouncedQuery, selectedJobType, selectedWorkMode, selectedExperience, salaryMinText, salaryMaxText, stateText, cityText]);
 
   const queryKey = useMemo(
-    () => ['search-jobs', market, companyIdsArray.join(','), categoryId ?? '', sort, debouncedQuery] as const,
-    [market, companyIdsArray, categoryId, sort, debouncedQuery],
+    () => ['search-jobs', market, companyIdsArray.join(','), categoryId ?? '', sort, debouncedQuery, selectedJobType ?? '', selectedWorkMode ?? '', selectedExperience ?? '', salaryMinText, salaryMaxText, stateText, cityText] as const,
+    [market, companyIdsArray, categoryId, sort, debouncedQuery, selectedJobType, selectedWorkMode, selectedExperience, salaryMinText, salaryMaxText, stateText, cityText],
   );
 
   const {
@@ -220,9 +256,16 @@ export default function SearchScreen() {
 
   const headerElement = (
     <View>
-      {/* Sectors & Companies (toggled by filter icon) */}
+      {/* Filters (toggled by filter icon) */}
       {filtersVisible && (
-        <View>
+        <View style={styles.filtersPanel}>
+          {/* Clear all */}
+          {activeFilterCount > 0 && (
+            <Pressable style={styles.clearAllBtn} onPress={clearAllFilters}>
+              <Text style={styles.clearAllText}>{t('filter.clear')} ({activeFilterCount})</Text>
+            </Pressable>
+          )}
+
           {/* Categories */}
           <View style={styles.categoriesSection}>
             <Text style={styles.sectionLabel}>{t('common.sectors')}</Text>
@@ -309,6 +352,99 @@ export default function SearchScreen() {
                 );
               })}
             </ScrollView>
+          </View>
+
+          {/* Job Type */}
+          <View style={styles.filterGroup}>
+            <Text style={styles.sectionLabel}>{t('filter.jobType')}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersList}>
+              {JOB_TYPE_KEYS.map((key) => (
+                <FilterChip
+                  key={key}
+                  label={t(`jobType.${key}`)}
+                  selected={selectedJobType === key}
+                  onPress={() => setSelectedJobType(selectedJobType === key ? undefined : key)}
+                  color={Colors.primary}
+                />
+              ))}
+            </ScrollView>
+          </View>
+
+          {/* Work Mode */}
+          <View style={styles.filterGroup}>
+            <Text style={styles.sectionLabel}>{t('filter.workMode')}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersList}>
+              {WORK_MODE_KEYS.map((key) => (
+                <FilterChip
+                  key={key}
+                  label={t(`workMode.${key}`)}
+                  selected={selectedWorkMode === key}
+                  onPress={() => setSelectedWorkMode(selectedWorkMode === key ? undefined : key)}
+                  color={Colors.primary}
+                />
+              ))}
+            </ScrollView>
+          </View>
+
+          {/* Experience */}
+          <View style={styles.filterGroup}>
+            <Text style={styles.sectionLabel}>{t('filter.experience')}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersList}>
+              {EXPERIENCE_KEYS.map((key) => (
+                <FilterChip
+                  key={key}
+                  label={t(`experience.${key}`)}
+                  selected={selectedExperience === key}
+                  onPress={() => setSelectedExperience(selectedExperience === key ? undefined : key)}
+                  color={Colors.primary}
+                />
+              ))}
+            </ScrollView>
+          </View>
+
+          {/* Salary Range */}
+          <View style={styles.filterGroup}>
+            <Text style={styles.sectionLabel}>{t('filter.salary')}</Text>
+            <View style={styles.salaryInputRow}>
+              <TextInput
+                style={styles.salaryInput}
+                placeholder={t('salary.min')}
+                placeholderTextColor={Colors.textTertiary}
+                value={salaryMinText}
+                onChangeText={setSalaryMinText}
+                keyboardType="numeric"
+              />
+              <Text style={styles.salaryDash}>-</Text>
+              <TextInput
+                style={styles.salaryInput}
+                placeholder={t('salary.max')}
+                placeholderTextColor={Colors.textTertiary}
+                value={salaryMaxText}
+                onChangeText={setSalaryMaxText}
+                keyboardType="numeric"
+              />
+            </View>
+          </View>
+
+          {/* Location */}
+          <View style={styles.filterGroup}>
+            <Text style={styles.sectionLabel}>{t('filter.location')}</Text>
+            <View style={styles.locationInputRow}>
+              <TextInput
+                style={styles.locationInput}
+                placeholder={t('filter.state')}
+                placeholderTextColor={Colors.textTertiary}
+                value={stateText}
+                onChangeText={setStateText}
+              />
+              <TextInput
+                style={styles.locationInput}
+                placeholder={t('filter.city')}
+                placeholderTextColor={Colors.textTertiary}
+                value={cityText}
+                onChangeText={setCityText}
+              />
+            </View>
           </View>
         </View>
       )}
@@ -490,6 +626,23 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
   },
+  filtersPanel: {
+    paddingBottom: 8,
+  },
+  clearAllBtn: {
+    alignSelf: 'flex-end',
+    marginRight: 16,
+    marginBottom: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: Colors.danger + '15',
+  },
+  clearAllText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.danger,
+  },
   sectionLabel: {
     fontSize: 14,
     fontWeight: '700',
@@ -570,11 +723,51 @@ const styles = StyleSheet.create({
   companyChipTextActive: {
     color: '#fff',
   },
-  sortSection: {
+  filterGroup: {
     marginBottom: 12,
   },
   filtersList: {
     paddingHorizontal: 16,
+  },
+  salaryInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  salaryInput: {
+    flex: 1,
+    height: 40,
+    backgroundColor: Colors.surface,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: 12,
+    fontSize: 14,
+    color: Colors.text,
+  },
+  salaryDash: {
+    fontSize: 16,
+    color: Colors.textTertiary,
+  },
+  locationInputRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  locationInput: {
+    flex: 1,
+    height: 40,
+    backgroundColor: Colors.surface,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: 12,
+    fontSize: 14,
+    color: Colors.text,
+  },
+  sortSection: {
+    marginBottom: 12,
   },
   resultsRow: {
     paddingHorizontal: 16,

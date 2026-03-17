@@ -23,8 +23,16 @@
     "turbo": "^2.4.0",
     "typescript": "^5.7.0"
   },
+  "overrides": {
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "expo": "$expo"
+  },
   "engines": {
     "node": ">=20.0.0"
   },
-  "packageManager": "npm@11.9.0"
+  "packageManager": "npm@11.9.0",
+  "dependencies": {
+    "expo": "54.0.33"
+  }
 }

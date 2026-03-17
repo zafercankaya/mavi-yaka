@@ -1,7 +1,7 @@
 /**
  * One-time script: Run all existing DB job listings through Gemini AI.
- * - isCampaign=false + confidence >= 0.7 → DELETE
- * - isCampaign=true → UPDATE missing endDate/startDate/discountRate
+ * - isJobListing=false + confidence >= 0.7 → DELETE (not a valid job listing)
+ * - isJobListing=true → UPDATE missing endDate/startDate
  *
  * Usage: npx ts-node src/ai-cleanup.ts [--dry-run]
  */
@@ -62,7 +62,7 @@ async function main() {
       }
 
       // NOT a valid listing → delete
-      if (!result.isCampaign && result.confidence >= 0.7) {
+      if (!result.isJobListing && result.confidence >= 0.7) {
         console.log(`${prefix} DELETE (${result.confidence.toFixed(2)}): "${shortTitle}" — ${result.reason}`);
         if (!DRY_RUN) {
           await prisma.jobListing.delete({ where: { id: jobListing.id } });
@@ -72,7 +72,7 @@ async function main() {
       }
 
       // IS a valid listing → check for enrichment updates
-      if (result.isCampaign) {
+      if (result.isJobListing) {
         const updates: Record<string, any> = {};
 
         if (result.endDate && !jobListing.deadline) {

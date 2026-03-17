@@ -11,7 +11,7 @@ export class VerifyReceiptDto {
   @MinLength(1)
   receipt!: string;
 
-  @ApiProperty({ description: 'Product ID (e.g. com.indirim.premium.monthly)' })
+  @ApiProperty({ description: 'Product ID (e.g. com.maviyaka.premium.monthly)' })
   @IsString()
   @MinLength(1)
   productId!: string;

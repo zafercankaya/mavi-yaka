@@ -44,7 +44,7 @@ export class FirebaseService implements OnModuleInit {
       notification: { title, body },
       data,
       android: {
-        notification: { channelId: 'campaigns', priority: 'high' },
+        notification: { channelId: 'jobs', priority: 'high' },
       },
       apns: {
         payload: { aps: { sound: 'default', badge: 1 } },

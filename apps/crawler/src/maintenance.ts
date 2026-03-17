@@ -44,10 +44,10 @@ interface MaintenanceReport {
     brandsCleaned: number;
     brandsMerged: number;
     sourcesDeactivated: number;
-    orphanCampaignsExpired: number;
-    notFoundCampaignsExpired: number;
+    orphanListingsExpired: number;
+    notFoundListingsExpired: number;
     oldLogsDeleted: number;
-    wafCampaignsExpired: number;
+    wafListingsExpired: number;
     repeatedImagesCleaned: number;
     invalidImagesCleaned: number;
     garbageTitlesExpired: number;
@@ -637,8 +637,8 @@ async function deactivateDeadSources(prisma: PrismaClient) {
   };
 }
 
-/** Task 5: Expire orphan campaigns (campaigns of deactivated sources with no active source left) */
-async function expireOrphanCampaigns(prisma: PrismaClient) {
+/** Task 5: Expire orphan job listings (listings of deactivated sources with no active source left) */
+async function expireOrphanListings(prisma: PrismaClient) {
   // Find companies that have ACTIVE job listings but no active sources
   const companiesWithActiveJobs = await prisma.company.findMany({
     where: {
@@ -653,8 +653,8 @@ async function expireOrphanCampaigns(prisma: PrismaClient) {
   const companyIds = companiesWithActiveJobs.map(b => b.id);
 
   // Only expire job listings whose aging window has passed (agingDays from their source)
-  // Use a safe default of 14 days for sourceless job listings
-  const agingCutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+  // Use a safe default of 30 days for sourceless job listings (iş ilanları kampanyalardan daha uzun yaşar)
+  const agingCutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
   const result = await prisma.jobListing.updateMany({
     where: {
@@ -672,8 +672,8 @@ async function expireOrphanCampaigns(prisma: PrismaClient) {
   };
 }
 
-/** Task 6: Detect and expire 404 campaigns (error page titles/images) */
-async function expire404Campaigns(prisma: PrismaClient) {
+/** Task 6: Detect and expire 404 job listings (error page titles/images) */
+async function expire404Listings(prisma: PrismaClient) {
   // Process in batches to avoid memory issues
   const batchSize = 5000;
   let offset = 0;
@@ -681,7 +681,7 @@ async function expire404Campaigns(prisma: PrismaClient) {
   const expireIds: string[] = [];
 
   while (true) {
-    const campaigns = await prisma.jobListing.findMany({
+    const listings = await prisma.jobListing.findMany({
       where: { status: 'ACTIVE' },
       select: { id: true, title: true, imageUrl: true },
       skip: offset,
@@ -689,9 +689,9 @@ async function expire404Campaigns(prisma: PrismaClient) {
       orderBy: { id: 'asc' },
     });
 
-    if (campaigns.length === 0) break;
+    if (listings.length === 0) break;
 
-    for (const c of campaigns) {
+    for (const c of listings) {
       // Check title patterns
       if (c.title && ERROR_TITLE_PATTERNS.some(p => p.test(c.title!))) {
         expireIds.push(c.id);
@@ -708,7 +708,7 @@ async function expire404Campaigns(prisma: PrismaClient) {
     }
 
     offset += batchSize;
-    if (campaigns.length < batchSize) break;
+    if (listings.length < batchSize) break;
   }
 
   if (expireIds.length === 0) return { count: 0 };
@@ -734,14 +734,14 @@ async function deleteOldCrawlLogs(prisma: PrismaClient) {
   return { count: result.count };
 }
 
-/** Task 8: Expire WAF/bot detection campaigns ("Access Denied", "Cloudflare", etc.) */
-async function expireWafCampaigns(prisma: PrismaClient) {
+/** Task 8: Expire WAF/bot detection job listings ("Access Denied", "Cloudflare", etc.) */
+async function expireWafListings(prisma: PrismaClient) {
   const batchSize = 5000;
   let offset = 0;
   const expireIds: string[] = [];
 
   while (true) {
-    const campaigns = await prisma.jobListing.findMany({
+    const listings = await prisma.jobListing.findMany({
       where: { status: 'ACTIVE' },
       select: { id: true, title: true },
       skip: offset,
@@ -749,16 +749,16 @@ async function expireWafCampaigns(prisma: PrismaClient) {
       orderBy: { id: 'asc' },
     });
 
-    if (campaigns.length === 0) break;
+    if (listings.length === 0) break;
 
-    for (const c of campaigns) {
+    for (const c of listings) {
       if (c.title && WAF_TITLE_PATTERNS.some(p => p.test(c.title))) {
         expireIds.push(c.id);
       }
     }
 
     offset += batchSize;
-    if (campaigns.length < batchSize) break;
+    if (listings.length < batchSize) break;
   }
 
   if (expireIds.length === 0) return { count: 0 };
@@ -845,7 +845,7 @@ async function cleanInvalidImages(prisma: PrismaClient) {
   return { count: cleaned };
 }
 
-/** Task 11: Expire campaigns with garbage/garbled titles */
+/** Task 11: Expire job listings with garbage/garbled titles */
 async function expireGarbageTitles(prisma: PrismaClient) {
   const batchSize = 5000;
   let offset = 0;
@@ -860,7 +860,7 @@ async function expireGarbageTitles(prisma: PrismaClient) {
   ];
 
   while (true) {
-    const campaigns = await prisma.jobListing.findMany({
+    const listings = await prisma.jobListing.findMany({
       where: { status: 'ACTIVE' },
       select: { id: true, title: true, companyId: true },
       skip: offset,
@@ -868,9 +868,9 @@ async function expireGarbageTitles(prisma: PrismaClient) {
       orderBy: { id: 'asc' },
     });
 
-    if (campaigns.length === 0) break;
+    if (listings.length === 0) break;
 
-    for (const c of campaigns) {
+    for (const c of listings) {
       if (!c.title) continue;
 
       // Check garbage patterns
@@ -891,7 +891,7 @@ async function expireGarbageTitles(prisma: PrismaClient) {
     }
 
     offset += batchSize;
-    if (campaigns.length < batchSize) break;
+    if (listings.length < batchSize) break;
   }
 
   if (expireIds.length === 0) return { count: 0 };
@@ -904,8 +904,8 @@ async function expireGarbageTitles(prisma: PrismaClient) {
   return { count: result.count };
 }
 
-/** Task 12: Expire campaigns with foreign locale URLs (e.g. /en-us/ in TR market) */
-async function expireForeignLocaleCampaigns(prisma: PrismaClient) {
+/** Task 12: Expire job listings with foreign locale URLs (e.g. /en-us/ in TR market) */
+async function expireForeignLocaleListings(prisma: PrismaClient) {
   // Market → allowed locale prefixes
   const MARKET_LOCALES: Record<string, string[]> = {
     TR: ['tr', 'tr-tr'],
@@ -948,7 +948,7 @@ async function expireForeignLocaleCampaigns(prisma: PrismaClient) {
   const expireIds: string[] = [];
 
   while (true) {
-    const campaigns = await prisma.jobListing.findMany({
+    const listings = await prisma.jobListing.findMany({
       where: { status: 'ACTIVE' },
       select: { id: true, canonicalUrl: true, sourceUrl: true, country: true },
       skip: offset,
@@ -956,9 +956,9 @@ async function expireForeignLocaleCampaigns(prisma: PrismaClient) {
       orderBy: { id: 'asc' },
     });
 
-    if (campaigns.length === 0) break;
+    if (listings.length === 0) break;
 
-    for (const c of campaigns) {
+    for (const c of listings) {
       const url = c.canonicalUrl || c.sourceUrl;
       if (!url) continue;
 
@@ -984,7 +984,7 @@ async function expireForeignLocaleCampaigns(prisma: PrismaClient) {
     }
 
     offset += batchSize;
-    if (campaigns.length < batchSize) break;
+    if (listings.length < batchSize) break;
   }
 
   if (expireIds.length === 0) return { count: 0 };
@@ -1016,7 +1016,7 @@ async function cleanupStaleLogs(prisma: PrismaClient) {
 }
 
 /** Task 14: Log companies exceeding 50 active job listing limit (monitoring only) */
-async function checkCampaignLimits(prisma: PrismaClient) {
+async function checkListingLimits(prisma: PrismaClient) {
   const result = await prisma.jobListing.groupBy({
     by: ['companyId', 'country'],
     where: { status: 'ACTIVE' },
@@ -1056,7 +1056,7 @@ async function generateHealthReport(prisma: PrismaClient) {
     totalBrands,
     totalActiveSources,
     totalInactiveSources,
-    totalActiveCampaigns,
+    totalActiveListings,
     recentLogs,
     recentSuccess,
     recentFailed,
@@ -1075,7 +1075,7 @@ async function generateHealthReport(prisma: PrismaClient) {
   const summary = [
     `Companies: ${totalBrands}`,
     `Sources: ${totalActiveSources} active / ${totalInactiveSources} inactive`,
-    `Jobs: ${totalActiveCampaigns} active`,
+    `Jobs: ${totalActiveListings} active`,
     `7d crawl: ${recentLogs} total, ${successRate}% success, ${recentFailed} failed`,
   ].join(' | ');
 
@@ -1120,10 +1120,10 @@ export async function runDailyMaintenance(prisma: PrismaClient): Promise<Mainten
       brandsCleaned: 0,
       brandsMerged: 0,
       sourcesDeactivated: 0,
-      orphanCampaignsExpired: 0,
-      notFoundCampaignsExpired: 0,
+      orphanListingsExpired: 0,
+      notFoundListingsExpired: 0,
       oldLogsDeleted: 0,
-      wafCampaignsExpired: 0,
+      wafListingsExpired: 0,
       repeatedImagesCleaned: 0,
       invalidImagesCleaned: 0,
       garbageTitlesExpired: 0,
@@ -1169,14 +1169,14 @@ export async function runDailyMaintenance(prisma: PrismaClient): Promise<Mainten
   report.summary.sourcesDeactivated = t7.count;
 
   // Task 8: Orphan job listing expiry
-  const t8 = await runTask('Orphan Job Listing Expiry', () => expireOrphanCampaigns(prisma));
+  const t8 = await runTask('Orphan Job Listing Expiry', () => expireOrphanListings(prisma));
   report.tasks.push(t8);
-  report.summary.orphanCampaignsExpired = t8.count;
+  report.summary.orphanListingsExpired = t8.count;
 
   // Task 9: 404 job listing detection
-  const t9 = await runTask('404 Job Listing Detection', () => expire404Campaigns(prisma));
+  const t9 = await runTask('404 Job Listing Detection', () => expire404Listings(prisma));
   report.tasks.push(t9);
-  report.summary.notFoundCampaignsExpired = t9.count;
+  report.summary.notFoundListingsExpired = t9.count;
 
   // Task 10: Old crawl log cleanup (30+ days)
   const t10 = await runTask('Old Log Cleanup', () => deleteOldCrawlLogs(prisma));
@@ -1184,9 +1184,9 @@ export async function runDailyMaintenance(prisma: PrismaClient): Promise<Mainten
   report.summary.oldLogsDeleted = t10.count;
 
   // Task 11: WAF/bot job listing expiry
-  const t11 = await runTask('WAF/Bot Job Cleanup', () => expireWafCampaigns(prisma));
+  const t11 = await runTask('WAF/Bot Job Cleanup', () => expireWafListings(prisma));
   report.tasks.push(t11);
-  report.summary.wafCampaignsExpired = t11.count;
+  report.summary.wafListingsExpired = t11.count;
 
   // Task 12: Repeated image URL cleanup (company+country scoped)
   const t12 = await runTask('Repeated Image Cleanup', () => cleanRepeatedImages(prisma));
@@ -1204,7 +1204,7 @@ export async function runDailyMaintenance(prisma: PrismaClient): Promise<Mainten
   report.summary.garbageTitlesExpired = t14.count;
 
   // Task 15: Foreign locale job listing expiry
-  const t15 = await runTask('Foreign Locale Cleanup', () => expireForeignLocaleCampaigns(prisma));
+  const t15 = await runTask('Foreign Locale Cleanup', () => expireForeignLocaleListings(prisma));
   report.tasks.push(t15);
   report.summary.foreignLocaleExpired = t15.count;
 
@@ -1214,7 +1214,7 @@ export async function runDailyMaintenance(prisma: PrismaClient): Promise<Mainten
   report.summary.staleLogsCleaned = t16.count;
 
   // Task 17: Job listing limit monitoring
-  const t17 = await runTask('Job Listing Limit Check', () => checkCampaignLimits(prisma));
+  const t17 = await runTask('Job Listing Limit Check', () => checkListingLimits(prisma));
   report.tasks.push(t17);
   report.summary.nearLimitBrands = t17.count;
 
@@ -1285,7 +1285,7 @@ export async function saveDailyReport(prisma: PrismaClient, maintenanceReport?: 
   }
   const marketStats = Array.from(marketMap.values()).sort((a, b) => b.new - a.new);
 
-  // Count campaigns expired today
+  // Count job listings expired today
   const jobsExpired = await prisma.jobListing.count({
     where: { status: 'EXPIRED', updatedAt: { gte: today, lt: dayEnd } },
   });

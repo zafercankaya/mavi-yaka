@@ -1,17 +1,17 @@
 /**
  * Test each crawl method individually.
- * Crawls a few brands and shows results with dates.
+ * Crawls a few sources and shows results with dates.
  */
 import { PrismaClient } from '@prisma/client';
 import { discoverBestMethod } from './processors/auto-discover';
-import { fetchRssCampaigns } from './processors/rss.processor';
+import { fetchRssJobListings } from './processors/rss.processor';
 import { scrapeGeneric } from './processors/generic-scraper';
-import { normalizeCampaign, RawCampaignData } from './pipeline/normalize';
-import { filterCampaigns } from './pipeline/quality-filter';
+import { normalizeJobListing, RawJobData } from './pipeline/normalize';
+import { filterJobListings } from './pipeline/quality-filter';
 
-// scoreCampaign is no longer exported; use filterCampaigns wrapper
-function scoreCampaign(normalized: any, companyName?: string) {
-  const { passed, rejected } = filterCampaigns([normalized], companyName);
+// scoreListing is no longer exported; use filterJobListings wrapper
+function scoreListing(normalized: any, companyName?: string) {
+  const { passed, rejected } = filterJobListings([normalized], companyName);
   if (passed.length > 0) {
     return { passed: true, score: 3, reasons: ['passed-filter'], hardRejected: null };
   }
@@ -20,11 +20,11 @@ function scoreCampaign(normalized: any, companyName?: string) {
 
 const prisma = new PrismaClient();
 
-// Test brands with different expected methods
+// Test sources with different expected methods
 const TEST_URLS = [
-  { name: 'Migros', url: 'https://www.migros.com.tr/kampanyalar', expectation: 'HTML or RSS' },
-  { name: 'Teknosa', url: 'https://www.teknosa.com/kampanyalar', expectation: 'HTML' },
-  { name: 'Boyner', url: 'https://www.boyner.com.tr/kampanyalar', expectation: 'HTML' },
+  { name: 'Indeed TR', url: 'https://tr.indeed.com/jobs?q=garson', expectation: 'HTML' },
+  { name: 'Kariyer.net', url: 'https://www.kariyer.net/is-ilanlari', expectation: 'HTML' },
+  { name: 'LinkedIn Jobs', url: 'https://www.linkedin.com/jobs/search/?keywords=driver', expectation: 'HTML' },
 ];
 
 async function testDiscovery(name: string, url: string) {
@@ -47,10 +47,10 @@ async function testDiscovery(name: string, url: string) {
 async function testRSS(feedUrl: string) {
   console.log(`\n--- RSS Test: ${feedUrl} ---`);
   try {
-    const campaigns = await fetchRssCampaigns(feedUrl);
-    console.log(`  Found: ${campaigns.length} campaigns`);
-    showCampaigns(campaigns);
-    return campaigns;
+    const jobs = await fetchRssJobListings(feedUrl);
+    console.log(`  Found: ${jobs.length} job listings`);
+    showJobListings(jobs);
+    return jobs;
   } catch (err) {
     console.error(`  RSS FAILED: ${(err as Error).message}`);
     return [];
@@ -60,32 +60,33 @@ async function testRSS(feedUrl: string) {
 async function testGenericScraper(url: string) {
   console.log(`\n--- HTML Cheerio Test: ${url} ---`);
   try {
-    const campaigns = await scrapeGeneric(url, 2);
-    console.log(`  Found: ${campaigns.length} campaigns`);
-    showCampaigns(campaigns);
-    return campaigns;
+    const jobs = await scrapeGeneric(url, 2);
+    console.log(`  Found: ${jobs.length} job listings`);
+    showJobListings(jobs);
+    return jobs;
   } catch (err) {
     console.error(`  HTML Scrape FAILED: ${(err as Error).message}`);
     return [];
   }
 }
 
-function showCampaigns(campaigns: RawCampaignData[]) {
-  for (const c of campaigns.slice(0, 5)) {
-    const normalized = normalizeCampaign(c);
-    const quality = scoreCampaign(normalized);
+function showJobListings(jobs: RawJobData[]) {
+  for (const j of jobs.slice(0, 5)) {
+    const normalized = normalizeJobListing(j);
+    const quality = scoreListing(normalized);
 
-    console.log(`\n  📌 "${c.title?.substring(0, 70)}"`);
-    console.log(`     URL: ${c.sourceUrl?.substring(0, 80)}`);
-    console.log(`     PostedDate: ${c.postedDate || 'YOK'}`);
-    console.log(`     Deadline: ${c.deadline || 'YOK'}`);
-    console.log(`     Discount: YOK`);
-    console.log(`     Images: ${c.imageUrls?.length || 0}`);
+    console.log(`\n  "${j.title?.substring(0, 70)}"`);
+    console.log(`     URL: ${j.sourceUrl?.substring(0, 80)}`);
+    console.log(`     PostedDate: ${j.postedDate || 'N/A'}`);
+    console.log(`     Deadline: ${j.deadline || 'N/A'}`);
+    console.log(`     Salary: ${j.salaryText || 'N/A'}`);
+    console.log(`     Location: ${j.locationText || 'N/A'}`);
+    console.log(`     Images: ${j.imageUrls?.length || 0}`);
     console.log(`     Quality: score=${quality.score} ${quality.passed ? 'PASSED' : 'REJECTED'} [${quality.reasons.join(', ')}]`);
   }
 
-  if (campaigns.length > 5) {
-    console.log(`\n  ... ve ${campaigns.length - 5} daha`);
+  if (jobs.length > 5) {
+    console.log(`\n  ... and ${jobs.length - 5} more`);
   }
 }
 

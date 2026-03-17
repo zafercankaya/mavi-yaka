@@ -93,9 +93,9 @@ export default function SubscriptionScreen() {
             {entitlement.isPremium ? entitlement.planName : t('profile.freePlan')}
           </Text>
           <View style={styles.usageRow}>
-            <Text style={styles.usageLabel}>{t('subscription.brandFollowLimit')}</Text>
+            <Text style={styles.usageLabel}>{t('subscription.companyFollowLimit')}</Text>
             <Text style={styles.usageValue}>
-              {entitlement.currentBrandFollowCount} / {entitlement.maxBrandFollows === -1 ? '∞' : entitlement.maxBrandFollows}
+              {entitlement.currentCompanyFollowCount} / {entitlement.maxCompanyFollows === -1 ? '∞' : entitlement.maxCompanyFollows}
             </Text>
           </View>
           <View style={styles.usageRow}>
@@ -132,13 +132,13 @@ export default function SubscriptionScreen() {
       ) : null}
 
       {/* Frozen banner */}
-      {entitlement && !entitlement.isPremium && (entitlement.frozenBrandFollowCount > 0 || entitlement.frozenCompanyFollowCount > 0) && (
+      {entitlement && !entitlement.isPremium && (entitlement.frozenCompanyFollowCount > 0 || entitlement.frozenCompanyFollowCount > 0) && (
         <View style={styles.frozenBanner}>
           <Ionicons name="lock-closed" size={20} color="#E65100" />
           <Text style={styles.frozenBannerText}>
             {t('subscription.frozenBanner', {
-              brands: entitlement.frozenBrandFollowCount,
-              campaigns: entitlement.frozenCompanyFollowCount,
+              companies: entitlement.frozenCompanyFollowCount,
+              jobs: entitlement.frozenCompanyFollowCount,
             })}
           </Text>
         </View>
@@ -266,9 +266,9 @@ function PlanCard({
       {/* Features */}
       <View style={styles.features}>
         <FeatureRow
-          label={t('subscription.brandFollowLimit')}
-          value={plan.maxBrandFollows === -1 ? t('common.unlimited') : `${plan.maxBrandFollows}`}
-          highlighted={plan.maxBrandFollows === -1}
+          label={t('subscription.companyFollowLimit')}
+          value={plan.maxCompanyFollows === -1 ? t('common.unlimited') : `${plan.maxCompanyFollows}`}
+          highlighted={plan.maxCompanyFollows === -1}
         />
         <FeatureRow
           label={t('subscription.companyFollowLimit')}

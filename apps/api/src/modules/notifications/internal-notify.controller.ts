@@ -70,8 +70,8 @@ export class InternalNotifyController {
   }
 
   /**
-   * Scheduled: Favori kampanya bitiş bildirimleri.
-   * Günlük çağrılır — yarın biten kampanyaları bildirir.
+   * Scheduled: Kaydedilen iş ilanı bitiş bildirimleri.
+   * Günlük çağrılır — yarın deadline'ı dolan ilanları bildirir.
    */
   @Post('scheduled/expiring-favorites')
   @ApiOperation({ summary: 'Internal: favori bitiş bildirimleri gönder' })

@@ -1,25 +1,25 @@
 /**
- * JSON API processor — fetches campaign data from REST APIs.
+ * JSON API processor — fetches job listing data from REST APIs.
  * Uses flexible field mapping to support both Turkish and English field names.
  */
-import { RawCampaignData } from '../pipeline/normalize';
+import { RawJobData } from '../pipeline/normalize';
 import { REQUEST_TIMEOUT_MS } from '../config';
 
-const TITLE_FIELDS = ['title', 'baslik', 'name', 'ad', 'campaignName', 'kampanyaAdi', 'kampanya_adi'];
-const DESC_FIELDS = ['description', 'aciklama', 'summary', 'ozet', 'content', 'icerik', 'body'];
-const URL_FIELDS = ['url', 'link', 'href', 'sourceUrl', 'detailUrl', 'slug', 'path', 'permalink'];
-const IMAGE_FIELDS = ['image', 'imageUrl', 'image_url', 'resim', 'gorsel', 'thumbnail', 'banner', 'photo', 'img', 'media'];
-const START_FIELDS = ['startDate', 'start_date', 'baslangicTarihi', 'baslangic_tarihi', 'validFrom', 'valid_from', 'dateStart', 'publishDate', 'publish_date', 'created_at'];
-const END_FIELDS = ['endDate', 'end_date', 'bitisTarihi', 'bitis_tarihi', 'validThrough', 'valid_through', 'dateEnd', 'expiryDate', 'expiry_date', 'expires_at'];
-const DISCOUNT_FIELDS = ['discountRate', 'discount_rate', 'indirimOrani', 'indirim_orani', 'discount', 'rate', 'percentage'];
+const TITLE_FIELDS = ['title', 'baslik', 'name', 'ad', 'jobTitle', 'job_title', 'position', 'pozisyon'];
+const DESC_FIELDS = ['description', 'aciklama', 'summary', 'ozet', 'content', 'icerik', 'body', 'jobDescription', 'job_description'];
+const URL_FIELDS = ['url', 'link', 'href', 'sourceUrl', 'detailUrl', 'slug', 'path', 'permalink', 'applyUrl', 'apply_url'];
+const IMAGE_FIELDS = ['image', 'imageUrl', 'image_url', 'resim', 'gorsel', 'thumbnail', 'banner', 'photo', 'img', 'media', 'logo', 'companyLogo'];
+const START_FIELDS = ['startDate', 'start_date', 'publishDate', 'publish_date', 'created_at', 'postedDate', 'posted_date', 'datePosted', 'date_posted'];
+const END_FIELDS = ['endDate', 'end_date', 'deadline', 'applicationDeadline', 'application_deadline', 'validThrough', 'valid_through', 'expiryDate', 'expiry_date', 'expires_at'];
+const SALARY_FIELDS = ['salary', 'salaryText', 'salary_text', 'wage', 'compensation', 'maas', 'ucret'];
 
-export async function fetchApiCampaigns(apiUrl: string, baseUrl?: string): Promise<RawCampaignData[]> {
+export async function fetchApiJobListings(apiUrl: string, baseUrl?: string): Promise<RawJobData[]> {
   console.log(`  Fetching API: ${apiUrl}`);
 
   const response = await fetch(apiUrl, {
     headers: {
       'Accept': 'application/json',
-      'User-Agent': 'IndirimAvcisi/1.0',
+      'User-Agent': 'MaviYaka/1.0',
     },
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
@@ -36,19 +36,19 @@ export async function fetchApiCampaigns(apiUrl: string, baseUrl?: string): Promi
     return [];
   }
 
-  const campaigns = items
+  const jobListings = items
     .map((item) => mapApiItem(item, baseUrl))
-    .filter(Boolean) as RawCampaignData[];
+    .filter(Boolean) as RawJobData[];
 
-  console.log(`  [API] Parsed ${campaigns.length} campaigns`);
-  return campaigns;
+  console.log(`  [API] Parsed ${jobListings.length} job listings`);
+  return jobListings;
 }
 
 function findItemsArray(data: any): any[] | null {
   if (Array.isArray(data)) return data;
 
   // Common wrapper keys
-  const wrapperKeys = ['data', 'items', 'results', 'campaigns', 'kampanyalar', 'content', 'list', 'records', 'posts'];
+  const wrapperKeys = ['data', 'items', 'results', 'jobs', 'listings', 'vacancies', 'positions', 'content', 'list', 'records', 'posts'];
 
   for (const key of wrapperKeys) {
     if (Array.isArray(data?.[key])) return data[key];
@@ -66,7 +66,7 @@ function findItemsArray(data: any): any[] | null {
   return null;
 }
 
-function mapApiItem(item: any, baseUrl?: string): RawCampaignData | null {
+function mapApiItem(item: any, baseUrl?: string): RawJobData | null {
   const title = findStringField(item, TITLE_FIELDS);
   if (!title) return null;
 
@@ -79,10 +79,10 @@ function mapApiItem(item: any, baseUrl?: string): RawCampaignData | null {
   const description = findStringField(item, DESC_FIELDS) || undefined;
   const startDate = findStringField(item, START_FIELDS) || undefined;
   const endDate = findStringField(item, END_FIELDS) || undefined;
-  const discountRate = parseNumber(findStringField(item, DISCOUNT_FIELDS));
+  const salaryText = findStringField(item, SALARY_FIELDS) || undefined;
   const imageUrls = extractImageUrls(item, baseUrl);
 
-  return { title, description, sourceUrl, imageUrls, postedDate: startDate, deadline: endDate };
+  return { title, description, sourceUrl, imageUrls, postedDate: startDate, deadline: endDate, salaryText };
 }
 
 function findStringField(obj: any, fieldNames: string[]): string | undefined {
@@ -93,12 +93,6 @@ function findStringField(obj: any, fieldNames: string[]): string | undefined {
     }
   }
   return undefined;
-}
-
-function parseNumber(val: string | undefined): number | undefined {
-  if (!val) return undefined;
-  const num = parseFloat(val);
-  return isNaN(num) ? undefined : num;
 }
 
 function extractImageUrls(item: any, baseUrl?: string): string[] {

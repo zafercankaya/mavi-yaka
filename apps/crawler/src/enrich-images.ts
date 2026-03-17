@@ -1,6 +1,6 @@
 /**
  * Post-crawl image enrichment script.
- * Visits campaign URLs that have no images and extracts og:image / twitter:image.
+ * Visits job listing URLs that have no images and extracts og:image / twitter:image.
  *
  * Usage:
  *   npx ts-node --transpile-only src/enrich-images.ts [market] [limit]
@@ -131,11 +131,11 @@ function extractImageFromCheerio($: cheerio.CheerioAPI, baseUrl: string): string
     candidates.push(resolved);
   });
 
-  // Prefer larger images (usually campaign banners)
+  // Prefer larger images (usually content banners)
   if (candidates.length > 0) return candidates[0];
 
   // 4. CSS background images from main content area
-  const bgSelectors = ['.hero', '.banner', '.campaign', '.promo', '.deal', '[class*="hero"]', '[class*="banner"]'];
+  const bgSelectors = ['.hero', '.banner', '.job', '.career', '.position', '[class*="hero"]', '[class*="banner"]'];
   for (const sel of bgSelectors) {
     const style = $(sel).attr('style') || '';
     const match = style.match(/url\(['"]?(https?:\/\/[^'")\s]+)['"]?\)/);
@@ -152,7 +152,7 @@ async function main() {
   const hasMarket = marketArg && marketArg.length === 2;
 
   // Find job listings without images
-  const campaigns = hasMarket
+  const listings = hasMarket
     ? await p.$queryRawUnsafe<
         { id: string; title: string; source_url: string; market: string; brand_name: string }[]
       >(`
@@ -177,16 +177,16 @@ async function main() {
         LIMIT $1
       `, limitArg);
 
-  console.log(`\n🖼️  Image Enrichment — ${campaigns.length} campaigns without images\n`);
+  console.log(`\n🖼️  Image Enrichment — ${listings.length} job listings without images\n`);
   if (marketArg) console.log(`Market: ${marketArg}`);
 
   let enriched = 0;
   let failed = 0;
   let skipped = 0;
 
-  for (let i = 0; i < campaigns.length; i++) {
-    const c = campaigns[i];
-    process.stdout.write(`[${i + 1}/${campaigns.length}] ${c.brand_name}: "${c.title.substring(0, 50)}"... `);
+  for (let i = 0; i < listings.length; i++) {
+    const c = listings[i];
+    process.stdout.write(`[${i + 1}/${listings.length}] ${c.brand_name}: "${c.title.substring(0, 50)}"... `);
 
     try {
       const imageUrl = await extractImageFromUrl(c.source_url, c.market);
@@ -211,7 +211,7 @@ async function main() {
   }
 
   console.log(`\n=== SONUÇ ===`);
-  console.log(`Toplam: ${campaigns.length}`);
+  console.log(`Toplam: ${listings.length}`);
   console.log(`Zenginleştirildi: ${enriched}`);
   console.log(`Bulunamadı: ${failed}`);
   console.log(`Atlandı: ${skipped}`);

@@ -44,8 +44,12 @@ export interface JobFilters {
   jobType?: string;
   workMode?: string;
   experienceLevel?: string;
+  salaryMin?: number;
+  salaryMax?: number;
+  state?: string;
+  city?: string;
   search?: string;
-  sort?: 'newest' | 'recommended' | 'ending_soon' | 'salary_high' | 'nearest';
+  sort?: 'newest' | 'recommended' | 'deadline' | 'posted_today' | 'salary_high' | 'salary_low' | 'nearest';
   followingOnly?: boolean;
   cursor?: string;
   limit?: number;
@@ -63,6 +67,10 @@ export async function fetchJobs(filters: JobFilters = {}): Promise<JobListRespon
   if (filters.jobType) params.jobType = filters.jobType;
   if (filters.workMode) params.workMode = filters.workMode;
   if (filters.experienceLevel) params.experienceLevel = filters.experienceLevel;
+  if (filters.salaryMin) params.salaryMin = String(filters.salaryMin);
+  if (filters.salaryMax) params.salaryMax = String(filters.salaryMax);
+  if (filters.state) params.state = filters.state;
+  if (filters.city) params.city = filters.city;
   if (filters.search) params.search = filters.search;
   if (filters.sort) params.sort = filters.sort;
   if (filters.followingOnly) params.followingOnly = 'true';

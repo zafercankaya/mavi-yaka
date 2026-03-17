@@ -12,7 +12,7 @@ export interface DiscoveryResult {
   apiUrl?: string;
 }
 
-const USER_AGENT = 'IndirimAvcisi/1.0';
+const USER_AGENT = 'MaviYaka/1.0';
 
 async function fetchHtml(url: string): Promise<string> {
   const response = await fetch(url, {
@@ -77,10 +77,10 @@ async function discoverFeed($: cheerio.CheerioAPI, baseUrl: string): Promise<str
 
   // 2. Try well-known feed paths
   const origin = new URL(baseUrl).origin;
-  // Only campaign-related feed paths (skip blog feeds — they're not campaigns)
+  // Only job-related feed paths (skip blog feeds — they're not job listings)
   const KNOWN_PATHS = [
-    '/kampanya/feed', '/kampanyalar/feed',
-    '/indirim/feed', '/firsatlar/feed',
+    '/kariyer/feed', '/is-ilanlari/feed',
+    '/jobs/feed', '/careers/feed',
     '/feed', '/feed/', '/rss', '/rss.xml', '/rss/',
     '/atom.xml', '/feed.xml',
     '/index.xml',
@@ -97,11 +97,11 @@ async function discoverFeed($: cheerio.CheerioAPI, baseUrl: string): Promise<str
   return null;
 }
 
-// Campaign-related keywords to validate feed content
-const CAMPAIGN_FEED_KEYWORDS = [
-  'kampanya', 'indirim', 'firsat', 'fırsat', 'promosyon', 'teklif',
-  'outlet', 'sale', 'deal', 'offer', 'promo', 'discount', 'campaign',
-  'kupon', 'taksit', 'hediye', 'avantaj',
+// Job-related keywords to validate feed content
+const JOB_FEED_KEYWORDS = [
+  'kariyer', 'is ilani', 'iş ilanı', 'pozisyon', 'istihdam', 'personel',
+  'job', 'career', 'vacancy', 'position', 'hiring', 'employment',
+  'recruitment', 'opening', 'opportunity', 'work',
 ];
 
 async function validateFeed(url: string): Promise<boolean> {
@@ -135,15 +135,15 @@ async function validateFeed(url: string): Promise<boolean> {
 
     if (!isXml) return false;
 
-    // Check if the feed has campaign-related content
+    // Check if the feed has job-related content
     const bodyLower = body.toLowerCase();
-    const hasCampaignContent = CAMPAIGN_FEED_KEYWORDS.some((kw) => bodyLower.includes(kw));
+    const hasJobContent = JOB_FEED_KEYWORDS.some((kw) => bodyLower.includes(kw));
 
-    // If the feed URL itself contains campaign keywords, accept it
+    // If the feed URL itself contains job keywords, accept it
     const urlLower = url.toLowerCase();
-    const isCampaignUrl = CAMPAIGN_FEED_KEYWORDS.some((kw) => urlLower.includes(kw));
+    const isJobUrl = JOB_FEED_KEYWORDS.some((kw) => urlLower.includes(kw));
 
-    return hasCampaignContent || isCampaignUrl;
+    return hasJobContent || isJobUrl;
   } catch {
     return false;
   }
@@ -160,7 +160,7 @@ function discoverApi($: cheerio.CheerioAPI, html: string, baseUrl: string): stri
       // Look for API routes in the Next.js page props
       const props = parsed?.props?.pageProps;
       if (props) {
-        // Check if page data contains campaign-like arrays
+        // Check if page data contains job-like arrays
         for (const [key, val] of Object.entries(props)) {
           if (Array.isArray(val) && (val as any[]).length > 0) {
             const first = (val as any[])[0];

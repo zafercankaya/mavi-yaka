@@ -20,7 +20,7 @@ const ALL_MARKETS: Market[] = [
 let isCrawling = false;
 let crawlStartTime = 0;
 let crawlingMarkets: string[] = [];
-let crawlResults: Array<{ market: string; success: number; failed: number; newCampaigns: number }> = [];
+let crawlResults: Array<{ market: string; success: number; failed: number; newJobs: number }> = [];
 
 function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve) => {
@@ -83,11 +83,11 @@ async function handleTrigger(req: IncomingMessage, res: ServerResponse) {
       // Summarize
       const totalSuccess = results.filter(r => r.status === 'SUCCESS' || r.status === 'PARTIAL').length;
       const totalFailed = results.filter(r => r.status === 'FAILED').length;
-      const totalNewCampaigns = results.reduce((s, r) => s + r.jobsNew, 0);
-      crawlResults = [{ market: markets.join(','), success: totalSuccess, failed: totalFailed, newCampaigns: totalNewCampaigns }];
+      const totalNewJobs = results.reduce((s, r) => s + r.jobsNew, 0);
+      crawlResults = [{ market: markets.join(','), success: totalSuccess, failed: totalFailed, newJobs: totalNewJobs }];
 
       const elapsed = Math.round((Date.now() - crawlStartTime) / 60000);
-      console.log(`[Trigger] Crawl complete in ${elapsed}min: ${totalSuccess} success, ${totalFailed} failed, ${totalNewCampaigns} new campaigns`);
+      console.log(`[Trigger] Crawl complete in ${elapsed}min: ${totalSuccess} success, ${totalFailed} failed, ${totalNewJobs} new job listings`);
     } catch (err) {
       console.error('[Trigger] Crawl error:', (err as Error).message);
     } finally {

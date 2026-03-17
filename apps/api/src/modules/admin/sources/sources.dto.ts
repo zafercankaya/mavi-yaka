@@ -16,7 +16,7 @@ export class CreateSourceDto {
   @MaxLength(200)
   name!: string;
 
-  @ApiProperty({ enum: CrawlMethod, example: 'CAMPAIGN' })
+  @ApiProperty({ enum: CrawlMethod, example: 'HTML' })
   @IsEnum(CrawlMethod)
   crawlMethod!: CrawlMethod;
 

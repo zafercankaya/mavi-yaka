@@ -633,7 +633,3 @@ function parseDate(dateStr?: string): Date | null {
   return d;
 }
 
-// ─── Backward-compatible aliases (Faz 2 geçiş — diğer dosyalar güncellenince kaldırılacak) ───
-export type NormalizedCampaign = NormalizedJobListing;
-export type RawCampaignData = RawJobData;
-export const normalizeCampaign = normalizeJobListing;

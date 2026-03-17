@@ -966,7 +966,7 @@ async function main() {
             data: {
               brandId: brand.id,
               name: `${b.name} Deals`,
-              crawlMethod: CrawlMethod.CAMPAIGN,
+              crawlMethod: CrawlMethod.HTML,
               seedUrls: [seedUrl],
               market: 'DE' as any,
               maxDepth: 2,

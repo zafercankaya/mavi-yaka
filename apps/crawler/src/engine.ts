@@ -2,15 +2,15 @@ import { PrismaClient, CrawlMethod, CrawlStatus, Market } from '@prisma/client';
 import { CrawlMarket } from './config';
 // import { SelectorsConfig } from '@maviyaka/shared';
 type SelectorsConfig = any; // TODO: restore @maviyaka/shared import when package is ready
-import { scrapeCampaigns, closeBrowser } from './processors/scrape.processor';
+import { scrapeJobListings, closeBrowser } from './processors/scrape.processor';
 import { scrapeGeneric } from './processors/generic-scraper';
 import { scrapeGenericPlaywright } from './processors/playwright-fallback';
-import { fetchRssCampaigns } from './processors/rss.processor';
-import { fetchApiCampaigns } from './processors/api.processor';
+import { fetchRssJobListings } from './processors/rss.processor';
+import { fetchApiJobListings } from './processors/api.processor';
 import { fetchGovApiJobs, hasGovApiHandler } from './processors/gov-api.processor';
 import { fetchAllPlatformJobs } from './processors/job-platform-api.processor';
-import { normalizeCampaign, RawCampaignData } from './pipeline/normalize';
-import { filterCampaigns, filterCampaignsWithAI } from './pipeline/quality-filter';
+import { normalizeJobListing, RawJobData } from './pipeline/normalize';
+import { filterJobListings, filterJobListingsWithAI } from './pipeline/quality-filter';
 import { checkAndUpsert, deduplicateBatch } from './pipeline/deduplicate';
 import { runAging } from './pipeline/aging';
 import { notifyNewJobListings } from './notify';
@@ -28,12 +28,14 @@ export interface CrawlResult {
 
 /** Max total time for a single source (scraping + AI filter + dedup + upsert) */
 const GLOBAL_SOURCE_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
+/** Longer timeout for API-based sources (Adzuna/Jooble fetch multiple pages) */
+const API_SOURCE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 
 /** How many sources to crawl in parallel (Contabo: 4 vCPU, 8GB RAM — mostly I/O-bound) */
 const CRAWL_CONCURRENCY = 6;
 
-/** Max active job listings per company — prevents any single company from dominating */
-const MAX_JOBS_PER_COMPANY = 50;
+/** No per-company limit for Mavi Yaka — crawl all job listings found */
+// const MAX_JOBS_PER_COMPANY = 50; // REMOVED: Mavi Yaka'da sınır yok
 
 /** Throttle delay after inserting a new job listing — reduces DB connection pressure */
 const DB_WRITE_THROTTLE_MS = 150;
@@ -96,12 +98,13 @@ export async function crawlSource(
     });
   }
 
-  // Wrap the entire crawl in a global timeout
+  // Wrap the entire crawl in a global timeout (longer for API sources)
+  const timeoutMs = source.type === 'JOB_PLATFORM' ? API_SOURCE_TIMEOUT_MS : GLOBAL_SOURCE_TIMEOUT_MS;
   let globalTimeoutId: ReturnType<typeof setTimeout>;
   const globalTimeoutPromise = new Promise<never>((_, reject) => {
     globalTimeoutId = setTimeout(() => {
-      reject(new Error(`Global source timeout after ${GLOBAL_SOURCE_TIMEOUT_MS / 1000}s (includes AI filter + dedup)`));
-    }, GLOBAL_SOURCE_TIMEOUT_MS);
+      reject(new Error(`Global source timeout after ${timeoutMs / 1000}s (includes AI filter + dedup)`));
+    }, timeoutMs);
   });
 
   try {
@@ -150,7 +153,7 @@ async function crawlSourceInternal(
 ): Promise<CrawlResult> {
   const startTime = Date.now();
 
-  let rawCampaigns: RawCampaignData[] = [];
+  let rawJobs: RawJobData[] = [];
   let errorMessage: string | null = null;
   let status: CrawlStatus = CrawlStatus.SUCCESS;
 
@@ -192,23 +195,23 @@ async function crawlSourceInternal(
         if (abortSignal.aborted) break;
         try {
           console.log(`[Crawl] Processing URL: ${url}`);
-          let urlCampaigns: RawCampaignData[] = [];
+          let urlJobs: RawJobData[] = [];
 
           switch (effectiveMethod) {
             case CrawlMethod.RSS: {
-              urlCampaigns = await fetchRssCampaigns(url);
+              urlJobs = await fetchRssJobListings(url);
               break;
             }
             case CrawlMethod.API: {
               // Government sources with API handler → use specialized gov-api processor
               if (source.type === 'GOVERNMENT' && hasGovApiHandler(source.market as any)) {
-                urlCampaigns = await fetchGovApiJobs(source.market as any, url);
+                urlJobs = await fetchGovApiJobs(source.market as any, url);
               } else if (source.type === 'JOB_PLATFORM') {
                 // Job platform aggregator APIs (Adzuna, Jooble, CareerJet)
-                urlCampaigns = await fetchAllPlatformJobs(source.market as any);
+                urlJobs = await fetchAllPlatformJobs(source.market as any);
               } else {
                 const baseUrl = source.seedUrls[0] || url;
-                urlCampaigns = await fetchApiCampaigns(url, baseUrl);
+                urlJobs = await fetchApiJobListings(url, baseUrl);
               }
               break;
             }
@@ -216,30 +219,30 @@ async function crawlSourceInternal(
             default: {
               const selectors = source.selectors as SelectorsConfig | null;
               if (selectors) {
-                urlCampaigns = await scrapeCampaigns(url, selectors, source.maxDepth);
+                urlJobs = await scrapeJobListings(url, selectors, source.maxDepth);
               } else {
-                // Pass rawCampaigns as accumulator so results are available even on timeout
-                const beforeCount = rawCampaigns.length;
+                // Pass rawJobs as accumulator so results are available even on timeout
+                const beforeCount = rawJobs.length;
                 try {
-                  await scrapeGeneric(url, source.maxDepth, source.market as CrawlMarket, abortSignal, rawCampaigns);
+                  await scrapeGeneric(url, source.maxDepth, source.market as CrawlMarket, abortSignal, rawJobs);
                 } catch (cheerioErr) {
                   console.log(`  [Engine] Cheerio failed: ${(cheerioErr as Error).message}`);
                 }
-                const genericFound = rawCampaigns.length - beforeCount;
+                const genericFound = rawJobs.length - beforeCount;
 
                 if (genericFound === 0 && !abortSignal.aborted) {
                   console.log(`  [Engine] Trying Playwright fallback for ${url}`);
-                  urlCampaigns = await scrapeGenericPlaywright(url, source.maxDepth, source.market as CrawlMarket, abortSignal);
+                  urlJobs = await scrapeGenericPlaywright(url, source.maxDepth, source.market as CrawlMarket, abortSignal);
                 } else {
-                  // scrapeGeneric already pushed to rawCampaigns, skip push below
-                  urlCampaigns = [];
+                  // scrapeGeneric already pushed to rawJobs, skip push below
+                  urlJobs = [];
                 }
               }
               break;
             }
           }
 
-          rawCampaigns.push(...urlCampaigns);
+          rawJobs.push(...urlJobs);
         } catch (err) {
           if (abortSignal.aborted) break;
           console.warn(`[Crawl] Error on URL ${url}: ${(err as Error).message}`);
@@ -266,14 +269,14 @@ async function crawlSourceInternal(
     }
 
     // If all URLs failed, mark as FAILED
-    if (rawCampaigns.length === 0 && (status as CrawlStatus) === CrawlStatus.PARTIAL) {
+    if (rawJobs.length === 0 && (status as CrawlStatus) === CrawlStatus.PARTIAL) {
       status = CrawlStatus.FAILED;
     }
   } catch (err) {
     errorMessage = (err as Error).message;
-    // If we already found some campaigns before the timeout, mark as PARTIAL not FAILED
-    status = rawCampaigns.length > 0 ? CrawlStatus.PARTIAL : CrawlStatus.FAILED;
-    console.error(`[Crawl] Error fetching: ${errorMessage}${rawCampaigns.length > 0 ? ` (${rawCampaigns.length} jobs found before timeout)` : ''}`);
+    // If we already found some jobs before the timeout, mark as PARTIAL not FAILED
+    status = rawJobs.length > 0 ? CrawlStatus.PARTIAL : CrawlStatus.FAILED;
+    console.error(`[Crawl] Error fetching: ${errorMessage}${rawJobs.length > 0 ? ` (${rawJobs.length} jobs found before timeout)` : ''}`);
   }
 
   // Process job listings through pipeline
@@ -281,18 +284,18 @@ async function crawlSourceInternal(
   let jobsUpdated = 0;
   const newJobIds: string[] = [];
 
-  if (rawCampaigns.length > 0) {
-    console.log(`[Crawl] Processing ${rawCampaigns.length} job listings...`);
+  if (rawJobs.length > 0) {
+    console.log(`[Crawl] Processing ${rawJobs.length} job listings...`);
 
-    // Step 1: Normalize all raw campaigns
-    const normalized = rawCampaigns.map((raw) => normalizeCampaign(raw));
+    // Step 1: Normalize all raw job listings
+    const normalized = rawJobs.map((raw) => normalizeJobListing(raw));
 
     // Step 2: Quality filter — reject low-quality entries
     // Use AI-enhanced filter if GROQ_API_KEY is configured, otherwise static filter
     const companyName = source.company?.name;
     const { passed } = process.env.GROQ_API_KEY
-      ? await filterCampaignsWithAI(normalized, companyName, source.market)
-      : filterCampaigns(normalized, companyName, source.market);
+      ? await filterJobListingsWithAI(normalized, companyName, source.market)
+      : filterJobListings(normalized, companyName, source.market);
 
     // Step 3: In-batch deduplication (remove duplicates within this crawl)
     const unique = deduplicateBatch(passed);
@@ -300,37 +303,17 @@ async function crawlSourceInternal(
       console.log(`  [Dedup] Batch dedup: ${passed.length} → ${unique.length} (${passed.length - unique.length} batch duplicates removed)`);
     }
 
-    // Step 4: Check company job listing limit before upserting
-    const existingCount = await prisma.jobListing.count({
-      where: { companyId: source.companyId, status: 'ACTIVE' },
-    });
-    const remainingSlots = Math.max(0, MAX_JOBS_PER_COMPANY - existingCount);
-    if (remainingSlots === 0) {
-      console.log(`  [Limit] Company "${source.company?.name}" already has ${existingCount} active job listings (max ${MAX_JOBS_PER_COMPANY}), skipping upsert`);
-    } else if (remainingSlots < unique.length) {
-      console.log(`  [Limit] Company "${source.company?.name}" has ${existingCount}/${MAX_JOBS_PER_COMPANY} job listings, ${remainingSlots} slots remaining`);
-    }
-
-    // Step 5: Deduplicate against DB and upsert
+    // Step 4: Deduplicate against DB and upsert (no per-company limit)
     let insertedCount = 0;
-    for (const campaign of unique) {
+    for (const listing of unique) {
       try {
-        // Skip new inserts if company is at limit (but still allow updates to existing)
-        if (insertedCount >= remainingSlots && remainingSlots < unique.length) {
-          // Only allow updates, not new inserts — check if job listing already exists
-          const existing = await prisma.jobListing.findFirst({
-            where: { companyId: source.companyId, title: campaign.title, status: 'ACTIVE' },
-            select: { id: true },
-          });
-          if (!existing) continue; // Skip — company at limit
-        }
 
         const result = await checkAndUpsert(
           prisma,
           source.id,
           source.companyId,
           source.company?.sector ?? null,
-          campaign,
+          listing,
           source.market,
         );
 
@@ -344,7 +327,7 @@ async function crawlSourceInternal(
           jobsUpdated++;
         }
       } catch (err) {
-        console.warn(`[Crawl] Failed to process job listing "${campaign.title}": ${(err as Error).message}`);
+        console.warn(`[Crawl] Failed to process job listing "${listing.title}": ${(err as Error).message}`);
         if (status === CrawlStatus.SUCCESS) {
           status = CrawlStatus.PARTIAL;
           errorMessage = (err as Error).message;
@@ -369,7 +352,7 @@ async function crawlSourceInternal(
     where: { id: log.id },
     data: {
       status,
-      jobsFound: rawCampaigns.length,
+      jobsFound: rawJobs.length,
       jobsNew,
       jobsUpdated,
       errorMessage,
@@ -387,7 +370,7 @@ async function crawlSourceInternal(
     sourceId: source.id,
     sourceName: source.name,
     status,
-    jobsFound: rawCampaigns.length,
+    jobsFound: rawJobs.length,
     jobsNew,
     jobsUpdated,
     errorMessage,
@@ -395,7 +378,7 @@ async function crawlSourceInternal(
   };
 
   console.log(
-    `[Crawl] Done: ${source.name} — found=${rawCampaigns.length}, new=${jobsNew}, updated=${jobsUpdated}, ${durationMs}ms`,
+    `[Crawl] Done: ${source.name} — found=${rawJobs.length}, new=${jobsNew}, updated=${jobsUpdated}, ${durationMs}ms`,
   );
 
   return result;

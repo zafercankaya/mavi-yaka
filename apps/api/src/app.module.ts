@@ -17,6 +17,8 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 import { UploadModule } from './modules/upload/upload.module';
 import { SavedJobsModule } from './modules/saved-jobs/saved-jobs.module';
+import { JobAlertsModule } from './modules/job-alerts/job-alerts.module';
+import { LocationsModule } from './modules/locations/locations.module';
 import { ReferralsModule } from './modules/referrals/referrals.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 
@@ -48,6 +50,8 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
     SubscriptionsModule,
     UploadModule,
     SavedJobsModule,
+    JobAlertsModule,
+    LocationsModule,
     ReferralsModule,
     AnalyticsModule,
   ],

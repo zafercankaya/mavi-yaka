@@ -16,7 +16,7 @@ interface Props {
 
 const SORT_OPTIONS = [
   { value: 'newest', label: 'En Yeni', icon: 'time-outline' as const },
-  { value: 'ending_soon', label: 'Bitmek Üzere', icon: 'alarm-outline' as const },
+  { value: 'deadline', label: 'Son Başvuru', icon: 'alarm-outline' as const },
   { value: 'salary_high', label: 'En Yüksek Maaş', icon: 'trending-up-outline' as const },
 ];
 

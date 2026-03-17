@@ -1,7 +1,7 @@
 import * as cheerio from 'cheerio';
 // import { SelectorsConfig } from '@maviyaka/shared';
 type SelectorsConfig = any; // TODO: restore @maviyaka/shared import when package is ready
-import { RawCampaignData } from '../pipeline/normalize';
+import { RawJobData } from '../pipeline/normalize';
 import { CRAWL_DELAY_MS, REQUEST_TIMEOUT_MS } from '../config';
 import { pickBestFromSrcset } from '../pipeline/optimize-images';
 import { extractDates, parseDateRange } from '../utils/date-extractor';
@@ -41,20 +41,20 @@ async function fetchHtml(url: string): Promise<string> {
 }
 
 /**
- * Scrape campaigns using CSS selectors.
+ * Scrape job listings using CSS selectors.
  * Tries Cheerio (HTTP fetch) first, falls back to Playwright if empty.
  */
-export async function scrapeCampaigns(
+export async function scrapeJobListings(
   seedUrl: string,
   selectors: SelectorsConfig,
   maxDepth: number,
-): Promise<RawCampaignData[]> {
+): Promise<RawJobData[]> {
   // Try Cheerio first (fast, no browser)
   try {
-    const campaigns = await scrapeCampaignsWithCheerio(seedUrl, selectors, maxDepth);
-    if (campaigns.length > 0) {
-      console.log(`  [Scrape] Cheerio succeeded: ${campaigns.length} campaigns`);
-      return campaigns;
+    const jobs = await scrapeJobListingsWithCheerio(seedUrl, selectors, maxDepth);
+    if (jobs.length > 0) {
+      console.log(`  [Scrape] Cheerio succeeded: ${jobs.length} job listings`);
+      return jobs;
     }
     console.log('  [Scrape] Cheerio found nothing, falling back to Playwright');
   } catch (err) {
@@ -62,35 +62,35 @@ export async function scrapeCampaigns(
   }
 
   // Playwright fallback
-  return scrapeCampaignsWithPlaywright(seedUrl, selectors, maxDepth);
+  return scrapeJobListingsWithPlaywright(seedUrl, selectors, maxDepth);
 }
 
 // ─── Cheerio-based scraping ───────────────────────────────
 
-async function scrapeCampaignsWithCheerio(
+async function scrapeJobListingsWithCheerio(
   seedUrl: string,
   selectors: SelectorsConfig,
   maxDepth: number,
-): Promise<RawCampaignData[]> {
+): Promise<RawJobData[]> {
   console.log(`  [Scrape/Cheerio] Fetching: ${seedUrl}`);
   const html = await fetchHtml(seedUrl);
   const $ = cheerio.load(html);
 
   const cards = $(selectors.list);
-  console.log(`  [Scrape/Cheerio] Found ${cards.length} campaign cards`);
+  console.log(`  [Scrape/Cheerio] Found ${cards.length} job listing cards`);
 
   if (cards.length === 0) return [];
 
-  const campaigns: RawCampaignData[] = [];
+  const jobs: RawJobData[] = [];
   const pageDates = extractDates($);
 
   // maxDepth <= 1: extract from list page directly
   if (maxDepth <= 1) {
     cards.each((_i, el) => {
-      const campaign = extractFromCard($, el, selectors, seedUrl, pageDates);
-      if (campaign) campaigns.push(campaign);
+      const job = extractFromCard($, el, selectors, seedUrl, pageDates);
+      if (job) jobs.push(job);
     });
-    return campaigns;
+    return jobs;
   }
 
   // Extract links from cards for depth=2
@@ -106,7 +106,7 @@ async function scrapeCampaignsWithCheerio(
     }
   });
 
-  console.log(`  [Scrape/Cheerio] Extracted ${links.length} unique campaign links`);
+  console.log(`  [Scrape/Cheerio] Extracted ${links.length} unique job listing links`);
 
   // Visit each detail page
   for (const link of links) {
@@ -114,14 +114,14 @@ async function scrapeCampaignsWithCheerio(
       await delay(randomDelay(CRAWL_DELAY_MS));
       const detailHtml = await fetchHtml(link);
       const detail$ = cheerio.load(detailHtml);
-      const campaign = extractFromDetail(detail$, selectors, link);
-      if (campaign) campaigns.push(campaign);
+      const job = extractFromDetail(detail$, selectors, link);
+      if (job) jobs.push(job);
     } catch (err) {
       console.warn(`  [Scrape/Cheerio] Failed: ${link}: ${(err as Error).message}`);
     }
   }
 
-  return campaigns;
+  return jobs;
 }
 
 // ─── Playwright-based scraping (fallback) ─────────────────
@@ -149,11 +149,11 @@ async function navigateWithFallback(
   await delay(1500);
 }
 
-async function scrapeCampaignsWithPlaywright(
+async function scrapeJobListingsWithPlaywright(
   seedUrl: string,
   selectors: SelectorsConfig,
   maxDepth: number,
-): Promise<RawCampaignData[]> {
+): Promise<RawJobData[]> {
   console.log(`  [Scrape/Playwright] Fallback for: ${seedUrl}`);
 
   const browser = await getBrowser();
@@ -172,7 +172,7 @@ async function scrapeCampaignsWithPlaywright(
     }
   });
 
-  const campaigns: RawCampaignData[] = [];
+  const jobs: RawJobData[] = [];
 
   try {
     const page = await context.newPage();
@@ -184,7 +184,7 @@ async function scrapeCampaignsWithPlaywright(
     const $ = cheerio.load(html);
 
     const cards = $(selectors.list);
-    console.log(`  [Scrape/Playwright] Found ${cards.length} campaign cards`);
+    console.log(`  [Scrape/Playwright] Found ${cards.length} job listing cards`);
 
     if (cards.length === 0) {
       await page.close();
@@ -195,11 +195,11 @@ async function scrapeCampaignsWithPlaywright(
 
     if (maxDepth <= 1) {
       cards.each((_i, el) => {
-        const campaign = extractFromCard($, el, selectors, seedUrl, pageDates);
-        if (campaign) campaigns.push(campaign);
+        const job = extractFromCard($, el, selectors, seedUrl, pageDates);
+        if (job) jobs.push(job);
       });
       await page.close();
-      return campaigns;
+      return jobs;
     }
 
     const links: string[] = [];
@@ -220,8 +220,8 @@ async function scrapeCampaignsWithPlaywright(
         await navigateWithFallback(page, link);
         const detailHtml = await page.content();
         const detail$ = cheerio.load(detailHtml);
-        const campaign = extractFromDetail(detail$, selectors, link);
-        if (campaign) campaigns.push(campaign);
+        const job = extractFromDetail(detail$, selectors, link);
+        if (job) jobs.push(job);
       } catch (err) {
         console.warn(`  [Scrape/Playwright] Failed: ${link}: ${(err as Error).message}`);
       }
@@ -232,7 +232,7 @@ async function scrapeCampaignsWithPlaywright(
     await context.close();
   }
 
-  return campaigns;
+  return jobs;
 }
 
 // ─── Extraction helpers ───────────────────────────────────
@@ -243,7 +243,7 @@ function extractFromCard(
   selectors: SelectorsConfig,
   baseUrl: string,
   pageDates: { startDate: string | null; endDate: string | null },
-): RawCampaignData | null {
+): RawJobData | null {
   const title = $(el).find(selectors.title).first().text().trim();
   if (!title) return null;
 
@@ -266,11 +266,6 @@ function extractFromCard(
     });
   }
 
-  const discountText = selectors.discountRate
-    ? $(el).find(selectors.discountRate).first().text().trim()
-    : '';
-  const discountRate = parseDiscount(discountText || title);
-
   // Date extraction: selectors first, then page-level fallback
   const dateText = selectors.startDate
     ? $(el).find(selectors.startDate).first().text().trim() || undefined
@@ -284,6 +279,16 @@ function extractFromCard(
   const startDate = parsed?.startDate || pageDates.startDate || undefined;
   const endDate = parsed?.endDate || endDateText || pageDates.endDate || undefined;
 
+  // Extract salary text if selector provided
+  const salaryText = selectors.salary
+    ? $(el).find(selectors.salary).first().text().trim() || undefined
+    : undefined;
+
+  // Extract location text if selector provided
+  const locationText = selectors.location
+    ? $(el).find(selectors.location).first().text().trim() || undefined
+    : undefined;
+
   return {
     title,
     description,
@@ -291,6 +296,8 @@ function extractFromCard(
     imageUrls,
     postedDate: startDate ?? undefined,
     deadline: endDate ?? undefined,
+    salaryText,
+    locationText,
   };
 }
 
@@ -298,7 +305,7 @@ function extractFromDetail(
   $: cheerio.CheerioAPI,
   selectors: SelectorsConfig,
   sourceUrl: string,
-): RawCampaignData | null {
+): RawJobData | null {
   const title = $(selectors.title).first().text().trim();
   if (!title) return null;
 
@@ -313,11 +320,6 @@ function extractFromDetail(
       if (bestUrl) imageUrls.push(bestUrl);
     });
   }
-
-  const discountText = selectors.discountRate
-    ? $(selectors.discountRate).first().text().trim()
-    : '';
-  const discountRate = parseDiscount(discountText || title);
 
   // Date extraction: selectors first, then auto-extract fallback
   const dateText = selectors.startDate
@@ -339,13 +341,39 @@ function extractFromDetail(
     endDate = autoDetected.endDate ?? undefined;
   }
 
+  // Try to extract salary from detail page
+  const salaryText = selectors.salary
+    ? $(selectors.salary).first().text().trim() || undefined
+    : undefined;
+
+  // Try to extract location from detail page
+  const locationText = selectors.location
+    ? $(selectors.location).first().text().trim() || undefined
+    : undefined;
+
+  // Try to extract job-specific fields from JSON-LD (schema.org/JobPosting)
+  let jsonLdData: any = null;
+  $('script[type="application/ld+json"]').each((_i, el) => {
+    try {
+      const json = JSON.parse($(el).html() || '');
+      if (json['@type'] === 'JobPosting' || json?.['@graph']?.find?.((g: any) => g['@type'] === 'JobPosting')) {
+        jsonLdData = json['@type'] === 'JobPosting' ? json : json['@graph'].find((g: any) => g['@type'] === 'JobPosting');
+      }
+    } catch {}
+  });
+
   return {
-    title,
-    description,
+    title: jsonLdData?.title || title,
+    description: jsonLdData?.description || description,
     sourceUrl,
     imageUrls,
-    postedDate: startDate ?? undefined,
-    deadline: endDate ?? undefined,
+    postedDate: jsonLdData?.datePosted || startDate || undefined,
+    deadline: jsonLdData?.validThrough || endDate || undefined,
+    salaryText: jsonLdData?.baseSalary?.value
+      ? `${jsonLdData.baseSalary.value.minValue || ''}-${jsonLdData.baseSalary.value.maxValue || ''} ${jsonLdData.baseSalary.currency || ''}`
+      : salaryText,
+    locationText: jsonLdData?.jobLocation?.address?.addressLocality || locationText,
+    jobTypeText: jsonLdData?.employmentType || undefined,
   };
 }
 
@@ -376,18 +404,4 @@ function extractBestImageSrc(
   }
 
   return null;
-}
-
-const MATERIAL_PATTERN_SCRAPE = /(?:pamuk|cotton|polyester|elastan|viskon|viscose|keten|linen|yün|wool|ipek|silk|naylon|nylon|akrilik|acrylic|sentetik|lycra|rayon)/i;
-
-function parseDiscount(text: string): number | null {
-  if (!text) return null;
-  const match = text.match(/%\s*(\d+)/) || text.match(/(\d+)\s*%/);
-  if (!match) return null;
-  const val = parseInt(match[1], 10);
-  if (val < 1 || val > 95) return null;
-  // Check if % refers to material composition, not discount
-  const afterMatch = text.substring(match.index! + match[0].length, match.index! + match[0].length + 30);
-  if (MATERIAL_PATTERN_SCRAPE.test(afterMatch)) return null;
-  return val;
 }

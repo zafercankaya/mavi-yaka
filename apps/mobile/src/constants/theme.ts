@@ -35,7 +35,7 @@ export const Colors = {
   tabBarInactive: '#9CA3AF',
   tabBarActive: '#E8553A',
 
-  discount: '#E74C3C',
+  badge: '#E74C3C',
   error: '#DC3545',
 
   overlay: 'rgba(0,0,0,0.5)',

@@ -10,6 +10,7 @@ export interface Company {
   sector: string | null;
   description: string | null;
   employeeCount: string | null;
+  jobCount?: number;
 }
 
 export async function fetchCompanies(sector?: string): Promise<{ data: Company[] }> {
@@ -17,5 +18,10 @@ export async function fetchCompanies(sector?: string): Promise<{ data: Company[]
   const params: Record<string, string> = { market };
   if (sector) params.sector = sector;
   const { data } = await api.get<{ data: Company[] }>('/companies', { params });
+  return data;
+}
+
+export async function fetchCompanyById(id: string): Promise<{ data: Company }> {
+  const { data } = await api.get<{ data: Company }>(`/companies/${id}`);
   return data;
 }

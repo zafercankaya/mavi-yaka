@@ -1272,7 +1272,7 @@ async function main() {
           data: {
             brandId: brand.id,
             name: `${entry.name} Deals`,
-            crawlMethod: CrawlMethod.CAMPAIGN,
+            crawlMethod: CrawlMethod.HTML,
             seedUrls: entry.seedUrls,
             maxDepth: 2,
             schedule: '0 4 * * *',

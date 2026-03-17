@@ -55,7 +55,7 @@ export default function LoginScreen() {
         )}
         <View style={styles.header}>
           <Text style={styles.logo}>{t('app.name')}</Text>
-          <Text style={styles.subtitle}>{t('auth.discoverDeals')}</Text>
+          <Text style={styles.subtitle}>{t('auth.discoverJobs')}</Text>
         </View>
 
         <View style={styles.form}>

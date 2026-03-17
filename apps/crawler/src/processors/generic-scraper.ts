@@ -44,8 +44,8 @@ function resolveNextImageUrl(src: string, baseUrl: string): string | null {
 // ─── __NEXT_DATA__ extraction (Next.js SPA sites) ─────────────
 
 /**
- * Extract campaigns from Next.js __NEXT_DATA__ JSON embedded in the page.
- * Recursively searches the JSON structure for arrays of campaign-like objects.
+ * Extract job listings from Next.js __NEXT_DATA__ JSON embedded in the page.
+ * Recursively searches the JSON structure for arrays of job-like objects.
  */
 function extractFromNextData($: cheerio.CheerioAPI, baseUrl: string): RawJobData[] {
   const script = $('script#__NEXT_DATA__');
@@ -53,26 +53,26 @@ function extractFromNextData($: cheerio.CheerioAPI, baseUrl: string): RawJobData
 
   try {
     const json = JSON.parse(script.html() || '');
-    const campaigns: RawJobData[] = [];
+    const jobs: RawJobData[] = [];
     const seen = new Set<string>();
 
-    findCampaignArrays(json, baseUrl, campaigns, seen, 0);
+    findJobArrays(json, baseUrl, jobs, seen, 0);
 
-    if (campaigns.length > 0) {
-      console.log(`  [Generic] Extracted ${campaigns.length} job listings from __NEXT_DATA__`);
+    if (jobs.length > 0) {
+      console.log(`  [Generic] Extracted ${jobs.length} job listings from __NEXT_DATA__`);
     }
-    return campaigns;
+    return jobs;
   } catch {
     return [];
   }
 }
 
 /** Property names that indicate a title field */
-const TITLE_KEYS = ['title', 'name', 'jobTitle', 'positionTitle', 'pozisyon', 'pozisyonAdi', 'campaignTitle', 'campaignName', 'offerTitle', 'offerName', 'heading', 'baslik', 'dealTitle', 'promoTitle'];
+const TITLE_KEYS = ['title', 'name', 'jobTitle', 'positionTitle', 'pozisyon', 'pozisyonAdi', 'offerTitle', 'offerName', 'heading', 'baslik', 'vacancyTitle', 'roleName'];
 /** Property names that indicate an image URL field */
-const IMAGE_KEYS = ['imageUrl', 'image', 'imgUrl', 'img', 'imageURL', 'imageSrc', 'thumbnail', 'photo', 'coverImage', 'bannerImage', 'pictureUrl', 'campaignImageUrl', 'offerImage', 'offerImageUrl', 'bannerUrl', 'heroImage', 'featuredImage', 'cardImage'];
-/** Property names that indicate a campaign URL/slug field */
-const URL_KEYS = ['url', 'href', 'slug', 'link', 'path', 'campaignUrl', 'detailUrl', 'pageUrl', 'campaignSlug', 'offerSlug', 'offerUrl', 'dealUrl'];
+const IMAGE_KEYS = ['imageUrl', 'image', 'imgUrl', 'img', 'imageURL', 'imageSrc', 'thumbnail', 'photo', 'coverImage', 'bannerImage', 'pictureUrl', 'companyLogo', 'offerImage', 'offerImageUrl', 'bannerUrl', 'heroImage', 'featuredImage', 'cardImage'];
+/** Property names that indicate a job listing URL/slug field */
+const URL_KEYS = ['url', 'href', 'slug', 'link', 'path', 'applyUrl', 'detailUrl', 'pageUrl', 'jobSlug', 'offerSlug', 'offerUrl', 'vacancyUrl'];
 /** Property names that indicate a description field */
 const DESC_KEYS = ['description', 'desc', 'summary', 'subtitle', 'aciklama', 'content', 'jobDescription', 'qualifications', 'responsibilities'];
 /** Property names that indicate a salary field */
@@ -83,10 +83,10 @@ const LOCATION_KEYS = ['location', 'city', 'address', 'konum', 'sehir', 'il', 's
 const REQUIREMENTS_KEYS = ['requirements', 'qualifications', 'skills', 'experience', 'nitelikler', 'gereksinimler'];
 
 /**
- * Recursively search a JSON object for arrays of campaign-like objects.
- * A campaign-like object has at least a title and (url or image).
+ * Recursively search a JSON object for arrays of job-like objects.
+ * A job-like object has at least a title and (url or image).
  */
-function findCampaignArrays(
+function findJobArrays(
   obj: any,
   baseUrl: string,
   results: RawJobData[],
@@ -96,17 +96,17 @@ function findCampaignArrays(
   if (depth > 10 || !obj || typeof obj !== 'object') return;
 
   if (Array.isArray(obj)) {
-    // Check if this array contains campaign-like objects
-    const campaignItems = obj.filter(
-      (item) => item && typeof item === 'object' && !Array.isArray(item) && hasCampaignShape(item),
+    // Check if this array contains job-like objects
+    const jobItems = obj.filter(
+      (item) => item && typeof item === 'object' && !Array.isArray(item) && hasJobShape(item),
     );
 
-    if (campaignItems.length >= 2) {
-      for (const item of campaignItems) {
-        const campaign = extractCampaignFromJsonObject(item, baseUrl);
-        if (campaign && !seen.has(campaign.title)) {
-          seen.add(campaign.title);
-          results.push(campaign);
+    if (jobItems.length >= 2) {
+      for (const item of jobItems) {
+        const job = extractJobFromJsonObject(item, baseUrl);
+        if (job && !seen.has(job.title)) {
+          seen.add(job.title);
+          results.push(job);
         }
       }
       return; // Don't recurse deeper into this array
@@ -114,19 +114,19 @@ function findCampaignArrays(
 
     // Recurse into array elements
     for (const item of obj) {
-      findCampaignArrays(item, baseUrl, results, seen, depth + 1);
+      findJobArrays(item, baseUrl, results, seen, depth + 1);
     }
   } else {
     // Recurse into object values
     for (const val of Object.values(obj)) {
       if (val && typeof val === 'object') {
-        findCampaignArrays(val, baseUrl, results, seen, depth + 1);
+        findJobArrays(val, baseUrl, results, seen, depth + 1);
       }
     }
   }
 }
 
-function hasCampaignShape(obj: Record<string, any>): boolean {
+function hasJobShape(obj: Record<string, any>): boolean {
   const keys = Object.keys(obj).map((k) => k.toLowerCase());
   const hasTitle = TITLE_KEYS.some((tk) => keys.includes(tk.toLowerCase()));
   const hasUrl = URL_KEYS.some((uk) => keys.includes(uk.toLowerCase()));
@@ -134,7 +134,7 @@ function hasCampaignShape(obj: Record<string, any>): boolean {
   return hasTitle && (hasUrl || hasImage);
 }
 
-function extractCampaignFromJsonObject(obj: Record<string, any>, baseUrl: string): RawJobData | null {
+function extractJobFromJsonObject(obj: Record<string, any>, baseUrl: string): RawJobData | null {
   const title = findValue(obj, TITLE_KEYS);
   if (!title || typeof title !== 'string' || title.length < 5 || title.length > 300) return null;
 
@@ -275,7 +275,36 @@ const JOB_PATH_PATTERNS = [
   /naukri/i, /rozgar/i,
 ];
 
-// Patterns to EXCLUDE (non-campaign pages)
+/**
+ * Known ATS (Applicant Tracking System) domains.
+ * When a URL points to one of these, the page is very likely a job listing.
+ */
+const ATS_DOMAINS = [
+  'lever.co',
+  'greenhouse.io',
+  'workday.com',
+  'taleo.net',
+  'icims.com',
+  'smartrecruiters.com',
+  'breezy.hr',
+  'recruitee.com',
+  'bamboohr.com',
+  'ashbyhq.com',
+  'myworkdayjobs.com',
+  'jobs.lever.co',
+];
+
+/** Check if a URL belongs to a known ATS platform */
+function isATSDomain(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return ATS_DOMAINS.some((ats) => host === ats || host.endsWith(`.${ats}`));
+  } catch {
+    return false;
+  }
+}
+
+// Patterns to EXCLUDE (non-job pages)
 const EXCLUDE_PATTERNS = [
   /login|signin|sign-in|giris/i,
   /register|kayit|signup|sign-up/i,
@@ -354,8 +383,9 @@ function findJobLinks($: cheerio.CheerioAPI, baseUrl: string): string[] {
       const text = $(el).text().trim().toLowerCase();
       const isJobUrl = JOB_PATH_PATTERNS.some((p) => p.test(path));
       const isJobText = JOB_PATH_PATTERNS.some((p) => p.test(text));
+      const isAts = isATSDomain(fullUrl);
 
-      if (isJobUrl || isJobText) {
+      if (isJobUrl || isJobText || isAts) {
         if (fullUrl.replace(/\/$/, '') !== baseUrl.replace(/\/$/, '')) {
           links.add(fullUrl);
         }
@@ -370,13 +400,14 @@ function findJobLinks($: cheerio.CheerioAPI, baseUrl: string): string[] {
  * Extract job listing cards directly from the page.
  */
 function extractCardsFromPage($: cheerio.CheerioAPI, baseUrl: string): RawJobData[] {
-  const campaigns: RawJobData[] = [];
+  const jobs: RawJobData[] = [];
 
   const cardSelectors = [
     // Job-specific selectors
     '.job-card', '.job-item', '.job-listing', '.job-post',
     '.vacancy-card', '.vacancy-item', '.position-card', '.position-item',
     '.career-card', '.career-item', '.opening-card', '.opening-item',
+    '[data-job]', '[data-job-id]', '[data-vacancy]', '[data-position]',
     '[class*="job"]', '[class*="vacancy"]', '[class*="position"]', '[class*="career"]',
     '[class*="opening"]', '[class*="listing"]',
     // Turkish
@@ -404,32 +435,32 @@ function extractCardsFromPage($: cheerio.CheerioAPI, baseUrl: string): RawJobDat
     cards.each((_i, el) => {
       // Skip wrapper elements that contain a tab list (not individual cards)
       if ($(el).find('[role="tablist"]').length > 0) return;
-      const campaign = extractCampaignFromElement($, el, baseUrl);
-      if (campaign) campaigns.push(campaign);
+      const job = extractJobFromElement($, el, baseUrl);
+      if (job) jobs.push(job);
     });
 
-    if (campaigns.length > 0) break;
+    if (jobs.length > 0) break;
   }
 
-  // Fallback: tab-based campaign layouts (e.g., ÇiçekSepeti)
-  if (campaigns.length === 0) {
-    const tabCampaigns = extractTabCampaigns($, baseUrl);
-    campaigns.push(...tabCampaigns);
+  // Fallback: tab-based job listing layouts
+  if (jobs.length === 0) {
+    const tabJobs = extractTabJobs($, baseUrl);
+    jobs.push(...tabJobs);
   }
 
-  return campaigns;
+  return jobs;
 }
 
 /**
- * Extract campaigns from tab-based layouts.
- * Some sites (e.g., ÇiçekSepeti) organize campaigns as tabs with
+ * Extract job listings from tab-based layouts.
+ * Some sites organize job listings as tabs with
  * role="tab" buttons and role="tabpanel" content sections.
  */
-function extractTabCampaigns($: cheerio.CheerioAPI, baseUrl: string): RawJobData[] {
+function extractTabJobs($: cheerio.CheerioAPI, baseUrl: string): RawJobData[] {
   const tabs = $('[role="tablist"] [role="tab"]');
   if (tabs.length === 0 || tabs.length > 30) return [];
 
-  const campaigns: RawJobData[] = [];
+  const jobs: RawJobData[] = [];
 
   tabs.each((_i, tabEl) => {
     const title = $(tabEl).text().trim();
@@ -469,7 +500,7 @@ function extractTabCampaigns($: cheerio.CheerioAPI, baseUrl: string): RawJobData
       }
     }
 
-    campaigns.push({
+    jobs.push({
       title,
       description: description && description.length > 10 ? description : undefined,
       sourceUrl: baseUrl,
@@ -477,11 +508,11 @@ function extractTabCampaigns($: cheerio.CheerioAPI, baseUrl: string): RawJobData
     });
   });
 
-  if (campaigns.length > 0) {
-    console.log(`  [Generic] Extracted ${campaigns.length} job listings from tab layout`);
+  if (jobs.length > 0) {
+    console.log(`  [Generic] Extracted ${jobs.length} job listings from tab layout`);
   }
 
-  return campaigns;
+  return jobs;
 }
 
 // ─── Schema.org JobPosting JSON-LD extraction ────────────────
@@ -600,7 +631,7 @@ function parseJobPosting(posting: any, baseUrl: string): RawJobData | null {
   return { title, description, sourceUrl, imageUrls, salaryText, locationText, deadline, postedDate, jobTypeText };
 }
 
-function extractCampaignFromElement(
+function extractJobFromElement(
   $: cheerio.CheerioAPI,
   el: any,
   baseUrl: string,
@@ -687,7 +718,7 @@ function extractCampaignFromElement(
 }
 
 /**
- * Extract campaign data from a detail page using meta tags and common patterns.
+ * Extract job listing data from a detail page using meta tags and common patterns.
  */
 function extractFromMetaTags($: cheerio.CheerioAPI, pageUrl: string): RawJobData | null {
   const title =
@@ -708,7 +739,7 @@ function extractFromMetaTags($: cheerio.CheerioAPI, pageUrl: string): RawJobData
   const ogImage = $('meta[property="og:image"]').attr('content') || undefined;
   const twitterImage = $('meta[name="twitter:image"]').attr('content') || undefined;
 
-  // Always try content images first — they're usually campaign-specific,
+  // Always try content images first — they're usually page-specific,
   // while og:image is often a shared brand/site image
   const contentImg = findContentImage($, pageUrl);
   if (contentImg) {
@@ -754,8 +785,10 @@ const CONTENT_IMG_SELECTORS = [
   '[class*="highlight"] img',
   '[class*="hero"] img',
   '[class*="banner"] img',
-  '[class*="campaign"] img',
-  '[class*="kampanya"] img',
+  '[class*="job"] img',
+  '[class*="career"] img',
+  '[class*="vacancy"] img',
+  '[class*="position"] img',
   'article img',
   '.content img',
   'main img',
@@ -823,8 +856,8 @@ function findContentImage($: cheerio.CheerioAPI, pageUrl: string): string | null
     }
   }
 
-  // 4. Broad fallback: scan ALL img tags for a campaign-like image
-  // Priority: images in campaign-related paths > images with multi-word filenames > any valid image
+  // 4. Broad fallback: scan ALL img tags for a suitable image
+  // Priority: images in job-related paths > images with multi-word filenames > any valid image
   const allImgs = $('img').toArray();
   const fallbackCandidates: { url: string; priority: number }[] = [];
 
@@ -844,9 +877,9 @@ function findContentImage($: cheerio.CheerioAPI, pageUrl: string): string | null
       if (/^[a-z]+\.(png|jpg|gif|webp)$/i.test(filename)) continue; // e.g., money.png, cursor.png
       // Priority scoring
       let priority = 0;
-      if (/campaign|kampanya|banner|promo|offer|firsat/i.test(pathLower)) priority += 10;
+      if (/job|career|vacancy|position|banner|company/i.test(pathLower)) priority += 10;
       if (/\d{3,}x\d{3,}/.test(filename)) priority += 5; // Large dimensions in filename
-      if (filename.length > 20) priority += 3; // Long filenames are usually campaign-specific
+      if (filename.length > 20) priority += 3; // Long filenames are usually content-specific
       fallbackCandidates.push({ url: resolved, priority });
     } catch { /* skip */ }
   }
@@ -868,7 +901,7 @@ async function fetchDetailImage(url: string): Promise<string | null> {
     const html = await fetchHtml(url);
     const $ = cheerio.load(html);
 
-    // 1. Try content images first — they're campaign-specific
+    // 1. Try content images first — they're page-specific
     const contentImg = findContentImage($, url);
     if (contentImg) return contentImg;
 
@@ -895,13 +928,13 @@ async function fetchDetailImage(url: string): Promise<string | null> {
 }
 
 /**
- * For campaigns extracted from cards, if all images are logos or missing,
- * try to fetch a better image from the campaign's detail page.
- * Also detects shared images across campaigns (likely generic brand images).
+ * For job listings extracted from cards, if all images are logos or missing,
+ * try to fetch a better image from the job listing's detail page.
+ * Also detects shared images across listings (likely generic brand images).
  */
-async function enrichLogoImages(campaigns: RawJobData[]): Promise<void> {
-  // Phase 1: Fetch better images for campaigns with logo-only or no images
-  for (const c of campaigns) {
+async function enrichJobImages(listings: RawJobData[]): Promise<void> {
+  // Phase 1: Fetch better images for listings with logo-only or no images
+  for (const c of listings) {
     if (c.imageUrls && c.imageUrls.length > 0 && c.imageUrls.every(isLikelyBrandLogo)) {
       // All images are logos — try detail page
       if (c.sourceUrl) {
@@ -909,10 +942,10 @@ async function enrichLogoImages(campaigns: RawJobData[]): Promise<void> {
         await delay(randomDelay(CRAWL_DELAY_MS));
         const img = await fetchDetailImage(c.sourceUrl);
         if (img) {
-          console.log(`  [Generic] Found campaign image: ${img.substring(0, 80)}...`);
+          console.log(`  [Generic] Found detail image: ${img.substring(0, 80)}...`);
           c.imageUrls = [img];
         } else {
-          console.log(`  [Generic] No campaign image found, keeping original: ${c.sourceUrl.substring(0, 60)}`);
+          console.log(`  [Generic] No detail image found, keeping original: ${c.sourceUrl.substring(0, 60)}`);
           // Keep original logo images as fallback — better than nothing
         }
       }
@@ -926,10 +959,10 @@ async function enrichLogoImages(campaigns: RawJobData[]): Promise<void> {
     }
   }
 
-  // Phase 2: Detect shared images — if 3+ campaigns share the exact same
-  // image URL, it's likely a generic brand image, not campaign-specific
+  // Phase 2: Detect shared images — if 3+ listings share the exact same
+  // image URL, it's likely a generic brand image, not listing-specific
   const imageCount = new Map<string, number>();
-  for (const c of campaigns) {
+  for (const c of listings) {
     if (c.imageUrls && c.imageUrls.length === 1) {
       const url = c.imageUrls[0];
       imageCount.set(url, (imageCount.get(url) || 0) + 1);
@@ -939,8 +972,8 @@ async function enrichLogoImages(campaigns: RawJobData[]): Promise<void> {
     if (count >= 3) {
       console.log(`  [Generic] Shared image detected (${count}x): ${url.substring(0, 80)}`);
       let replaced = 0;
-      // Try to fetch individual campaign images for these
-      for (const c of campaigns) {
+      // Try to fetch individual detail images for these
+      for (const c of listings) {
         if (c.imageUrls?.length === 1 && c.imageUrls[0] === url && c.sourceUrl) {
           await delay(randomDelay(CRAWL_DELAY_MS));
           const betterImg = await fetchDetailImage(c.sourceUrl);
@@ -951,7 +984,7 @@ async function enrichLogoImages(campaigns: RawJobData[]): Promise<void> {
           }
         }
       }
-      // If no campaigns got a better image, keep the shared image
+      // If no listings got a better image, keep the shared image
       // A repeated brand image is better than no image at all
       if (replaced === 0) {
         console.log(`  [Generic] No alternatives found — keeping shared image as fallback`);
@@ -965,15 +998,15 @@ const MAX_LINKS_PER_PAGE = 10;
 const LISTING_PAGE_THRESHOLD = 3;
 
 /**
- * Recursively visit a page, detect listing pages, and extract campaigns.
- * If the page has 3+ campaign sub-links, treat it as a listing page
- * and go one level deeper instead of saving it as a campaign.
+ * Recursively visit a page, detect listing pages, and extract job listings.
+ * If the page has 3+ job sub-links, treat it as a listing page
+ * and go one level deeper instead of saving it as a job listing.
  */
 async function visitPage(
   url: string,
   depthLeft: number,
   seenUrls: Set<string>,
-  campaigns: RawJobData[],
+  jobs: RawJobData[],
   visited: { count: number },
   abortSignal?: AbortSignal,
 ): Promise<void> {
@@ -989,7 +1022,7 @@ async function visitPage(
     const html = await fetchHtml(url);
     const detail$ = cheerio.load(html);
 
-    // Check if this is a listing/category page (has many campaign sub-links)
+    // Check if this is a listing/category page (has many job sub-links)
     if (depthLeft > 0) {
       const subLinks = findJobLinks(detail$, url);
       if (subLinks.length >= LISTING_PAGE_THRESHOLD) {
@@ -1001,29 +1034,29 @@ async function visitPage(
           for (const lc of listingCards) {
             if (!lc.postedDate) lc.postedDate = listingDates.startDate ?? undefined;
             if (!lc.deadline) lc.deadline = listingDates.endDate ?? undefined;
-            const isDupe = campaigns.some(
+            const isDupe = jobs.some(
               (c) => c.title === lc.title || c.sourceUrl === lc.sourceUrl,
             );
-            if (!isDupe) campaigns.push(lc);
+            if (!isDupe) jobs.push(lc);
           }
           console.log(`  [Generic] Extracted ${listingCards.length} cards from listing page`);
         }
-        // Also recurse deeper for campaign detail pages
+        // Also recurse deeper for job detail pages
         for (const subLink of subLinks.slice(0, MAX_LINKS_PER_PAGE)) {
           if (abortSignal?.aborted) break;
-          await visitPage(subLink, depthLeft - 1, seenUrls, campaigns, visited, abortSignal);
+          await visitPage(subLink, depthLeft - 1, seenUrls, jobs, visited, abortSignal);
         }
-        return; // Don't save the listing page itself as a campaign
+        return; // Don't save the listing page itself as a job listing
       }
     }
 
-    // Individual campaign page — extract via meta tags
-    const campaign = extractFromMetaTags(detail$, url);
-    if (campaign) {
-      const isDupe = campaigns.some(
-        (c) => c.title === campaign.title || c.sourceUrl === campaign.sourceUrl,
+    // Individual job listing page — extract via meta tags
+    const listing = extractFromMetaTags(detail$, url);
+    if (listing) {
+      const isDupe = jobs.some(
+        (j) => j.title === listing.title || j.sourceUrl === listing.sourceUrl,
       );
-      if (!isDupe) campaigns.push(campaign);
+      if (!isDupe) jobs.push(listing);
     }
   } catch (err) {
     console.warn(`  [Generic] Failed: ${url} — ${(err as Error).message}`);
@@ -1034,9 +1067,9 @@ async function visitPage(
  * Main generic scraper function — HTTP fetch + Cheerio only.
  *
  * Phase 1: Visit seed URL, try to extract cards directly
- * Phase 2: Find campaign links and visit each (auto-detects listing pages
+ * Phase 2: Find job links and visit each (auto-detects listing pages
  *          and recurses up to 3 levels deep)
- * Phase 3: If still nothing, extract seed page itself as campaign
+ * Phase 3: If still nothing, extract seed page itself as job listing
  *
  * Returns empty array if HTML is too sparse (SPA) — caller should
  * fall back to Playwright.
@@ -1061,7 +1094,7 @@ export async function scrapeGeneric(
   }
 
   // Use accumulator if provided (allows engine to access results before function returns)
-  const campaigns: RawJobData[] = accumulator || [];
+  const jobs: RawJobData[] = accumulator || [];
   const seenUrls = new Set<string>();
   seenUrls.add(seedUrl);
 
@@ -1071,36 +1104,36 @@ export async function scrapeGeneric(
   // Phase 0a: Try to extract job listings from Schema.org JobPosting JSON-LD
   const jsonLdJobs = extractJobPostingJsonLd($, seedUrl);
   if (jsonLdJobs.length > 0) {
-    campaigns.push(...jsonLdJobs);
+    jobs.push(...jsonLdJobs);
   }
 
   // Phase 0b: Try to extract job listings from Next.js __NEXT_DATA__ JSON
-  const nextDataCampaigns = extractFromNextData($, seedUrl);
-  if (nextDataCampaigns.length > 0) {
-    for (const c of nextDataCampaigns) {
-      if (!c.postedDate) c.postedDate = pageDates.startDate ?? undefined;
-      if (!c.deadline) c.deadline = pageDates.endDate ?? undefined;
+  const nextDataJobs = extractFromNextData($, seedUrl);
+  if (nextDataJobs.length > 0) {
+    for (const j of nextDataJobs) {
+      if (!j.postedDate) j.postedDate = pageDates.startDate ?? undefined;
+      if (!j.deadline) j.deadline = pageDates.endDate ?? undefined;
     }
-    campaigns.push(...nextDataCampaigns);
+    jobs.push(...nextDataJobs);
   }
 
-  // Phase 1: Try to extract campaign cards directly from the page
-  const directCampaigns = extractCardsFromPage($, seedUrl);
-  if (directCampaigns.length > 0) {
-    console.log(`  [Generic] Found ${directCampaigns.length} job listings directly on page`);
-    for (const c of directCampaigns) {
-      if (!c.postedDate) c.postedDate = pageDates.startDate ?? undefined;
-      if (!c.deadline) c.deadline = pageDates.endDate ?? undefined;
+  // Phase 1: Try to extract job listing cards directly from the page
+  const directJobs = extractCardsFromPage($, seedUrl);
+  if (directJobs.length > 0) {
+    console.log(`  [Generic] Found ${directJobs.length} job listings directly on page`);
+    for (const j of directJobs) {
+      if (!j.postedDate) j.postedDate = pageDates.startDate ?? undefined;
+      if (!j.deadline) j.deadline = pageDates.endDate ?? undefined;
       // Avoid duplicates from __NEXT_DATA__ extraction
-      const isDupe = campaigns.some(
-        (existing) => existing.title === c.title || existing.sourceUrl === c.sourceUrl,
+      const isDupe = jobs.some(
+        (existing) => existing.title === j.title || existing.sourceUrl === j.sourceUrl,
       );
-      if (!isDupe) campaigns.push(c);
+      if (!isDupe) jobs.push(j);
     }
   }
 
-  // Phase 2: Find campaign links and visit them recursively
-  // Depth 2 allows: seed → category → sub-category → campaign (3 hops)
+  // Phase 2: Find job links and visit them recursively
+  // Depth 2 allows: seed → category → sub-category → job listing (3 hops)
   if (maxDepth > 0) {
     const jobLinks = findJobLinks($, seedUrl);
     console.log(`  [Generic] Found ${jobLinks.length} job links to visit`);
@@ -1108,21 +1141,21 @@ export async function scrapeGeneric(
     const visited = { count: 0 };
     for (const link of jobLinks.slice(0, MAX_LINKS_PER_PAGE)) {
       if (abortSignal?.aborted) break;
-      await visitPage(link, 2, seenUrls, campaigns, visited, abortSignal);
+      await visitPage(link, 2, seenUrls, jobs, visited, abortSignal);
     }
   }
 
   // If Phase 0+1+2 found nothing, skip Phase 3 (meta tag extraction) and return
   // empty so the engine falls back to Playwright which can render JS content.
   // Playwright fallback has its own meta tag extraction as last resort.
-  if (campaigns.length === 0) {
+  if (jobs.length === 0) {
     console.log(`  [Generic] No job listings found in Phases 0-2, returning empty for Playwright fallback`);
     return [];
   }
 
-  // Phase 4: Enrich campaigns that only have logo images
-  await enrichLogoImages(campaigns);
+  // Phase 4: Enrich listings that only have logo images
+  await enrichJobImages(jobs);
 
-  console.log(`  [Generic] Total job listings extracted: ${campaigns.length}`);
-  return campaigns;
+  console.log(`  [Generic] Total job listings extracted: ${jobs.length}`);
+  return jobs;
 }

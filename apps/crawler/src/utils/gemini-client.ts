@@ -1,5 +1,5 @@
 /**
- * Google Gemini 2.5 Flash API client for campaign classification + enrichment.
+ * Google Gemini 2.5 Flash API client for job listing classification + enrichment.
  * Free tier: ~20 RPM, ~1500 RPD.
  * No external dependencies — uses native fetch().
  */
@@ -14,17 +14,16 @@ const MAX_RETRIES = 3;
 const MIN_GAP_MS = 4000;
 let lastRequestTime = 0;
 
-export interface AICampaignResult {
-  isCampaign: boolean;
+export interface AIJobResult {
+  isJobListing: boolean;
   confidence: number;
   reason: string;
   endDate?: string | null;
   startDate?: string | null;
-  discountRate?: number | null;
 }
 
-const FALLBACK_RESULT: AICampaignResult = {
-  isCampaign: true,
+const FALLBACK_RESULT: AIJobResult = {
+  isJobListing: true,
   confidence: 0.5,
   reason: 'AI unavailable, falling back to static score',
 };
@@ -35,35 +34,33 @@ function buildPrompt(
   sourceUrl: string,
   brandName: string,
 ): string {
-  return `Sen bir Türkçe kampanya analiz sistemisin. Aşağıdaki içeriği analiz et.
+  return `Sen bir iş ilanı sınıflandırma sistemisin. Aşağıdaki içeriği analiz et.
 
-Marka: ${brandName}
+Firma: ${brandName}
 Başlık: ${title}
 Açıklama: ${description || '(yok)'}
 URL: ${sourceUrl}
 
 GÖREVLER:
-1. Bu gerçek bir promosyon/indirim/fırsat kampanyası mı belirle
-2. Metinde bitiş tarihi varsa çıkar (ISO 8601 format: YYYY-MM-DD)
-3. Metinde başlangıç tarihi varsa çıkar (ISO 8601 format: YYYY-MM-DD)
-4. Metinde indirim oranı varsa çıkar (sadece sayı, 1-95 arası). Dikkat: "%100 pamuklu" gibi malzeme oranları indirim DEĞİLDİR
+1. Bu gerçek bir iş ilanı mı belirle (şirket sayfası, blog, hakkımızda, iletişim İŞ İLANI DEĞİL)
+2. Bu bir MAVİ YAKA iş ilanı mı? (fiziksel/manuel iş, hizmet sektörü, lojistik, üretim vb.)
+3. Son başvuru tarihi varsa çıkar (ISO 8601 format: YYYY-MM-DD)
+4. İlan yayınlanma tarihi varsa çıkar (ISO 8601 format: YYYY-MM-DD)
 
-KAMPANYA DEĞİLDİR:
+İŞ İLANI DEĞİLDİR:
 - Çerez/cookie onay sayfaları, KVKK, gizlilik
-- Kategori listeleme sayfaları ("Erkek Giyim", "Kampanyalar" tek başına)
+- Ürün listeleme sayfaları, blog yazıları
 - Servis randevusu, garanti, geri çağırma (recall)
-- Marka tanıtım sayfaları ("ile Tanışın", "Portal'ı Keşfedin")
+- Firma tanıtım sayfaları ("ile Tanışın", "Portal'ı Keşfedin")
 - Genel site ana sayfaları, hakkımızda, iletişim
 
-KAMPANYADIR:
-- İndirim, fırsat, promosyon, özel teklif
-- Banka/kart kampanyaları (bonus, puan, taksit)
-- Ücretsiz kargo, hediye, kupon
-- Araç satış kampanyaları (kredi, takas, özel fiyat)
-- Sezonluk indirimler, outlet, bayram/ramazan kampanyaları
+İŞ İLANIDIR:
+- Şoför, kurye, teknisyen, güvenlik, temizlik, garson, kasiyer, depocu
+- Forklift operatörü, kaynak, inşaat işçisi, fabrika işçisi, bakıcı, aşçı
+- Montajcı, elektrikçi, tesisatçı ve benzeri mavi yaka pozisyonlar
 
 SADECE JSON cevap ver, başka bir şey yazma:
-{"isCampaign":true,"confidence":0.95,"reason":"kısa açıklama","endDate":"YYYY-MM-DD veya null","startDate":"YYYY-MM-DD veya null","discountRate":null}`;
+{"isJobListing":true,"confidence":0.95,"reason":"kısa açıklama","endDate":"YYYY-MM-DD veya null","startDate":"YYYY-MM-DD veya null"}`;
 }
 
 async function waitForRateLimit(): Promise<void> {
@@ -75,19 +72,19 @@ async function waitForRateLimit(): Promise<void> {
   lastRequestTime = Date.now();
 }
 
-function parseAIResponse(text: string): AICampaignResult | null {
+function parseAIResponse(text: string): AIJobResult | null {
   // Try to extract JSON from response (handles ```json ... ``` wrapper or plain JSON)
-  const jsonMatch = text.match(/\{[\s\S]*?"isCampaign"[\s\S]*?\}/);
+  const jsonMatch = text.match(/\{[\s\S]*?"isJobListing"[\s\S]*?\}/);
   if (!jsonMatch) return null;
 
   try {
     const parsed = JSON.parse(jsonMatch[0]);
 
     // Validate required fields
-    if (typeof parsed.isCampaign !== 'boolean') return null;
+    if (typeof parsed.isJobListing !== 'boolean') return null;
 
-    const result: AICampaignResult = {
-      isCampaign: parsed.isCampaign,
+    const result: AIJobResult = {
+      isJobListing: parsed.isJobListing,
       confidence: typeof parsed.confidence === 'number' ? Math.min(1, Math.max(0, parsed.confidence)) : 0.5,
       reason: typeof parsed.reason === 'string' ? parsed.reason.substring(0, 200) : 'no reason',
     };
@@ -105,10 +102,6 @@ function parseAIResponse(text: string): AICampaignResult | null {
       if (!isNaN(d.getTime()) && d.getFullYear() >= 2024 && d.getFullYear() <= 2030) {
         result.startDate = parsed.startDate;
       }
-    }
-
-    if (typeof parsed.discountRate === 'number' && parsed.discountRate >= 1 && parsed.discountRate <= 95) {
-      result.discountRate = Math.round(parsed.discountRate);
     }
 
     return result;
@@ -167,7 +160,7 @@ async function callGeminiAPI(prompt: string, apiKey: string): Promise<string> {
 }
 
 /**
- * Classify a campaign using Gemini AI and optionally extract enrichment data.
+ * Classify a job listing using Gemini AI and optionally extract enrichment data.
  * Returns a fallback result on any error (never throws).
  */
 export async function classifyAndEnrich(
@@ -175,7 +168,7 @@ export async function classifyAndEnrich(
   description: string | null,
   sourceUrl: string,
   brandName: string,
-): Promise<AICampaignResult> {
+): Promise<AIJobResult> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return FALLBACK_RESULT;
 

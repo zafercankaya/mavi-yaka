@@ -95,7 +95,8 @@
             "enableProguardInReleaseBuilds": false,
             "lint": {
               "checkReleaseBuilds": false
-            }
+            },
+            "enableMinifyInReleaseBuilds": false
           }
         }
       ],
@@ -114,7 +115,7 @@
         "root": "./app"
       },
       "eas": {
-        "projectId": "PLACEHOLDER_EAS_PROJECT_ID"
+        "projectId": "d28da1c1-0862-4d3e-8fb1-fe5154e4774c"
       }
     },
     "owner": "zafer77can"

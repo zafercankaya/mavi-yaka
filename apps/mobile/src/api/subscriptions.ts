@@ -21,7 +21,6 @@ export interface SubscriptionPlan {
   googleProductId: string | null;
   priceMonthly: number | null;
   priceYearly: number | null;
-  maxBrandFollows: number;
   maxCompanyFollows: number;
   dailyNotifLimit: number;
   hasAdvancedFilter: boolean;
@@ -31,15 +30,12 @@ export interface SubscriptionPlan {
 
 export interface Entitlement {
   planName: string;
-  maxBrandFollows: number;
   maxCompanyFollows: number;
   dailyNotifLimit: number;
   hasAdvancedFilter: boolean;
   adFree: boolean;
   weeklyDigest: boolean;
-  currentBrandFollowCount: number;
   currentCompanyFollowCount: number;
-  frozenBrandFollowCount: number;
   frozenCompanyFollowCount: number;
   isPremium: boolean;
 }

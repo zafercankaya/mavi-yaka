@@ -37,7 +37,7 @@ export class CacheService {
     this.store.delete(key);
   }
 
-  /** Delete all keys matching a prefix (e.g. 'campaigns:TR:') */
+  /** Delete all keys matching a prefix (e.g. 'jobs:TR:') */
   delByPrefix(prefix: string): void {
     for (const key of this.store.keys()) {
       if (key.startsWith(prefix)) {

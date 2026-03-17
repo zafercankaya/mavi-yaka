@@ -1,6 +1,6 @@
 import { XMLParser } from 'fast-xml-parser';
 import * as cheerio from 'cheerio';
-import { RawCampaignData } from '../pipeline/normalize';
+import { RawJobData } from '../pipeline/normalize';
 import { REQUEST_TIMEOUT_MS } from '../config';
 
 const parser = new XMLParser({
@@ -8,12 +8,12 @@ const parser = new XMLParser({
   attributeNamePrefix: '@_',
 });
 
-export async function fetchRssCampaigns(feedUrl: string): Promise<RawCampaignData[]> {
+export async function fetchRssJobListings(feedUrl: string): Promise<RawJobData[]> {
   console.log(`  Fetching RSS feed: ${feedUrl}`);
 
   const response = await fetch(feedUrl, {
     headers: {
-      'User-Agent': 'IndirimAvcisi/1.0',
+      'User-Agent': 'MaviYaka/1.0',
       Accept: 'application/rss+xml, application/xml, text/xml',
     },
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
@@ -26,18 +26,18 @@ export async function fetchRssCampaigns(feedUrl: string): Promise<RawCampaignDat
   const xml = await response.text();
   const parsed = parser.parse(xml);
 
-  const campaigns: RawCampaignData[] = [];
+  const jobs: RawJobData[] = [];
 
   // Handle RSS 2.0
   const rssItems = parsed?.rss?.channel?.item;
   if (rssItems) {
     const items = Array.isArray(rssItems) ? rssItems : [rssItems];
     for (const item of items) {
-      const campaign = mapRssItem(item);
-      if (campaign) campaigns.push(campaign);
+      const job = mapRssItem(item);
+      if (job) jobs.push(job);
     }
-    console.log(`  Parsed ${campaigns.length} items from RSS feed`);
-    return campaigns;
+    console.log(`  Parsed ${jobs.length} items from RSS feed`);
+    return jobs;
   }
 
   // Handle Atom
@@ -45,18 +45,18 @@ export async function fetchRssCampaigns(feedUrl: string): Promise<RawCampaignDat
   if (atomEntries) {
     const entries = Array.isArray(atomEntries) ? atomEntries : [atomEntries];
     for (const entry of entries) {
-      const campaign = mapAtomEntry(entry);
-      if (campaign) campaigns.push(campaign);
+      const job = mapAtomEntry(entry);
+      if (job) jobs.push(job);
     }
-    console.log(`  Parsed ${campaigns.length} items from Atom feed`);
-    return campaigns;
+    console.log(`  Parsed ${jobs.length} items from Atom feed`);
+    return jobs;
   }
 
   console.warn('  Unknown feed format');
   return [];
 }
 
-function mapRssItem(item: any): RawCampaignData | null {
+function mapRssItem(item: any): RawJobData | null {
   const title = item.title;
   if (!title) return null;
 
@@ -90,7 +90,7 @@ function mapRssItem(item: any): RawCampaignData | null {
   return { title, description, sourceUrl, imageUrls, postedDate: startDate };
 }
 
-function mapAtomEntry(entry: any): RawCampaignData | null {
+function mapAtomEntry(entry: any): RawJobData | null {
   const title = entry.title?.['#text'] || entry.title;
   if (!title) return null;
 

@@ -1,17 +1,21 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  ActivityIndicator, Share, StyleSheet, Dimensions, Alert,
+  ActivityIndicator, Share, StyleSheet, Dimensions, Alert, Pressable,
 } from 'react-native';
 import { useLocalSearchParams, Stack, router } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import * as WebBrowser from 'expo-web-browser';
-import { useInterstitialAd, AdEventType } from 'react-native-google-mobile-ads';
+import { useInterstitialAd } from 'react-native-google-mobile-ads';
 import { Ionicons } from '@expo/vector-icons';
+import {
+  Briefcase, MapPin, DollarSign, Building2, BarChart3, CalendarClock,
+  ChevronDown, ChevronUp, ExternalLink, Bookmark,
+} from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { trackEvent } from '../../src/hooks/useAnalytics';
-import { fetchJobById } from '../../src/api/jobs';
+import { fetchJobById, JobListing } from '../../src/api/jobs';
 import { checkSavedStatus, toggleSavedJob } from '../../src/api/saved-jobs';
 import { useAuthStore } from '../../src/store/auth';
 import { useAdFree } from '../../src/hooks/useAdFree';
@@ -22,12 +26,36 @@ import { getApiErrorMessage } from '../../src/utils/api-error';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
+function formatSalaryRange(job: JobListing, t: any): string | null {
+  if (!job.salaryMin && !job.salaryMax) return null;
+  const currency = job.salaryCurrency || '';
+  const min = job.salaryMin;
+  const max = job.salaryMax;
+  let range = '';
+  if (min && max) range = `${currency}${min.toLocaleString()} - ${currency}${max.toLocaleString()}`;
+  else if (min) range = `${currency}${min.toLocaleString()}+`;
+  else if (max) range = `${currency}${max.toLocaleString()}`;
+  if (job.salaryPeriod) {
+    range += ` / ${t(`salary.period.${job.salaryPeriod}`, job.salaryPeriod)}`;
+  }
+  return range || null;
+}
+
+function parseBulletList(text: string | null): string[] {
+  if (!text) return [];
+  return text
+    .split(/[\n;•\-\*]+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+}
+
 export default function JobDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { isAuthenticated } = useAuthStore();
   const adFree = useAdFree();
   const queryClient = useQueryClient();
   const { t, i18n } = useTranslation();
+  const [descExpanded, setDescExpanded] = useState(false);
 
   // Interstitial ad — preload on mount for free users
   const { isLoaded, load, show, isClosed } = useInterstitialAd(AD_UNIT_IDS.INTERSTITIAL);
@@ -42,7 +70,7 @@ export default function JobDetailScreen() {
     if (isClosed && pendingOpenRef.current) {
       WebBrowser.openBrowserAsync(pendingOpenRef.current);
       pendingOpenRef.current = null;
-      load(); // preload next interstitial
+      load();
     }
   }, [isClosed, load]);
 
@@ -75,7 +103,7 @@ export default function JobDetailScreen() {
 
   const isSaved = savedStatus?.saved ?? false;
 
-  // Track job view — must be before any early returns (React hooks rule)
+  // Track job view
   useEffect(() => {
     if (data) {
       trackEvent('job_view', {
@@ -135,6 +163,48 @@ export default function JobDetailScreen() {
     } catch {}
   };
 
+  const handleSave = () => {
+    if (!isAuthenticated) {
+      Alert.alert(
+        t('guest.featureRequiresAccount'),
+        t('guest.signUpToSave'),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          { text: t('guest.signUpFree'), onPress: () => router.push('/(auth)/register') },
+        ],
+      );
+      return;
+    }
+    savedMutation.mutate();
+  };
+
+  const salaryText = formatSalaryRange(job, t);
+  const location = [job.city, job.state].filter(Boolean).join(', ');
+  const requirements = parseBulletList(job.requirements);
+  const benefits = parseBulletList(job.benefits);
+  const descriptionLong = (job.description?.length ?? 0) > 300;
+
+  // Info cards data
+  const infoCards: { icon: React.ComponentType<any>; label: string; value: string; color: string }[] = [];
+  if (job.jobType) {
+    infoCards.push({ icon: Briefcase, label: t('filter.jobType'), value: t(`jobType.${job.jobType}`, job.jobType), color: Colors.primary });
+  }
+  if (location) {
+    infoCards.push({ icon: MapPin, label: t('filter.location'), value: location, color: '#4A90D9' });
+  }
+  if (salaryText) {
+    infoCards.push({ icon: DollarSign, label: t('job.salary'), value: salaryText, color: Colors.success });
+  }
+  if (job.workMode) {
+    infoCards.push({ icon: Building2, label: t('filter.workMode'), value: t(`workMode.${job.workMode}`, job.workMode), color: '#7C5CFC' });
+  }
+  if (job.experienceLevel) {
+    infoCards.push({ icon: BarChart3, label: t('filter.experience'), value: t(`experience.${job.experienceLevel}`, job.experienceLevel), color: '#FF9F43' });
+  }
+  if (job.deadline) {
+    infoCards.push({ icon: CalendarClock, label: t('job.deadline'), value: formatDate(job.deadline) || '', color: Colors.warning });
+  }
+
   return (
     <>
       <Stack.Screen
@@ -143,20 +213,7 @@ export default function JobDetailScreen() {
           headerRight: () => (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <TouchableOpacity
-                onPress={() => {
-                  if (!isAuthenticated) {
-                    Alert.alert(
-                      t('guest.featureRequiresAccount'),
-                      t('guest.signUpToSave'),
-                      [
-                        { text: t('common.cancel'), style: 'cancel' },
-                        { text: t('guest.signUpFree'), onPress: () => router.push('/(auth)/register') },
-                      ],
-                    );
-                    return;
-                  }
-                  savedMutation.mutate();
-                }}
+                onPress={handleSave}
                 style={{ padding: 8 }}
                 disabled={savedMutation.isPending}
               >
@@ -175,172 +232,263 @@ export default function JobDetailScreen() {
       />
 
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        {/* Image — prefer real job image, fall back to company logo */}
-        {(() => {
-          const jobImage = job.imageUrl;
-          const companyLogo = job.company?.logoUrl;
-
-          if (jobImage) {
-            return (
-              <View style={styles.imageWrapper}>
-                <Image
-                  source={{ uri: jobImage }}
-                  style={styles.image}
-                  contentFit="cover"
-                  transition={200}
-                  placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}
-                />
-              </View>
-            );
-          }
-
-          if (companyLogo) {
-            return (
-              <View style={styles.companyLogoWrapper}>
-                <Image
-                  source={{ uri: companyLogo }}
-                  style={styles.companyLogoImage}
-                  contentFit="contain"
-                  transition={200}
-                />
-              </View>
-            );
-          }
-
-          // No image and no company logo
-          return (
-            <View style={styles.noImageHeader}>
-              {job.company && (
-                <Text style={styles.noImageCompany}>{job.company.name}</Text>
-              )}
-            </View>
-          );
-        })()}
-
-        {/* Header */}
-        <View style={styles.header}>
-          {job.imageUrl && (
-            <View style={styles.badges}>
-              {job.company && (
-                <View style={styles.companyBadge}>
-                  <Text style={styles.companyText}>{job.company.name}</Text>
-                </View>
-              )}
+        {/* Company Header */}
+        <View style={styles.companyHeader}>
+          {job.company?.logoUrl ? (
+            <Image
+              source={{ uri: job.company.logoUrl }}
+              style={styles.companyLogoImg}
+              contentFit="contain"
+              transition={200}
+            />
+          ) : (
+            <View style={styles.companyLogoPlaceholder}>
+              <Building2 size={24} color={Colors.primary} />
             </View>
           )}
+          <View style={styles.companyInfo}>
+            <Pressable onPress={() => job.company && router.push(`/company/${job.companyId}`)}>
+              <Text style={styles.companyName}>{job.company?.name || ''}</Text>
+            </Pressable>
+            {job.company?.sector && (
+              <View style={styles.sectorBadge}>
+                <Text style={styles.sectorBadgeText}>{t(`sector.${job.company.sector}`, job.company.sector)}</Text>
+              </View>
+            )}
+          </View>
+        </View>
 
-          <Text style={styles.title}>{job.title}</Text>
-
-          {job.company?.sector && (
-            <View style={styles.categoryChip}>
-              <Ionicons name="grid-outline" size={12} color={Colors.textSecondary} />
-              <Text style={styles.categoryText}>{job.company.sector}</Text>
-            </View>
+        {/* Job Title */}
+        <View style={styles.titleSection}>
+          <Text style={styles.jobTitle}>{job.title}</Text>
+          {job.postedDate && (
+            <Text style={styles.postedDate}>
+              {t('job.postedDate')}: {formatDate(job.postedDate)}
+            </Text>
           )}
         </View>
 
-        {/* Deadline */}
-        {job.deadline && (
-          <View style={styles.dateCard}>
-            <View style={styles.dateRow}>
-              <Ionicons name="time-outline" size={16} color={Colors.warning} />
-              <Text style={styles.dateLabel}>{t('job.deadline')}</Text>
-              <Text style={[styles.dateValue, { color: Colors.warning }]}>
-                {formatDate(job.deadline)}
-              </Text>
-            </View>
+        {/* Info Cards */}
+        {infoCards.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.infoCardsContainer}
+          >
+            {infoCards.map((card, index) => {
+              const IconComp = card.icon;
+              return (
+                <View key={index} style={styles.infoCard}>
+                  <View style={[styles.infoCardIcon, { backgroundColor: card.color + '15' }]}>
+                    <IconComp size={18} color={card.color} />
+                  </View>
+                  <Text style={styles.infoCardLabel}>{card.label}</Text>
+                  <Text style={styles.infoCardValue} numberOfLines={2}>{card.value}</Text>
+                </View>
+              );
+            })}
+          </ScrollView>
+        )}
+
+        {/* Image if available */}
+        {job.imageUrl && (
+          <View style={styles.imageWrapper}>
+            <Image
+              source={{ uri: job.imageUrl }}
+              style={styles.jobImage}
+              contentFit="cover"
+              transition={200}
+              placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}
+            />
           </View>
         )}
 
         {/* Description */}
         {job.description && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t('job.descriptionSection')}</Text>
-            <Text style={styles.description}>{job.description}</Text>
+            <Text style={styles.sectionTitle}>{t('job.description')}</Text>
+            <Text
+              style={styles.descriptionText}
+              numberOfLines={descExpanded || !descriptionLong ? undefined : 6}
+            >
+              {job.description}
+            </Text>
+            {descriptionLong && (
+              <Pressable onPress={() => setDescExpanded(!descExpanded)} style={styles.expandBtn}>
+                {descExpanded ? (
+                  <ChevronUp size={16} color={Colors.primary} />
+                ) : (
+                  <ChevronDown size={16} color={Colors.primary} />
+                )}
+                <Text style={styles.expandText}>
+                  {descExpanded ? t('common.less', 'Daha az') : t('common.more', 'Devamini oku')}
+                </Text>
+              </Pressable>
+            )}
           </View>
         )}
 
-        {/* CTA Button */}
-        <TouchableOpacity style={styles.ctaButton} onPress={handleOpenLink}>
-          <Ionicons name="open-outline" size={20} color={Colors.white} />
-          <Text style={styles.ctaText}>{t('job.goToListing')}</Text>
-        </TouchableOpacity>
+        {/* Requirements */}
+        {requirements.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>{t('job.requirements')}</Text>
+            {requirements.map((item, i) => (
+              <View key={i} style={styles.bulletRow}>
+                <View style={styles.bullet} />
+                <Text style={styles.bulletText}>{item}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Benefits */}
+        {benefits.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>{t('job.benefits')}</Text>
+            {benefits.map((item, i) => (
+              <View key={i} style={styles.bulletRow}>
+                <View style={[styles.bullet, { backgroundColor: Colors.success }]} />
+                <Text style={styles.bulletText}>{item}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* CTA Buttons */}
+        <View style={styles.ctaRow}>
+          <TouchableOpacity style={styles.ctaButton} onPress={handleOpenLink}>
+            <ExternalLink size={20} color={Colors.white} />
+            <Text style={styles.ctaText}>{t('job.goToListing')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.saveButton, isSaved && styles.saveButtonActive]}
+            onPress={handleSave}
+            disabled={savedMutation.isPending}
+          >
+            <Bookmark size={20} color={isSaved ? Colors.white : Colors.primary} />
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   content: { paddingBottom: Spacing.xxl },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: Spacing.md },
   errorText: { fontSize: FontSize.md, color: Colors.textSecondary },
-  imageWrapper: {
-    position: 'relative',
-    width: '100%',
-    height: SCREEN_WIDTH * 0.56,
+
+  // Company header
+  companyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.md,
+    gap: 12,
+    backgroundColor: Colors.surface,
+  },
+  companyLogoImg: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
     backgroundColor: Colors.surfaceVariant,
   },
-  image: {
-    width: '100%',
-    height: '100%',
-  },
-  companyLogoWrapper: {
-    position: 'relative',
-    width: '100%',
-    height: SCREEN_WIDTH * 0.45,
-    backgroundColor: Colors.surfaceVariant,
+  companyLogoPlaceholder: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    backgroundColor: Colors.primary + '15',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: Spacing.xl,
   },
-  companyLogoImage: {
-    width: SCREEN_WIDTH * 0.4,
-    height: SCREEN_WIDTH * 0.25,
+  companyInfo: {
+    flex: 1,
+    gap: 4,
   },
-  noImageHeader: {
-    width: '100%',
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.md,
-    backgroundColor: Colors.surface,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  noImageCompany: {
-    fontSize: FontSize.xl,
-    fontWeight: '800',
+  companyName: {
+    fontSize: FontSize.lg,
+    fontWeight: '700',
     color: Colors.primary,
   },
-  header: { padding: Spacing.md },
-  badges: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.sm },
-  companyBadge: {
+  sectorBadge: {
+    alignSelf: 'flex-start',
     backgroundColor: Colors.primaryLight + '20',
     borderRadius: BorderRadius.sm,
-    paddingHorizontal: Spacing.sm,
+    paddingHorizontal: 8,
     paddingVertical: 2,
   },
-  companyText: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.primary },
-  title: { fontSize: FontSize.xxl, fontWeight: '700', color: Colors.text, lineHeight: 30 },
-  categoryChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: Spacing.sm,
+  sectorBadgeText: {
+    fontSize: FontSize.xs,
+    fontWeight: '600',
+    color: Colors.primary,
   },
-  categoryText: { fontSize: FontSize.sm, color: Colors.textSecondary },
-  dateCard: {
+
+  // Title
+  titleSection: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  jobTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: Colors.text,
+    lineHeight: 30,
+  },
+  postedDate: {
+    fontSize: FontSize.sm,
+    color: Colors.textTertiary,
+    marginTop: 4,
+  },
+
+  // Info cards
+  infoCardsContainer: {
+    paddingHorizontal: Spacing.md,
+    gap: 10,
+    paddingVertical: Spacing.sm,
+  },
+  infoCard: {
     backgroundColor: Colors.surface,
-    marginHorizontal: Spacing.md,
     borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    gap: Spacing.sm,
+    padding: 12,
+    width: 130,
+    gap: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  dateRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  dateLabel: { fontSize: FontSize.sm, color: Colors.textSecondary },
-  dateValue: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.text },
+  infoCardIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  infoCardLabel: {
+    fontSize: FontSize.xs,
+    color: Colors.textTertiary,
+    fontWeight: '500',
+  },
+  infoCardValue: {
+    fontSize: FontSize.sm,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+
+  // Image
+  imageWrapper: {
+    marginHorizontal: Spacing.md,
+    marginTop: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    overflow: 'hidden',
+  },
+  jobImage: {
+    width: '100%',
+    height: SCREEN_WIDTH * 0.5,
+  },
+
+  // Section
   section: {
     backgroundColor: Colors.surface,
     marginHorizontal: Spacing.md,
@@ -348,18 +496,84 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
     padding: Spacing.md,
   },
-  sectionTitle: { fontSize: FontSize.md, fontWeight: '600', color: Colors.text, marginBottom: Spacing.sm },
-  description: { fontSize: FontSize.md, color: Colors.textSecondary, lineHeight: 22 },
+  sectionTitle: {
+    fontSize: FontSize.md,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: Spacing.sm,
+  },
+  descriptionText: {
+    fontSize: FontSize.md,
+    color: Colors.textSecondary,
+    lineHeight: 22,
+  },
+  expandBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: Spacing.sm,
+  },
+  expandText: {
+    fontSize: FontSize.sm,
+    color: Colors.primary,
+    fontWeight: '600',
+  },
+
+  // Bullet list
+  bulletRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginBottom: 6,
+  },
+  bullet: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Colors.primary,
+    marginTop: 7,
+  },
+  bulletText: {
+    flex: 1,
+    fontSize: FontSize.md,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+  },
+
+  // CTA
+  ctaRow: {
+    flexDirection: 'row',
+    paddingHorizontal: Spacing.md,
+    marginTop: Spacing.lg,
+    gap: 10,
+  },
   ctaButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.primary,
-    marginHorizontal: Spacing.md,
-    marginTop: Spacing.lg,
     borderRadius: BorderRadius.md,
     padding: Spacing.md,
     gap: Spacing.sm,
   },
-  ctaText: { fontSize: FontSize.lg, fontWeight: '600', color: Colors.white },
+  ctaText: {
+    fontSize: FontSize.lg,
+    fontWeight: '700',
+    color: Colors.white,
+  },
+  saveButton: {
+    width: 52,
+    height: 52,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.surface,
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  saveButtonActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
 });

@@ -173,7 +173,7 @@ export function pickBestFromSrcset(srcset: string, baseUrl: string): string | nu
   return candidates[0].url;
 }
 
-// URL path/filename patterns that indicate brand logos, favicons, or icons — not campaign images
+// URL path/filename patterns that indicate company logos, favicons, or icons — not job listing images
 const LOGO_PATTERNS = [
   /logo/i,
   /favicon/i,
@@ -200,7 +200,7 @@ const LOGO_PATTERNS = [
   /flags[@_]/i,              // flag icons (e.g., flags@2x.png)
   /portal[-_]/i,             // portal/global brand images (e.g., portal-Volvo.png)
   /\/static\/help$/i,        // static help page images
-  /\/imagery\/merchants\//i, // RetailMeNot merchant logos (not campaign images)
+  /\/imagery\/merchants\//i, // RetailMeNot merchant logos (not job listing images)
   /bigR\.png/i,              // RetailMeNot brand logo
 ];
 
@@ -208,7 +208,7 @@ const LOGO_PATTERNS = [
 const TINY_DIMENSION = /[-_](\d+)x(\d+)\./;
 
 /**
- * Check if a URL is likely a brand logo or non-campaign image.
+ * Check if a URL is likely a company logo or non-job-listing image.
  */
 export function isLikelyBrandLogo(url: string): boolean {
   return isBrandLogo(url);
@@ -244,7 +244,7 @@ function isBrandLogo(url: string): boolean {
       if (w <= 100 && h <= 100) return true;
     }
 
-    // SVG files are usually logos/icons, not campaign images
+    // SVG files are usually logos/icons, not job listing images
     if (pathAndFile.endsWith('.svg')) return true;
 
     return false;

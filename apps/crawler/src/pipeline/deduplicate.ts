@@ -111,13 +111,50 @@ export async function checkAndUpsert(
         sector: listing.sector ?? 'OTHER',
         city: listing.city,
         state: listing.state,
+        status: 'ACTIVE', // Reactivation: expire olmuş ilan tekrar bulunursa ACTIVE'e dön
         lastSeenAt: new Date(),
       },
     });
     return { isNew: false, fingerprint, jobListingId: existing.id };
   }
 
+  // ===== TIER 1.5: Check EXPIRED listings with same fingerprint (reactivation) =====
+  const expiredMatch = await prisma.jobListing.findFirst({
+    where: { fingerprint, status: { not: 'ACTIVE' } },
+    select: { id: true },
+  });
+
+  if (expiredMatch) {
+    console.log(`  [Reactivate] Expired job found again: "${listing.title.substring(0, 50)}"`);
+    await prisma.jobListing.update({
+      where: { id: expiredMatch.id },
+      data: {
+        title: listing.title,
+        description: listing.description,
+        requirements: listing.requirements,
+        benefits: listing.benefits,
+        imageUrl: listing.imageUrls[0] || null,
+        deadline: listing.deadline,
+        postedDate: listing.postedDate,
+        salaryMin: listing.salaryMin,
+        salaryMax: listing.salaryMax,
+        salaryCurrency: listing.salaryCurrency,
+        salaryPeriod: listing.salaryPeriod,
+        jobType: listing.jobType ?? 'FULL_TIME',
+        workMode: listing.workMode ?? 'ON_SITE',
+        experienceLevel: listing.experienceLevel,
+        sector: listing.sector ?? 'OTHER',
+        city: listing.city,
+        state: listing.state,
+        status: 'ACTIVE',
+        lastSeenAt: new Date(),
+      },
+    });
+    return { isNew: false, fingerprint, jobListingId: expiredMatch.id };
+  }
+
   // ===== TIER 2: Same company + country + (exact title OR same canonical URL) =====
+  // Also matches EXPIRED listings for reactivation
   const existingByTitleOrUrl = await prisma.jobListing.findFirst({
     where: {
       companyId,
@@ -150,6 +187,7 @@ export async function checkAndUpsert(
         sector: listing.sector ?? 'OTHER',
         city: listing.city,
         state: listing.state,
+        status: 'ACTIVE', // Reactivation
         lastSeenAt: new Date(),
       },
     });

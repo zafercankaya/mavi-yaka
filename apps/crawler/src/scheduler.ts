@@ -128,7 +128,7 @@ export async function startScheduler(prisma: PrismaClient): Promise<void> {
         `[Scheduler] Maintenance done: ${s.whiteCollarExpired} white-collar expired, ${s.deadlineExpired} deadline expired, ` +
         `${s.invalidSalariesFixed} salaries fixed, ${s.staleCompaniesDeactivated} companies deactivated, ` +
         `${s.brandsCleaned} cleaned, ${s.brandsMerged} merged, ${s.sourcesDeactivated} sources off, ` +
-        `${s.orphanCampaignsExpired + s.notFoundCampaignsExpired} campaigns expired, ${s.oldLogsDeleted} logs deleted`,
+        `${s.orphanListingsExpired + s.notFoundListingsExpired} job listings expired, ${s.oldLogsDeleted} logs deleted`,
       );
     } catch (err) {
       console.error(`[Scheduler] Maintenance error: ${(err as Error).message}`);

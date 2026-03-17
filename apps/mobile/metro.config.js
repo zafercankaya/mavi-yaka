@@ -1,8 +1,10 @@
+const path = require('path');
+
 // Must be set before any Metro/babel config loads — transform workers inherit this
-process.env.EXPO_ROUTER_APP_ROOT = process.env.EXPO_ROUTER_APP_ROOT || './app';
+// Always use absolute path to prevent monorepo/local-build resolution issues
+process.env.EXPO_ROUTER_APP_ROOT = path.resolve(__dirname, 'app');
 
 const { getDefaultConfig } = require('expo/metro-config');
-const path = require('path');
 
 const projectRoot = __dirname;
 const monorepoRoot = path.resolve(projectRoot, '../..');
