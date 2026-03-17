@@ -166,12 +166,12 @@ async function fetchAdzunaJobs(market: Market): Promise<RawJobData[]> {
     return [];
   }
 
-  // Adzuna works best with English queries for all markets
-  const ADZUNA_EN_QUERIES = [
+  // Use localized queries for the market, fall back to English
+  const localQueries = BLUE_COLLAR_QUERIES[market];
+  const queries = localQueries ? localQueries.slice(0, 10) : [
     'warehouse worker', 'forklift operator', 'truck driver', 'cleaner', 'construction worker',
     'delivery driver', 'machine operator', 'welder', 'plumber', 'electrician',
   ];
-  const queries = ADZUNA_EN_QUERIES;
   const jobs: RawJobData[] = [];
   const seenUrls = new Set<string>();
 
@@ -290,8 +290,9 @@ async function fetchJoobleJobs(market: Market): Promise<RawJobData[]> {
     return [];
   }
 
-  // Jooble API only works with English keywords regardless of market
-  const queries = JOOBLE_EN_QUERIES.slice(0, 10);
+  // Use localized queries for the market, fall back to English
+  const localQueries = BLUE_COLLAR_QUERIES[market] || JOOBLE_EN_QUERIES;
+  const queries = localQueries.slice(0, 10);
   const jobs: RawJobData[] = [];
   const seenIds = new Set<string>();
 
