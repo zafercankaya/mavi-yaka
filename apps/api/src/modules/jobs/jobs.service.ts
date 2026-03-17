@@ -243,8 +243,13 @@ export class JobsService {
     switch (sort) {
       case JobSort.SALARY_HIGH:
         return { salaryMax: { sort: 'desc', nulls: 'last' } };
+      case JobSort.SALARY_LOW:
+        return { salaryMin: { sort: 'asc', nulls: 'last' } };
       case JobSort.ENDING_SOON:
+      case JobSort.DEADLINE:
         return { deadline: { sort: 'asc', nulls: 'last' } };
+      case JobSort.POSTED_TODAY:
+        return { postedDate: { sort: 'desc', nulls: 'last' } };
       case JobSort.NEWEST:
       default:
         return { createdAt: 'desc' };

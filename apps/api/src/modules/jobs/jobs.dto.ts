@@ -11,7 +11,10 @@ import {
 export enum JobSort {
   NEWEST = 'newest',
   SALARY_HIGH = 'salary_high',
+  SALARY_LOW = 'salary_low',
   ENDING_SOON = 'ending_soon',
+  DEADLINE = 'deadline',
+  POSTED_TODAY = 'posted_today',
   NEAREST = 'nearest',
   RECOMMENDED = 'recommended',
 }

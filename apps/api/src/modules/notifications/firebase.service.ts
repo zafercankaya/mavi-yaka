@@ -52,7 +52,7 @@ export class FirebaseService implements OnModuleInit {
     };
 
     try {
-      const response = await admin.messaging().sendEachForMulticast(message);
+      const response = await (admin.messaging() as any).sendEachForMulticast(message);
       this.logger.log(`Push sent: ${response.successCount} ok, ${response.failureCount} failed`);
       return { success: response.successCount, failure: response.failureCount };
     } catch (err) {
