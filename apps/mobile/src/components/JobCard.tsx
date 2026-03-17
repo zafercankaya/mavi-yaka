@@ -169,7 +169,7 @@ function JobCardInner({ job, onPress }: JobCardProps) {
             )}
             {job.company?.sector && (
               <View style={styles.sectorTag}>
-                <Text style={styles.sectorText}>{job.company.sector}</Text>
+                <Text style={styles.sectorText}>{t(`sector.${job.company.sector}`)}</Text>
               </View>
             )}
           </View>

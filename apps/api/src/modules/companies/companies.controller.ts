@@ -27,7 +27,7 @@ export class CompaniesPublicController {
     const companies = await this.prisma.company.findMany({
       where: {
         isActive: true,
-        ...(market && { country: market }),
+        ...(market && { market: market }),
         ...(sector && { sector: sector as Sector }),
       },
       select: {

@@ -53,7 +53,7 @@ export interface JobFilters {
 
 export async function fetchJobs(filters: JobFilters = {}): Promise<JobListResponse> {
   const params: Record<string, string> = {};
-  params.market = useMarketStore.getState().market;
+  params.country = useMarketStore.getState().market;
   if (filters.companyIds && filters.companyIds.length > 0) {
     params.companyIds = filters.companyIds.join(',');
   } else if (filters.companyId) {

@@ -6,7 +6,9 @@
   "tabs": {
     "home": "Home",
     "search": "Search",
+    "explore": "Explore",
     "saved": "Saved",
+    "follows": "Following",
     "alerts": "Alerts",
     "profile": "Profile"
   },
@@ -99,7 +101,10 @@
     "saveFilter": "Save Filter"
   },
   "sort": {
+    "recommended": "Recommended",
     "newest": "Newest",
+    "ending_soon": "Ending Soon",
+    "last_24h": "Last 24h",
     "salary_high": "Highest Salary",
     "salary_low": "Lowest Salary",
     "nearest": "Nearest",

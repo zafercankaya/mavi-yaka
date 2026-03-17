@@ -8,9 +8,10 @@ import { useScrollToTop } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import {
   Search, X, LayoutGrid, SlidersHorizontal,
-  Monitor, Shirt, ShoppingCart, Home, Sparkles,
-  Dumbbell, BookOpen, UtensilsCrossed, Plane,
-  Car, CreditCard, Package, MoreHorizontal, Shield,
+  Truck, Factory, ShoppingCart, HardHat, UtensilsCrossed,
+  Car, Shirt, Pickaxe, Stethoscope, Hotel,
+  Wheat, ShieldCheck, Building2, Wrench, FlaskConical,
+  Package, Smartphone, MoreHorizontal,
 } from 'lucide-react-native';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -32,20 +33,24 @@ const SCREEN_WIDTH = Dimensions.get('window').width;
 const SORT_KEYS = ['recommended', 'newest', 'ending_soon', 'last_24h'] as const;
 
 const SECTOR_META: Record<string, { icon: React.ComponentType<any>; color: string }> = {
-  'elektronik':             { icon: Monitor,            color: '#4A90D9' },
-  'giyim-moda':             { icon: Shirt,              color: '#E8553A' },
-  'gida-market':            { icon: ShoppingCart,        color: '#2ED573' },
-  'ev-yasam':               { icon: Home,               color: '#FF9F43' },
-  'kozmetik-kisisel-bakim': { icon: Sparkles,            color: '#FF6B81' },
-  'spor-outdoor':           { icon: Dumbbell,            color: '#7C5CFC' },
-  'kitap-hobi':             { icon: BookOpen,            color: '#17A2B8' },
-  'seyahat-ulasim':         { icon: Plane,              color: '#0ABDE3' },
-  'yeme-icme':              { icon: UtensilsCrossed,     color: '#FD7E14' },
-  'otomobil':               { icon: Car,                color: '#636E72' },
-  'finans':                 { icon: CreditCard,          color: '#6C5CE7' },
-  'alisveris':              { icon: Package,            color: '#00B894' },
-  'sigorta':                { icon: Shield,              color: '#2C7A7B' },
-  'diger':                  { icon: MoreHorizontal,      color: '#9CA3AF' },
+  'LOGISTICS_TRANSPORTATION': { icon: Truck,             color: '#4A90D9' },
+  'MANUFACTURING':            { icon: Factory,           color: '#636E72' },
+  'RETAIL':                   { icon: ShoppingCart,       color: '#2ED573' },
+  'CONSTRUCTION':             { icon: HardHat,           color: '#FF9F43' },
+  'FOOD_BEVERAGE':            { icon: UtensilsCrossed,   color: '#FD7E14' },
+  'AUTOMOTIVE':               { icon: Car,               color: '#1E3A5F' },
+  'TEXTILE':                  { icon: Shirt,             color: '#E8553A' },
+  'MINING_ENERGY':            { icon: Pickaxe,           color: '#8B6914' },
+  'HEALTHCARE':               { icon: Stethoscope,       color: '#E74C3C' },
+  'HOSPITALITY_TOURISM':      { icon: Hotel,             color: '#0ABDE3' },
+  'AGRICULTURE':              { icon: Wheat,             color: '#27AE60' },
+  'SECURITY_SERVICES':        { icon: ShieldCheck,       color: '#2C7A7B' },
+  'FACILITY_MANAGEMENT':      { icon: Building2,         color: '#7C5CFC' },
+  'METAL_STEEL':              { icon: Wrench,            color: '#95A5A6' },
+  'CHEMICALS_PLASTICS':       { icon: FlaskConical,      color: '#9B59B6' },
+  'ECOMMERCE_CARGO':          { icon: Package,           color: '#00B894' },
+  'TELECOMMUNICATIONS':       { icon: Smartphone,        color: '#00CEC9' },
+  'OTHER':                    { icon: MoreHorizontal,    color: '#9CA3AF' },
 };
 
 function getSectorMeta(slug?: string) {
@@ -254,7 +259,7 @@ export default function SearchScreen() {
                         <IconComp size={18} color={meta.color} />
                       </View>
                       <Text style={[styles.categoryCardText, isActive && styles.categoryCardTextActive]} numberOfLines={1}>
-                        {slug}
+                        {t(`sector.${slug}`)}
                       </Text>
                     </Pressable>
                   </View>

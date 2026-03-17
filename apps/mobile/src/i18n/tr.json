@@ -6,7 +6,9 @@
   "tabs": {
     "home": "Anasayfa",
     "search": "Ara",
+    "explore": "Keşfet",
     "saved": "Kaydedilenler",
+    "follows": "Takip",
     "alerts": "Alarmlar",
     "profile": "Profil"
   },
@@ -99,7 +101,10 @@
     "saveFilter": "Filtreyi Kaydet"
   },
   "sort": {
+    "recommended": "Önerilen",
     "newest": "En Yeni",
+    "ending_soon": "Başvuru Bitiyor",
+    "last_24h": "Son 24 Saat",
     "salary_high": "Yüksek Maaş",
     "salary_low": "Düşük Maaş",
     "nearest": "Yakınlık",

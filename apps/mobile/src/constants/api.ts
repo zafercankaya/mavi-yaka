@@ -25,8 +25,8 @@ if (__DEV__) {
   console.log('[API] hostUri:', Constants.expoConfig?.hostUri);
 
   // Direct fetch test to diagnose networking
-  fetch(`${API_BASE_URL}/categories`)
+  fetch(`${API_BASE_URL}/companies?market=TR`)
     .then((r) => r.json())
-    .then((d) => console.log('[API TEST] fetch OK, categories:', d.data?.length))
+    .then((d) => console.log('[API TEST] fetch OK, companies:', d.data?.length))
     .catch((e) => console.error('[API TEST] fetch FAILED:', e.message));
 }
