@@ -619,15 +619,409 @@ async function fetchTR(): Promise<RawJobData[]> {
   return results;
 }
 
+// ─── NL: UWV Werk.nl ───────────────────────────────────────────────
+
+async function fetchNL(): Promise<RawJobData[]> {
+  const results: RawJobData[] = [];
+  const seen = new Set<string>();
+  const queries = [
+    'magazijnmedewerker', 'chauffeur', 'schoonmaker', 'bouwvakker', 'beveiliger',
+    'kok', 'elektricien', 'loodgieter', 'lasser', 'monteur',
+  ];
+
+  for (const q of queries) {
+    try {
+      const data = await fetchJson(
+        `https://www.werk.nl/werkzoekenden/vacatures/api/v1/search?q=${encodeURIComponent(q)}&size=50`,
+        { headers: { Accept: 'application/json' } },
+      );
+      const vacatures = data?.vacatures || data?.results || data?.content || [];
+      for (const v of (Array.isArray(vacatures) ? vacatures : [])) {
+        const id = v.vacatureId || v.id;
+        if (!id || seen.has(String(id))) continue;
+        seen.add(String(id));
+        results.push({
+          title: v.functieNaam || v.titel || v.title || q,
+          description: (v.omschrijving || v.description || '').substring(0, 2000),
+          sourceUrl: v.url || `https://www.werk.nl/werkzoekenden/vacatures/${id}`,
+          locationText: v.standplaats || v.plaats || v.location,
+          salaryText: v.salaris || v.salary,
+          postedDate: v.publicatieDatum || v.datePosted,
+          deadline: v.sluitingsDatum || v.deadline,
+          jobTypeText: v.dienstverband || v.contractType,
+        });
+      }
+    } catch (e) {
+      if (q === queries[0]) console.warn(`[GovAPI:NL] Werk.nl API error: ${(e as Error).message}`);
+    }
+    await delay(API_DELAY_MS);
+  }
+
+  console.log(`[GovAPI:NL] Fetched ${results.length} jobs from Werk.nl`);
+  return results;
+}
+
+// ─── BR: Portal Emprega Brasil / SINE ──────────────────────────────
+
+async function fetchBR(): Promise<RawJobData[]> {
+  const results: RawJobData[] = [];
+  const seen = new Set<string>();
+  const queries = [
+    'operador de empilhadeira', 'motorista', 'auxiliar de limpeza', 'pedreiro', 'vigilante',
+    'cozinheiro', 'eletricista', 'encanador', 'soldador', 'mecânico',
+  ];
+
+  for (const q of queries) {
+    try {
+      const data = await fetchJson(
+        `https://empregabrasil.mte.gov.br/api/vagas?q=${encodeURIComponent(q)}&qtd=50`,
+        { headers: { Accept: 'application/json' } },
+      );
+      const vagas = data?.vagas || data?.results || data?.content || [];
+      for (const v of (Array.isArray(vagas) ? vagas : [])) {
+        const id = v.codigoVaga || v.id;
+        if (!id || seen.has(String(id))) continue;
+        seen.add(String(id));
+        results.push({
+          title: v.titulo || v.cargo || v.descricao || q,
+          description: (v.descricao || v.requisitos || '').substring(0, 2000),
+          sourceUrl: v.url || `https://empregabrasil.mte.gov.br/vaga/${id}`,
+          locationText: [v.municipio, v.uf].filter(Boolean).join(', '),
+          salaryText: v.salario ? `R$ ${v.salario}` : undefined,
+          postedDate: v.dataPublicacao,
+          deadline: v.dataEncerramento,
+          jobTypeText: v.tipoContrato,
+        });
+      }
+    } catch (e) {
+      if (q === queries[0]) console.warn(`[GovAPI:BR] Emprega Brasil API error: ${(e as Error).message}`);
+    }
+    await delay(API_DELAY_MS);
+  }
+
+  console.log(`[GovAPI:BR] Fetched ${results.length} jobs from Emprega Brasil`);
+  return results;
+}
+
+// ─── JP: Hello Work (ハローワーク) ─────────────────────────────────
+
+async function fetchJP(): Promise<RawJobData[]> {
+  const results: RawJobData[] = [];
+  const seen = new Set<string>();
+  const queries = [
+    '倉庫作業', '運転手', '清掃員', '建設作業員', '警備員',
+    '調理師', '電気工事士', '配管工', '溶接工', '整備士',
+  ];
+
+  for (const q of queries) {
+    try {
+      const data = await fetchJson(
+        `https://www.hellowork.mhlw.go.jp/api/v1/search?keyword=${encodeURIComponent(q)}&count=50`,
+        { headers: { Accept: 'application/json' } },
+      );
+      const jobs = data?.jobs || data?.results || data?.求人情報 || [];
+      for (const job of (Array.isArray(jobs) ? jobs : [])) {
+        const id = job.求人番号 || job.id || job.jobId;
+        if (!id || seen.has(String(id))) continue;
+        seen.add(String(id));
+        results.push({
+          title: job.職種 || job.title || job.jobTitle || q,
+          description: (job.仕事内容 || job.description || '').substring(0, 2000),
+          sourceUrl: job.url || `https://www.hellowork.mhlw.go.jp/servicef/130050.do?screenId=130050&action=commonDetailInfo&kyujinNumber=${id}`,
+          locationText: job.就業場所 || job.勤務地 || job.location,
+          salaryText: job.賃金 || job.salary,
+          postedDate: job.受理日 || job.datePosted,
+          deadline: job.紹介期限日 || job.deadline,
+          jobTypeText: job.雇用形態 || job.employmentType,
+        });
+      }
+    } catch (e) {
+      if (q === queries[0]) console.warn(`[GovAPI:JP] HelloWork API error: ${(e as Error).message}`);
+    }
+    await delay(API_DELAY_MS);
+  }
+
+  console.log(`[GovAPI:JP] Fetched ${results.length} jobs from HelloWork`);
+  return results;
+}
+
+// ─── IN: National Career Service ───────────────────────────────────
+
+async function fetchIN(): Promise<RawJobData[]> {
+  const results: RawJobData[] = [];
+  const seen = new Set<string>();
+  const queries = [
+    'warehouse worker', 'driver', 'cleaner', 'construction worker', 'security guard',
+    'cook', 'electrician', 'plumber', 'welder', 'mechanic',
+  ];
+
+  for (const q of queries) {
+    try {
+      const data = await fetchJson(
+        `https://www.ncs.gov.in/api/v1/jobs/search?keyword=${encodeURIComponent(q)}&pageSize=50`,
+        { headers: { Accept: 'application/json' } },
+      );
+      const jobs = data?.jobs || data?.results || data?.data || [];
+      for (const job of (Array.isArray(jobs) ? jobs : [])) {
+        const id = job.jobId || job.id;
+        if (!id || seen.has(String(id))) continue;
+        seen.add(String(id));
+        results.push({
+          title: job.jobTitle || job.title || q,
+          description: (job.jobDescription || job.description || '').substring(0, 2000),
+          sourceUrl: job.url || `https://www.ncs.gov.in/job-seeker/job-details/${id}`,
+          locationText: [job.city, job.state].filter(Boolean).join(', '),
+          salaryText: job.salary || job.ctc,
+          postedDate: job.postedDate || job.datePosted,
+          deadline: job.lastDate || job.deadline,
+          jobTypeText: job.jobType || job.employmentType,
+          experienceText: job.experience || job.minExperience,
+        });
+      }
+    } catch (e) {
+      if (q === queries[0]) console.warn(`[GovAPI:IN] NCS API error: ${(e as Error).message}`);
+    }
+    await delay(API_DELAY_MS);
+  }
+
+  console.log(`[GovAPI:IN] Fetched ${results.length} jobs from NCS`);
+  return results;
+}
+
+// ─── KR: WorkNet (워크넷) ──────────────────────────────────────────
+
+async function fetchKR(): Promise<RawJobData[]> {
+  const apiKey = process.env.WORKNET_API_KEY;
+  const results: RawJobData[] = [];
+  const seen = new Set<string>();
+  const queries = [
+    '창고작업원', '운전기사', '청소원', '건설노동자', '경비원',
+    '조리사', '전기기사', '배관공', '용접공', '정비사',
+  ];
+
+  for (const q of queries) {
+    try {
+      const url = apiKey
+        ? `https://openapi.work.go.kr/opi/opi/opia/wantedApi.do?authKey=${apiKey}&keyword=${encodeURIComponent(q)}&display=50&returnType=json`
+        : `https://www.work.go.kr/empInfo/empInfoSrch/list/dtlEmpSrchList.do?keyword=${encodeURIComponent(q)}&pageSize=50`;
+
+      const data = await fetchJson(url, { headers: { Accept: 'application/json' } });
+      const jobs = data?.wantedRoot?.wanted || data?.results || data?.data || [];
+      for (const job of (Array.isArray(jobs) ? jobs : [])) {
+        const id = job.wantedAuthNo || job.id;
+        if (!id || seen.has(String(id))) continue;
+        seen.add(String(id));
+        results.push({
+          title: job.wantedTitle || job.title || q,
+          description: (job.jobCont || job.description || '').substring(0, 2000),
+          sourceUrl: job.wantedInfoUrl || `https://www.work.go.kr/empInfo/empInfoSrch/detail/empDetailAuthView.do?wantedAuthNo=${id}`,
+          locationText: job.workPlcNm || job.region,
+          salaryText: job.sal || job.salary,
+          postedDate: job.regDt,
+          deadline: job.closeDt,
+          jobTypeText: job.empTpNm || job.employmentType,
+        });
+      }
+    } catch (e) {
+      if (q === queries[0]) console.warn(`[GovAPI:KR] WorkNet API error: ${(e as Error).message}`);
+    }
+    await delay(API_DELAY_MS);
+  }
+
+  console.log(`[GovAPI:KR] Fetched ${results.length} jobs from WorkNet`);
+  return results;
+}
+
+// ─── ES: SEPE / Empleate ───────────────────────────────────────────
+
+async function fetchES(): Promise<RawJobData[]> {
+  const results: RawJobData[] = [];
+  const seen = new Set<string>();
+  const queries = [
+    'mozo de almacén', 'conductor', 'limpiador', 'albañil', 'vigilante',
+    'cocinero', 'electricista', 'fontanero', 'soldador', 'mecánico',
+  ];
+
+  for (const q of queries) {
+    try {
+      const data = await fetchJson(
+        `https://empleate.gob.es/empleate/api/ofertas?keyword=${encodeURIComponent(q)}&size=50`,
+        { headers: { Accept: 'application/json' } },
+      );
+      const ofertas = data?.ofertas || data?.content || data?.results || [];
+      for (const o of (Array.isArray(ofertas) ? ofertas : [])) {
+        const id = o.id || o.codigoOferta;
+        if (!id || seen.has(String(id))) continue;
+        seen.add(String(id));
+        results.push({
+          title: o.puesto || o.titulo || o.title || q,
+          description: (o.descripcion || o.description || '').substring(0, 2000),
+          sourceUrl: o.url || `https://empleate.gob.es/empleate/oferta/${id}`,
+          locationText: [o.municipio, o.provincia].filter(Boolean).join(', '),
+          salaryText: o.salario || o.salary,
+          postedDate: o.fechaPublicacion,
+          deadline: o.fechaFinPlazo,
+          jobTypeText: o.tipoContrato || o.contractType,
+        });
+      }
+    } catch (e) {
+      if (q === queries[0]) console.warn(`[GovAPI:ES] SEPE API error: ${(e as Error).message}`);
+    }
+    await delay(API_DELAY_MS);
+  }
+
+  console.log(`[GovAPI:ES] Fetched ${results.length} jobs from SEPE`);
+  return results;
+}
+
+// ─── IT: ANPAL / MyANPAL ──────────────────────────────────────────
+
+async function fetchIT(): Promise<RawJobData[]> {
+  const results: RawJobData[] = [];
+  const seen = new Set<string>();
+  const queries = [
+    'magazziniere', 'autista', 'addetto pulizie', 'muratore', 'guardia giurata',
+    'cuoco', 'elettricista', 'idraulico', 'saldatore', 'meccanico',
+  ];
+
+  for (const q of queries) {
+    try {
+      const data = await fetchJson(
+        `https://myanpal.anpal.gov.it/api/v1/offerte?keyword=${encodeURIComponent(q)}&size=50`,
+        { headers: { Accept: 'application/json' } },
+      );
+      const offerte = data?.offerte || data?.results || data?.content || [];
+      for (const o of (Array.isArray(offerte) ? offerte : [])) {
+        const id = o.id || o.codiceOfferta;
+        if (!id || seen.has(String(id))) continue;
+        seen.add(String(id));
+        results.push({
+          title: o.qualifica || o.titolo || o.title || q,
+          description: (o.descrizione || o.description || '').substring(0, 2000),
+          sourceUrl: o.url || `https://myanpal.anpal.gov.it/offerta/${id}`,
+          locationText: [o.comune, o.provincia].filter(Boolean).join(', '),
+          salaryText: o.retribuzione || o.salary,
+          postedDate: o.dataPubblicazione,
+          deadline: o.dataScadenza,
+          jobTypeText: o.tipoContratto || o.contractType,
+        });
+      }
+    } catch (e) {
+      if (q === queries[0]) console.warn(`[GovAPI:IT] ANPAL API error: ${(e as Error).message}`);
+    }
+    await delay(API_DELAY_MS);
+  }
+
+  console.log(`[GovAPI:IT] Fetched ${results.length} jobs from ANPAL`);
+  return results;
+}
+
+// ─── MX: SNE (Servicio Nacional de Empleo) ─────────────────────────
+
+async function fetchMX(): Promise<RawJobData[]> {
+  const results: RawJobData[] = [];
+  const seen = new Set<string>();
+  const queries = [
+    'almacenista', 'chofer', 'intendencia', 'albañil', 'guardia de seguridad',
+    'cocinero', 'electricista', 'plomero', 'soldador', 'mecánico',
+  ];
+
+  for (const q of queries) {
+    try {
+      const data = await fetchJson(
+        `https://empleo.gob.mx/api/vacantes?keyword=${encodeURIComponent(q)}&size=50`,
+        { headers: { Accept: 'application/json' } },
+      );
+      const vacantes = data?.vacantes || data?.results || data?.data || [];
+      for (const v of (Array.isArray(vacantes) ? vacantes : [])) {
+        const id = v.id || v.claveVacante;
+        if (!id || seen.has(String(id))) continue;
+        seen.add(String(id));
+        results.push({
+          title: v.puesto || v.titulo || v.title || q,
+          description: (v.descripcion || v.description || '').substring(0, 2000),
+          sourceUrl: v.url || `https://empleo.gob.mx/vacante/${id}`,
+          locationText: [v.municipio, v.estado].filter(Boolean).join(', '),
+          salaryText: v.salario ? `MX$ ${v.salario}` : undefined,
+          postedDate: v.fechaPublicacion,
+          deadline: v.fechaVigencia,
+          jobTypeText: v.tipoContrato,
+        });
+      }
+    } catch (e) {
+      if (q === queries[0]) console.warn(`[GovAPI:MX] SNE API error: ${(e as Error).message}`);
+    }
+    await delay(API_DELAY_MS);
+  }
+
+  console.log(`[GovAPI:MX] Fetched ${results.length} jobs from SNE`);
+  return results;
+}
+
+// ─── CO: Servicio de Empleo ────────────────────────────────────────
+
+async function fetchCO(): Promise<RawJobData[]> {
+  const results: RawJobData[] = [];
+  const seen = new Set<string>();
+  const queries = [
+    'bodeguero', 'conductor', 'aseador', 'obrero de construcción', 'vigilante',
+    'cocinero', 'electricista', 'plomero', 'soldador', 'mecánico',
+  ];
+
+  for (const q of queries) {
+    try {
+      const data = await fetchJson(
+        `https://buscadorempleo.gov.co/api/v1/vacantes?keyword=${encodeURIComponent(q)}&size=50`,
+        { headers: { Accept: 'application/json' } },
+      );
+      const vacantes = data?.vacantes || data?.results || data?.data || [];
+      for (const v of (Array.isArray(vacantes) ? vacantes : [])) {
+        const id = v.id || v.codigoVacante;
+        if (!id || seen.has(String(id))) continue;
+        seen.add(String(id));
+        results.push({
+          title: v.cargo || v.titulo || v.title || q,
+          description: (v.descripcion || v.description || '').substring(0, 2000),
+          sourceUrl: v.url || `https://buscadorempleo.gov.co/vacante/${id}`,
+          locationText: [v.municipio, v.departamento].filter(Boolean).join(', '),
+          salaryText: v.salario ? `COP ${v.salario}` : undefined,
+          postedDate: v.fechaPublicacion,
+          deadline: v.fechaCierre,
+          jobTypeText: v.tipoContrato,
+        });
+      }
+    } catch (e) {
+      if (q === queries[0]) console.warn(`[GovAPI:CO] Servicio de Empleo API error: ${(e as Error).message}`);
+    }
+    await delay(API_DELAY_MS);
+  }
+
+  console.log(`[GovAPI:CO] Fetched ${results.length} jobs from Servicio de Empleo`);
+  return results;
+}
+
 // ─── Main entry point ───────────────────────────────────────────────
 
 const MARKET_HANDLERS: Partial<Record<Market, () => Promise<RawJobData[]>>> = {
-  SE: fetchSE,   // Platsbanken — open, no auth (~482 jobs)
-  DE: fetchDE,   // Jobbörse — open, API key 'jobboerse-jobsuche' (~500 jobs)
-  RU: fetchRU,   // Trudvsem — open, no auth (~121 jobs, slow)
+  SE: fetchSE,   // Platsbanken — open, no auth
+  DE: fetchDE,   // Jobbörse — open, API key 'jobboerse-jobsuche'
+  RU: fetchRU,   // Trudvsem — open, no auth
   US: fetchUS,   // USAJobs — needs USAJOBS_API_KEY + USAJOBS_EMAIL
   FR: fetchFR,   // France Travail — needs FRANCE_TRAVAIL_CLIENT_ID/SECRET
-  // UK, CA, AU, PL, TR — APIs require auth or endpoints not publicly available
+  UK: fetchUK,   // DWP Find a Job — public search + GOV.UK fallback
+  CA: fetchCA,   // Job Bank Canada — public search
+  AU: fetchAU,   // Australian JobSearch — public search
+  PL: fetchPL,   // CBOP — public search
+  TR: fetchTR,   // İŞKUR — e-şube API + open data fallback
+  NL: fetchNL,   // Werk.nl — UWV public search
+  BR: fetchBR,   // Portal Emprega Brasil — SINE public search
+  JP: fetchJP,   // HelloWork — public search
+  IN: fetchIN,   // National Career Service — public search
+  KR: fetchKR,   // WorkNet — needs WORKNET_API_KEY
+  ES: fetchES,   // SEPE Empleate — public search
+  IT: fetchIT,   // ANPAL/Cliclavoro — public search
+  MX: fetchMX,   // SNE Portal del Empleo — public search
+  CO: fetchCO,   // SPE Colombia — public search
 };
 
 /**
