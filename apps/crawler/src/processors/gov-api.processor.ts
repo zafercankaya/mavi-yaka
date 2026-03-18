@@ -4,10 +4,10 @@
  * Specialized processor for government employment agency APIs.
  * Each market has a specific handler that knows the API format.
  *
- * Supported markets:
- *   API (no auth):  SE (Platsbanken), DE (Arbeitsagentur), RU (Trudvsem)
- *   API (with key): US (USAJobs), FR (France Travail)
- *   Open Data:      PL (CBOP)
+ * All 31 markets have handlers. Actual data availability depends on
+ * whether government portals expose public JSON APIs.
+ *   Confirmed working: SE (Platsbanken), DE (Arbeitsagentur), RU (Trudvsem)
+ *   API key required:  US (USAJobs), FR (France Travail), KR (WorkNet)
  */
 
 import { RawJobData, Market } from '../pipeline/normalize';
@@ -76,6 +76,151 @@ const BLUE_COLLAR_QUERIES: Record<string, { q: string; label: string }[]> = {
     { q: 'cuisinier', label: 'Cook' },
     { q: 'cariste', label: 'Forklift Operator' },
     { q: 'agent de production', label: 'Production' },
+  ],
+  // ─── 12 New Markets ───────────────────────────────────────────────
+  EG: [
+    { q: 'عامل مستودع', label: 'Warehouse Worker' },
+    { q: 'سائق', label: 'Driver' },
+    { q: 'عامل نظافة', label: 'Cleaner' },
+    { q: 'عامل بناء', label: 'Construction Worker' },
+    { q: 'حارس أمن', label: 'Security Guard' },
+    { q: 'طباخ', label: 'Cook' },
+    { q: 'كهربائي', label: 'Electrician' },
+    { q: 'سباك', label: 'Plumber' },
+    { q: 'لحام', label: 'Welder' },
+    { q: 'ميكانيكي', label: 'Mechanic' },
+  ],
+  SA: [
+    { q: 'عامل مستودعات', label: 'Warehouse Worker' },
+    { q: 'سائق شاحنة', label: 'Truck Driver' },
+    { q: 'عامل نظافة', label: 'Cleaner' },
+    { q: 'عامل بناء', label: 'Construction Worker' },
+    { q: 'حارس أمن', label: 'Security Guard' },
+    { q: 'طباخ', label: 'Cook' },
+    { q: 'فني كهرباء', label: 'Electrician' },
+    { q: 'سباك', label: 'Plumber' },
+    { q: 'لحام', label: 'Welder' },
+    { q: 'فني تكييف', label: 'HVAC Technician' },
+  ],
+  AE: [
+    { q: 'warehouse worker', label: 'Warehouse Worker' },
+    { q: 'driver', label: 'Driver' },
+    { q: 'cleaner', label: 'Cleaner' },
+    { q: 'construction worker', label: 'Construction Worker' },
+    { q: 'security guard', label: 'Security Guard' },
+    { q: 'cook', label: 'Cook' },
+    { q: 'electrician', label: 'Electrician' },
+    { q: 'plumber', label: 'Plumber' },
+    { q: 'welder', label: 'Welder' },
+    { q: 'mechanic', label: 'Mechanic' },
+  ],
+  AR: [
+    { q: 'operario de depósito', label: 'Warehouse Worker' },
+    { q: 'chofer', label: 'Driver' },
+    { q: 'limpieza', label: 'Cleaner' },
+    { q: 'albañil', label: 'Construction Worker' },
+    { q: 'vigilador', label: 'Security Guard' },
+    { q: 'cocinero', label: 'Cook' },
+    { q: 'electricista', label: 'Electrician' },
+    { q: 'plomero', label: 'Plumber' },
+    { q: 'soldador', label: 'Welder' },
+    { q: 'mecánico', label: 'Mechanic' },
+  ],
+  ID: [
+    { q: 'operator gudang', label: 'Warehouse Worker' },
+    { q: 'supir', label: 'Driver' },
+    { q: 'cleaning service', label: 'Cleaner' },
+    { q: 'pekerja bangunan', label: 'Construction Worker' },
+    { q: 'satpam', label: 'Security Guard' },
+    { q: 'juru masak', label: 'Cook' },
+    { q: 'teknisi listrik', label: 'Electrician' },
+    { q: 'tukang las', label: 'Welder' },
+    { q: 'mekanik', label: 'Mechanic' },
+    { q: 'operator produksi', label: 'Production Operator' },
+  ],
+  TH: [
+    { q: 'พนักงานคลังสินค้า', label: 'Warehouse Worker' },
+    { q: 'พนักงานขับรถ', label: 'Driver' },
+    { q: 'แม่บ้าน', label: 'Cleaner' },
+    { q: 'คนงานก่อสร้าง', label: 'Construction Worker' },
+    { q: 'รปภ', label: 'Security Guard' },
+    { q: 'พ่อครัว', label: 'Cook' },
+    { q: 'ช่างไฟฟ้า', label: 'Electrician' },
+    { q: 'ช่างเชื่อม', label: 'Welder' },
+    { q: 'ช่างยนต์', label: 'Mechanic' },
+    { q: 'พนักงานผลิต', label: 'Production Worker' },
+  ],
+  PH: [
+    { q: 'warehouse worker', label: 'Warehouse Worker' },
+    { q: 'driver', label: 'Driver' },
+    { q: 'janitor', label: 'Janitor' },
+    { q: 'construction worker', label: 'Construction Worker' },
+    { q: 'security guard', label: 'Security Guard' },
+    { q: 'cook', label: 'Cook' },
+    { q: 'electrician', label: 'Electrician' },
+    { q: 'welder', label: 'Welder' },
+    { q: 'mechanic', label: 'Mechanic' },
+    { q: 'factory worker', label: 'Factory Worker' },
+  ],
+  VN: [
+    { q: 'nhân viên kho', label: 'Warehouse Worker' },
+    { q: 'tài xế', label: 'Driver' },
+    { q: 'lao công', label: 'Cleaner' },
+    { q: 'công nhân xây dựng', label: 'Construction Worker' },
+    { q: 'bảo vệ', label: 'Security Guard' },
+    { q: 'đầu bếp', label: 'Cook' },
+    { q: 'thợ điện', label: 'Electrician' },
+    { q: 'thợ hàn', label: 'Welder' },
+    { q: 'thợ cơ khí', label: 'Mechanic' },
+    { q: 'công nhân sản xuất', label: 'Production Worker' },
+  ],
+  MY: [
+    { q: 'pekerja gudang', label: 'Warehouse Worker' },
+    { q: 'pemandu lori', label: 'Truck Driver' },
+    { q: 'pembersih', label: 'Cleaner' },
+    { q: 'pekerja binaan', label: 'Construction Worker' },
+    { q: 'pengawal keselamatan', label: 'Security Guard' },
+    { q: 'tukang masak', label: 'Cook' },
+    { q: 'juruteknik elektrik', label: 'Electrician' },
+    { q: 'pengimpal', label: 'Welder' },
+    { q: 'mekanik', label: 'Mechanic' },
+    { q: 'operator pengeluaran', label: 'Production Operator' },
+  ],
+  PK: [
+    { q: 'warehouse worker', label: 'Warehouse Worker' },
+    { q: 'driver', label: 'Driver' },
+    { q: 'cleaner', label: 'Cleaner' },
+    { q: 'construction worker', label: 'Construction Worker' },
+    { q: 'security guard', label: 'Security Guard' },
+    { q: 'cook', label: 'Cook' },
+    { q: 'electrician', label: 'Electrician' },
+    { q: 'plumber', label: 'Plumber' },
+    { q: 'welder', label: 'Welder' },
+    { q: 'mechanic', label: 'Mechanic' },
+  ],
+  PT: [
+    { q: 'operador de armazém', label: 'Warehouse Worker' },
+    { q: 'motorista', label: 'Driver' },
+    { q: 'empregado de limpeza', label: 'Cleaner' },
+    { q: 'pedreiro', label: 'Construction Worker' },
+    { q: 'vigilante', label: 'Security Guard' },
+    { q: 'cozinheiro', label: 'Cook' },
+    { q: 'eletricista', label: 'Electrician' },
+    { q: 'canalizador', label: 'Plumber' },
+    { q: 'soldador', label: 'Welder' },
+    { q: 'mecânico', label: 'Mechanic' },
+  ],
+  ZA: [
+    { q: 'warehouse worker', label: 'Warehouse Worker' },
+    { q: 'driver', label: 'Driver' },
+    { q: 'cleaner', label: 'Cleaner' },
+    { q: 'construction worker', label: 'Construction Worker' },
+    { q: 'security guard', label: 'Security Guard' },
+    { q: 'cook', label: 'Cook' },
+    { q: 'electrician', label: 'Electrician' },
+    { q: 'plumber', label: 'Plumber' },
+    { q: 'welder', label: 'Welder' },
+    { q: 'mechanic', label: 'Mechanic' },
   ],
 };
 
@@ -1000,6 +1145,502 @@ async function fetchCO(): Promise<RawJobData[]> {
   return results;
 }
 
+// ─── EG: Manpower Egypt / Ta3mal ──────────────────────────────────
+
+async function fetchEG(): Promise<RawJobData[]> {
+  const results: RawJobData[] = [];
+  const seen = new Set<string>();
+
+  // Ta3mal.com (ILO-supported Egypt job portal) + Manpower portal
+  for (const { q } of BLUE_COLLAR_QUERIES.EG) {
+    // Try Ta3mal first (ILO-backed Arabic job portal)
+    try {
+      const data = await fetchJson(
+        `https://www.ta3mal.com/api/jobs/search?q=${encodeURIComponent(q)}&page=1&per_page=50`,
+        { headers: { Accept: 'application/json' } },
+      );
+      const jobs = data?.jobs || data?.results || data?.data || [];
+      for (const job of (Array.isArray(jobs) ? jobs : [])) {
+        const id = job.id || job.job_id;
+        if (!id || seen.has(String(id))) continue;
+        seen.add(String(id));
+        results.push({
+          title: job.title || job.job_title || q,
+          description: (job.description || job.details || '').substring(0, 2000),
+          sourceUrl: job.url || `https://www.ta3mal.com/jobs/${id}`,
+          locationText: job.location || job.city || job.governorate,
+          salaryText: job.salary || job.compensation,
+          postedDate: job.posted_at || job.created_at,
+          deadline: job.deadline || job.expires_at,
+          jobTypeText: job.job_type || job.employment_type,
+        });
+      }
+    } catch (e) {
+      if (q === BLUE_COLLAR_QUERIES.EG[0].q) console.warn(`[GovAPI:EG] Ta3mal API error: ${(e as Error).message}`);
+    }
+
+    // Also try Manpower Egypt
+    try {
+      const data = await fetchJson(
+        `https://www.manpower.gov.eg/api/jobs?keyword=${encodeURIComponent(q)}&page=1&limit=50`,
+        { headers: { Accept: 'application/json' } },
+      );
+      const jobs = data?.jobs || data?.results || data?.data || [];
+      for (const job of (Array.isArray(jobs) ? jobs : [])) {
+        const id = job.id || job.jobId;
+        if (!id || seen.has(String(id))) continue;
+        seen.add(String(id));
+        results.push({
+          title: job.title || job.jobTitle || q,
+          description: (job.description || '').substring(0, 2000),
+          sourceUrl: job.url || `https://www.manpower.gov.eg/job/${id}`,
+          locationText: job.location || job.governorate,
+          salaryText: job.salary,
+          postedDate: job.postedDate || job.created_at,
+          deadline: job.deadline,
+        });
+      }
+    } catch (_) { /* ignore fallback errors */ }
+
+    await delay(API_DELAY_MS);
+  }
+
+  console.log(`[GovAPI:EG] Fetched ${results.length} jobs from Egypt portals`);
+  return results;
+}
+
+// ─── SA: Jadarat (formerly Taqat) ────────────────────────────────
+
+async function fetchSA(): Promise<RawJobData[]> {
+  const results: RawJobData[] = [];
+  const seen = new Set<string>();
+
+  for (const { q } of BLUE_COLLAR_QUERIES.SA) {
+    // Jadarat (jadarat.sa) — HRDF national job platform
+    try {
+      const data = await fetchJson(
+        `https://jadarat.sa/api/job/search?keyword=${encodeURIComponent(q)}&page=1&size=50`,
+        { headers: { Accept: 'application/json', 'Accept-Language': 'ar' } },
+      );
+      const jobs = data?.jobs || data?.results || data?.content || data?.data || [];
+      for (const job of (Array.isArray(jobs) ? jobs : [])) {
+        const id = job.id || job.jobId || job.advertisementId;
+        if (!id || seen.has(String(id))) continue;
+        seen.add(String(id));
+        results.push({
+          title: job.jobTitle || job.title || job.positionName || q,
+          description: (job.jobDescription || job.description || '').substring(0, 2000),
+          sourceUrl: job.url || `https://jadarat.sa/app/jobs/${id}`,
+          locationText: job.city || job.location || job.region,
+          salaryText: job.salary ? `${job.salary} SAR` : undefined,
+          postedDate: job.postedDate || job.createdDate,
+          deadline: job.deadline || job.expiryDate,
+          jobTypeText: job.employmentType || job.jobType,
+          experienceText: job.experience || job.yearsOfExperience,
+        });
+      }
+    } catch (e) {
+      if (q === BLUE_COLLAR_QUERIES.SA[0].q) console.warn(`[GovAPI:SA] Jadarat API error: ${(e as Error).message}`);
+    }
+    await delay(API_DELAY_MS);
+  }
+
+  console.log(`[GovAPI:SA] Fetched ${results.length} jobs from Jadarat`);
+  return results;
+}
+
+// ─── AE: MOHRE (Ministry of Human Resources) ────────────────────
+
+async function fetchAE(): Promise<RawJobData[]> {
+  const results: RawJobData[] = [];
+  const seen = new Set<string>();
+
+  for (const { q } of BLUE_COLLAR_QUERIES.AE) {
+    // MOHRE job search
+    try {
+      const data = await fetchJson(
+        `https://www.mohre.gov.ae/api/jobs/search?keyword=${encodeURIComponent(q)}&page=1&pageSize=50`,
+        { headers: { Accept: 'application/json' } },
+      );
+      const jobs = data?.jobs || data?.results || data?.data || [];
+      for (const job of (Array.isArray(jobs) ? jobs : [])) {
+        const id = job.id || job.jobId || job.referenceNumber;
+        if (!id || seen.has(String(id))) continue;
+        seen.add(String(id));
+        results.push({
+          title: job.jobTitle || job.title || q,
+          description: (job.description || job.jobDescription || '').substring(0, 2000),
+          sourceUrl: job.url || `https://www.mohre.gov.ae/en/job/${id}`,
+          locationText: job.emirate || job.location || job.city,
+          salaryText: job.salary ? `AED ${job.salary}` : undefined,
+          postedDate: job.postedDate || job.publishDate,
+          deadline: job.deadline || job.expiryDate,
+          jobTypeText: job.jobType || job.contractType,
+        });
+      }
+    } catch (e) {
+      if (q === BLUE_COLLAR_QUERIES.AE[0].q) console.warn(`[GovAPI:AE] MOHRE API error: ${(e as Error).message}`);
+    }
+    await delay(API_DELAY_MS);
+  }
+
+  console.log(`[GovAPI:AE] Fetched ${results.length} jobs from MOHRE`);
+  return results;
+}
+
+// ─── AR: Portal Empleo (Argentina) ───────────────────────────────
+
+async function fetchAR(): Promise<RawJobData[]> {
+  const results: RawJobData[] = [];
+  const seen = new Set<string>();
+
+  for (const { q } of BLUE_COLLAR_QUERIES.AR) {
+    try {
+      // Portal Empleo - Ministerio de Trabajo
+      const data = await fetchJson(
+        `https://portalempleo.trabajo.gob.ar/api/v1/ofertas?keyword=${encodeURIComponent(q)}&page=1&size=50`,
+        { headers: { Accept: 'application/json' } },
+      );
+      const ofertas = data?.ofertas || data?.results || data?.data || [];
+      for (const o of (Array.isArray(ofertas) ? ofertas : [])) {
+        const id = o.id || o.ofertaId;
+        if (!id || seen.has(String(id))) continue;
+        seen.add(String(id));
+        results.push({
+          title: o.puesto || o.titulo || o.title || q,
+          description: (o.descripcion || o.description || '').substring(0, 2000),
+          sourceUrl: o.url || `https://portalempleo.trabajo.gob.ar/oferta/${id}`,
+          locationText: [o.localidad, o.provincia].filter(Boolean).join(', '),
+          salaryText: o.remuneracion ? `ARS ${o.remuneracion}` : undefined,
+          postedDate: o.fechaPublicacion,
+          deadline: o.fechaCierre || o.fechaVencimiento,
+          jobTypeText: o.tipoContratacion || o.modalidad,
+        });
+      }
+    } catch (e) {
+      if (q === BLUE_COLLAR_QUERIES.AR[0].q) console.warn(`[GovAPI:AR] Portal Empleo API error: ${(e as Error).message}`);
+    }
+    await delay(API_DELAY_MS);
+  }
+
+  console.log(`[GovAPI:AR] Fetched ${results.length} jobs from Portal Empleo`);
+  return results;
+}
+
+// ─── ID: Karirhub Kemnaker ───────────────────────────────────────
+
+async function fetchID(): Promise<RawJobData[]> {
+  const results: RawJobData[] = [];
+  const seen = new Set<string>();
+
+  for (const { q } of BLUE_COLLAR_QUERIES.ID) {
+    try {
+      // Karirhub — Ministry of Manpower Indonesia
+      const data = await fetchJson(
+        `https://karirhub.kemnaker.go.id/api/v1/lowongan?keyword=${encodeURIComponent(q)}&page=1&per_page=50`,
+        { headers: { Accept: 'application/json' } },
+      );
+      const lowongan = data?.data || data?.lowongan || data?.results || [];
+      for (const job of (Array.isArray(lowongan) ? lowongan : [])) {
+        const id = job.id || job.lowongan_id;
+        if (!id || seen.has(String(id))) continue;
+        seen.add(String(id));
+        results.push({
+          title: job.judul_lowongan || job.jabatan || job.title || q,
+          description: (job.deskripsi || job.kualifikasi || job.description || '').substring(0, 2000),
+          sourceUrl: job.url || `https://karirhub.kemnaker.go.id/lowongan/${id}`,
+          locationText: [job.kota, job.provinsi].filter(Boolean).join(', '),
+          salaryText: job.gaji ? `Rp ${job.gaji}` : undefined,
+          postedDate: job.tanggal_terbit || job.created_at,
+          deadline: job.tanggal_berakhir || job.deadline,
+          jobTypeText: job.tipe_pekerjaan || job.jenis_pekerjaan,
+        });
+      }
+    } catch (e) {
+      if (q === BLUE_COLLAR_QUERIES.ID[0].q) console.warn(`[GovAPI:ID] Karirhub API error: ${(e as Error).message}`);
+    }
+    await delay(API_DELAY_MS);
+  }
+
+  console.log(`[GovAPI:ID] Fetched ${results.length} jobs from Karirhub`);
+  return results;
+}
+
+// ─── TH: DOE SmartJob (กรมการจัดหางาน) ─────────────────────────
+
+async function fetchTH(): Promise<RawJobData[]> {
+  const results: RawJobData[] = [];
+  const seen = new Set<string>();
+
+  for (const { q } of BLUE_COLLAR_QUERIES.TH) {
+    try {
+      // SmartJob — Department of Employment Thailand
+      const data = await fetchJson(
+        `https://smartjob.doe.go.th/api/jobs/search?keyword=${encodeURIComponent(q)}&page=1&size=50`,
+        { headers: { Accept: 'application/json' } },
+      );
+      const jobs = data?.jobs || data?.results || data?.data || [];
+      for (const job of (Array.isArray(jobs) ? jobs : [])) {
+        const id = job.id || job.jobId || job.positionId;
+        if (!id || seen.has(String(id))) continue;
+        seen.add(String(id));
+        results.push({
+          title: job.positionName || job.title || job.jobTitle || q,
+          description: (job.jobDetail || job.description || '').substring(0, 2000),
+          sourceUrl: job.url || `https://smartjob.doe.go.th/Job/Detail/${id}`,
+          locationText: [job.district, job.province].filter(Boolean).join(', '),
+          salaryText: job.salary || job.wage,
+          postedDate: job.announcedDate || job.postedDate,
+          deadline: job.closingDate || job.deadline,
+          jobTypeText: job.employmentType || job.jobType,
+        });
+      }
+    } catch (e) {
+      if (q === BLUE_COLLAR_QUERIES.TH[0].q) console.warn(`[GovAPI:TH] SmartJob API error: ${(e as Error).message}`);
+    }
+    await delay(API_DELAY_MS);
+  }
+
+  console.log(`[GovAPI:TH] Fetched ${results.length} jobs from SmartJob`);
+  return results;
+}
+
+// ─── PH: Phil-JobNet (DOLE) ─────────────────────────────────────
+
+async function fetchPH(): Promise<RawJobData[]> {
+  const results: RawJobData[] = [];
+  const seen = new Set<string>();
+
+  for (const { q } of BLUE_COLLAR_QUERIES.PH) {
+    try {
+      // Phil-JobNet — Department of Labor and Employment
+      const data = await fetchJson(
+        `https://philjobnet.gov.ph/api/jobs/search?keyword=${encodeURIComponent(q)}&page=1&pageSize=50`,
+        { headers: { Accept: 'application/json' } },
+      );
+      const jobs = data?.jobs || data?.results || data?.data || [];
+      for (const job of (Array.isArray(jobs) ? jobs : [])) {
+        const id = job.id || job.jobId || job.postingId;
+        if (!id || seen.has(String(id))) continue;
+        seen.add(String(id));
+        results.push({
+          title: job.positionTitle || job.title || q,
+          description: (job.jobDescription || job.description || '').substring(0, 2000),
+          sourceUrl: job.url || `https://philjobnet.gov.ph/job/${id}`,
+          locationText: [job.city, job.region].filter(Boolean).join(', '),
+          salaryText: job.salary ? `PHP ${job.salary}` : undefined,
+          postedDate: job.datePosted || job.createdAt,
+          deadline: job.closingDate || job.deadline,
+          jobTypeText: job.employmentType || job.jobType,
+          experienceText: job.experienceRequired,
+        });
+      }
+    } catch (e) {
+      if (q === BLUE_COLLAR_QUERIES.PH[0].q) console.warn(`[GovAPI:PH] Phil-JobNet API error: ${(e as Error).message}`);
+    }
+    await delay(API_DELAY_MS);
+  }
+
+  console.log(`[GovAPI:PH] Fetched ${results.length} jobs from Phil-JobNet`);
+  return results;
+}
+
+// ─── VN: ViecLamVietNam (MOLISA) ────────────────────────────────
+
+async function fetchVN(): Promise<RawJobData[]> {
+  const results: RawJobData[] = [];
+  const seen = new Set<string>();
+
+  for (const { q } of BLUE_COLLAR_QUERIES.VN) {
+    try {
+      // ViecLamVietNam — Ministry of Labour
+      const data = await fetchJson(
+        `https://vieclamvietnam.gov.vn/api/job/search?keyword=${encodeURIComponent(q)}&page=1&size=50`,
+        { headers: { Accept: 'application/json' } },
+      );
+      const jobs = data?.jobs || data?.data || data?.results || [];
+      for (const job of (Array.isArray(jobs) ? jobs : [])) {
+        const id = job.id || job.jobId;
+        if (!id || seen.has(String(id))) continue;
+        seen.add(String(id));
+        results.push({
+          title: job.tieuDe || job.tenViTri || job.title || q,
+          description: (job.moTa || job.yeuCau || job.description || '').substring(0, 2000),
+          sourceUrl: job.url || `https://vieclamvietnam.gov.vn/tin-tuyen-dung/${id}`,
+          locationText: [job.diaDiem, job.tinhThanh].filter(Boolean).join(', '),
+          salaryText: job.luong || job.mucLuong || (job.salary ? `${job.salary} VND` : undefined),
+          postedDate: job.ngayDang || job.createdAt,
+          deadline: job.hanNop || job.ngayHetHan,
+          jobTypeText: job.hinhThuc || job.loaiHinhLamViec,
+        });
+      }
+    } catch (e) {
+      if (q === BLUE_COLLAR_QUERIES.VN[0].q) console.warn(`[GovAPI:VN] ViecLamVietNam API error: ${(e as Error).message}`);
+    }
+    await delay(API_DELAY_MS);
+  }
+
+  console.log(`[GovAPI:VN] Fetched ${results.length} jobs from ViecLamVietNam`);
+  return results;
+}
+
+// ─── MY: MYFutureJobs (PERKESO/SOCSO) ──────────────────────────
+
+async function fetchMY(): Promise<RawJobData[]> {
+  const results: RawJobData[] = [];
+  const seen = new Set<string>();
+
+  for (const { q } of BLUE_COLLAR_QUERIES.MY) {
+    try {
+      // MYFutureJobs — Social Security Organisation (SOCSO/PERKESO)
+      const data = await fetchJson(
+        `https://www.myfuturejobs.gov.my/api/v1/jobs?keyword=${encodeURIComponent(q)}&page=1&size=50`,
+        { headers: { Accept: 'application/json' } },
+      );
+      const jobs = data?.jobs || data?.data || data?.results || [];
+      for (const job of (Array.isArray(jobs) ? jobs : [])) {
+        const id = job.id || job.jobId || job.vacancyId;
+        if (!id || seen.has(String(id))) continue;
+        seen.add(String(id));
+        results.push({
+          title: job.jawatanKosong || job.jobTitle || job.title || q,
+          description: (job.keterangan || job.description || '').substring(0, 2000),
+          sourceUrl: job.url || `https://www.myfuturejobs.gov.my/job/${id}`,
+          locationText: [job.bandar, job.negeri].filter(Boolean).join(', '),
+          salaryText: job.gaji ? `RM ${job.gaji}` : (job.salary ? `RM ${job.salary}` : undefined),
+          postedDate: job.tarikhMula || job.postedDate,
+          deadline: job.tarikhTutup || job.closingDate,
+          jobTypeText: job.jenisPekerjaan || job.employmentType,
+        });
+      }
+    } catch (e) {
+      if (q === BLUE_COLLAR_QUERIES.MY[0].q) console.warn(`[GovAPI:MY] MYFutureJobs API error: ${(e as Error).message}`);
+    }
+    await delay(API_DELAY_MS);
+  }
+
+  console.log(`[GovAPI:MY] Fetched ${results.length} jobs from MYFutureJobs`);
+  return results;
+}
+
+// ─── PK: Pakistan Employment Exchange ───────────────────────────
+
+async function fetchPK(): Promise<RawJobData[]> {
+  const results: RawJobData[] = [];
+  const seen = new Set<string>();
+
+  for (const { q } of BLUE_COLLAR_QUERIES.PK) {
+    // Try NAVTTC (National Vocational & Technical Training Commission) and NJP
+    try {
+      const data = await fetchJson(
+        `https://njp.gov.pk/api/jobs/search?keyword=${encodeURIComponent(q)}&page=1&size=50`,
+        { headers: { Accept: 'application/json' } },
+      );
+      const jobs = data?.jobs || data?.data || data?.results || [];
+      for (const job of (Array.isArray(jobs) ? jobs : [])) {
+        const id = job.id || job.jobId;
+        if (!id || seen.has(String(id))) continue;
+        seen.add(String(id));
+        results.push({
+          title: job.title || job.jobTitle || job.positionTitle || q,
+          description: (job.description || job.jobDescription || '').substring(0, 2000),
+          sourceUrl: job.url || `https://njp.gov.pk/jobs/${id}`,
+          locationText: [job.city, job.province].filter(Boolean).join(', '),
+          salaryText: job.salary ? `PKR ${job.salary}` : undefined,
+          postedDate: job.postedDate || job.createdAt,
+          deadline: job.lastDate || job.deadline,
+          jobTypeText: job.jobType || job.employmentType,
+          experienceText: job.experience,
+        });
+      }
+    } catch (e) {
+      if (q === BLUE_COLLAR_QUERIES.PK[0].q) console.warn(`[GovAPI:PK] NJP API error: ${(e as Error).message}`);
+    }
+    await delay(API_DELAY_MS);
+  }
+
+  console.log(`[GovAPI:PK] Fetched ${results.length} jobs from NJP`);
+  return results;
+}
+
+// ─── PT: IEFP net-emprego ───────────────────────────────────────
+
+async function fetchPT(): Promise<RawJobData[]> {
+  const results: RawJobData[] = [];
+  const seen = new Set<string>();
+
+  for (const { q } of BLUE_COLLAR_QUERIES.PT) {
+    try {
+      // IEFP — Instituto do Emprego e Formação Profissional
+      const data = await fetchJson(
+        `https://iefponline.iefp.pt/IEFP/api/ofertas?q=${encodeURIComponent(q)}&pagina=1&registosPorPagina=50`,
+        { headers: { Accept: 'application/json' } },
+      );
+      const ofertas = data?.ofertas || data?.results || data?.data || [];
+      for (const o of (Array.isArray(ofertas) ? ofertas : [])) {
+        const id = o.id || o.codigoOferta || o.referencia;
+        if (!id || seen.has(String(id))) continue;
+        seen.add(String(id));
+        results.push({
+          title: o.profissao || o.titulo || o.designacao || q,
+          description: (o.descricaoFuncoes || o.requisitos || o.description || '').substring(0, 2000),
+          sourceUrl: o.url || `https://iefponline.iefp.pt/IEFP/oferta/${id}`,
+          locationText: [o.localidade, o.distrito].filter(Boolean).join(', '),
+          salaryText: o.remuneracao || (o.salario ? `€${o.salario}` : undefined),
+          postedDate: o.dataPublicacao || o.dataRegisto,
+          deadline: o.dataValidade || o.dataLimite,
+          jobTypeText: o.tipoContrato || o.tipoOferta,
+        });
+      }
+    } catch (e) {
+      if (q === BLUE_COLLAR_QUERIES.PT[0].q) console.warn(`[GovAPI:PT] IEFP API error: ${(e as Error).message}`);
+    }
+    await delay(API_DELAY_MS);
+  }
+
+  console.log(`[GovAPI:PT] Fetched ${results.length} jobs from IEFP`);
+  return results;
+}
+
+// ─── ZA: ESSA (Employment Services of South Africa) ─────────────
+
+async function fetchZA(): Promise<RawJobData[]> {
+  const results: RawJobData[] = [];
+  const seen = new Set<string>();
+
+  for (const { q } of BLUE_COLLAR_QUERIES.ZA) {
+    try {
+      // ESSA — Department of Employment and Labour
+      const data = await fetchJson(
+        `https://essa.labour.gov.za/api/v1/opportunities/search?keyword=${encodeURIComponent(q)}&page=1&size=50`,
+        { headers: { Accept: 'application/json' } },
+      );
+      const jobs = data?.opportunities || data?.jobs || data?.results || data?.data || [];
+      for (const job of (Array.isArray(jobs) ? jobs : [])) {
+        const id = job.id || job.opportunityId || job.referenceNumber;
+        if (!id || seen.has(String(id))) continue;
+        seen.add(String(id));
+        results.push({
+          title: job.positionTitle || job.title || job.jobTitle || q,
+          description: (job.description || job.jobDescription || '').substring(0, 2000),
+          sourceUrl: job.url || `https://essa.labour.gov.za/EssaOnline/WebJobs/ViewJobDescription?Id=${id}`,
+          locationText: [job.city, job.province].filter(Boolean).join(', '),
+          salaryText: job.salary ? `R ${job.salary}` : undefined,
+          postedDate: job.postedDate || job.advertisedDate,
+          deadline: job.closingDate || job.deadline,
+          jobTypeText: job.employmentType || job.contractType,
+        });
+      }
+    } catch (e) {
+      if (q === BLUE_COLLAR_QUERIES.ZA[0].q) console.warn(`[GovAPI:ZA] ESSA API error: ${(e as Error).message}`);
+    }
+    await delay(API_DELAY_MS);
+  }
+
+  console.log(`[GovAPI:ZA] Fetched ${results.length} jobs from ESSA`);
+  return results;
+}
+
 // ─── Main entry point ───────────────────────────────────────────────
 
 const MARKET_HANDLERS: Partial<Record<Market, () => Promise<RawJobData[]>>> = {
@@ -1022,6 +1663,19 @@ const MARKET_HANDLERS: Partial<Record<Market, () => Promise<RawJobData[]>>> = {
   IT: fetchIT,   // ANPAL/Cliclavoro — public search
   MX: fetchMX,   // SNE Portal del Empleo — public search
   CO: fetchCO,   // SPE Colombia — public search
+  // 12 new markets
+  EG: fetchEG,   // Ta3mal + Manpower Egypt
+  SA: fetchSA,   // Jadarat (HRDF)
+  AE: fetchAE,   // MOHRE UAE
+  AR: fetchAR,   // Portal Empleo Argentina
+  ID: fetchID,   // Karirhub Kemnaker
+  TH: fetchTH,   // SmartJob DOE
+  PH: fetchPH,   // Phil-JobNet DOLE
+  VN: fetchVN,   // ViecLamVietNam MOLISA
+  MY: fetchMY,   // MYFutureJobs PERKESO
+  PK: fetchPK,   // NJP Pakistan
+  PT: fetchPT,   // IEFP net-emprego
+  ZA: fetchZA,   // ESSA Labour
 };
 
 /**

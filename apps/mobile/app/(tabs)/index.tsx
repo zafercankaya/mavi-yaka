@@ -16,7 +16,7 @@ import {
 } from 'lucide-react-native';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { fetchJobs, JobListing, JobFilters } from '../../src/api/jobs';
+import { fetchJobs, JobListing, JobFilters, searchLocations, LocationResult } from '../../src/api/jobs';
 import { fetchCompanies, Company } from '../../src/api/companies';
 import { fetchFollows } from '../../src/api/follows';
 import { useAuthStore } from '../../src/store/auth';
@@ -74,6 +74,8 @@ export default function HomeScreen() {
   const [sort, setSort] = useState('recommended');
   const [selectedJobType, setSelectedJobType] = useState<string | undefined>();
   const [locationText, setLocationText] = useState('');
+  const [locationSuggestions, setLocationSuggestions] = useState<LocationResult[]>([]);
+  const [locationSelected, setLocationSelected] = useState(false);
 
   // FlatList ref — useScrollToTop scrolls to top when active tab is tapped again
   const listRef = useRef<FlatList>(null);
@@ -274,7 +276,7 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {/* Location filter */}
+      {/* Location filter with autocomplete */}
       <View style={styles.locationRow}>
         <MapPin size={16} color={Colors.textTertiary} />
         <TextInput
@@ -282,15 +284,52 @@ export default function HomeScreen() {
           placeholder={t('filter.city')}
           placeholderTextColor={Colors.textTertiary}
           value={locationText}
-          onChangeText={setLocationText}
+          onChangeText={(text) => {
+            setLocationText(text);
+            setLocationSelected(false);
+            if (text.trim().length >= 2) {
+              searchLocations(text.trim()).then(setLocationSuggestions).catch(() => {});
+            } else {
+              setLocationSuggestions([]);
+            }
+          }}
           returnKeyType="done"
         />
         {locationText.length > 0 && (
-          <Pressable onPress={() => setLocationText('')} hitSlop={8}>
+          <Pressable onPress={() => { setLocationText(''); setLocationSuggestions([]); setLocationSelected(false); }} hitSlop={8}>
             <X size={14} color={Colors.textTertiary} />
           </Pressable>
         )}
       </View>
+      {locationSuggestions.length > 0 && !locationSelected && (
+        <View style={styles.locationDropdown}>
+          {locationSuggestions.map((loc, i) => (
+            <Pressable
+              key={`${loc.state}-${loc.city}-${i}`}
+              style={styles.locationOption}
+              onPress={() => {
+                const display = loc.city
+                  ? `${loc.city}${loc.state ? ', ' + loc.state : ''}`
+                  : loc.state || loc.nameLocal;
+                setLocationText(display);
+                setLocationSuggestions([]);
+                setLocationSelected(true);
+              }}
+            >
+              <MapPin size={12} color={Colors.textTertiary} />
+              <Text style={styles.locationOptionText} numberOfLines={1}>
+                {loc.city ? `${loc.nameLocal || loc.city}` : loc.nameLocal || loc.state}
+                {loc.city && loc.state ? `, ${loc.state}` : ''}
+              </Text>
+              {loc.population ? (
+                <Text style={styles.locationPopulation}>
+                  {loc.population > 1000000 ? `${(loc.population / 1000000).toFixed(1)}M` : loc.population > 1000 ? `${Math.round(loc.population / 1000)}K` : ''}
+                </Text>
+              ) : null}
+            </Pressable>
+          ))}
+        </View>
+      )}
 
       {/* Sectors with Icons */}
       <View style={styles.categoriesSection}>
@@ -533,6 +572,35 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: Colors.text,
+  },
+  locationDropdown: {
+    marginHorizontal: 16,
+    marginTop: -8,
+    marginBottom: 8,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 8,
+    maxHeight: 200,
+    overflow: 'hidden',
+  },
+  locationOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+    gap: 8,
+  },
+  locationOptionText: {
+    flex: 1,
+    fontSize: 14,
+    color: Colors.text,
+  },
+  locationPopulation: {
+    fontSize: 11,
+    color: Colors.textTertiary,
   },
 
   // Segment

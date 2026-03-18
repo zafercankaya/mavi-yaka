@@ -85,3 +85,23 @@ export async function fetchJobById(id: string): Promise<{ data: JobListing }> {
   const { data } = await api.get<{ data: JobListing }>(`/jobs/${id}`);
   return data;
 }
+
+export interface LocationResult {
+  id: string | null;
+  state: string | null;
+  city: string | null;
+  nameLocal: string;
+  nameEn: string;
+  latitude: number | null;
+  longitude: number | null;
+  population: number | null;
+}
+
+export async function searchLocations(query: string, limit = 15): Promise<LocationResult[]> {
+  if (query.trim().length < 2) return [];
+  const country = useMarketStore.getState().market;
+  const { data } = await api.get<{ data: LocationResult[] }>('/locations/search', {
+    params: { country, q: query, limit: String(limit) },
+  });
+  return data.data;
+}
