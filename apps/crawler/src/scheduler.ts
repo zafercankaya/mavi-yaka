@@ -140,8 +140,14 @@ export async function startScheduler(prisma: PrismaClient): Promise<void> {
   // Daily aging job at 23:00 UTC (after all crawls complete)
   const agingTask = cron.schedule('0 23 * * *', async () => {
     console.log('[Scheduler] Running aging...');
-    const count = await runAging(prisma);
-    console.log(`[Scheduler] Aging complete: ${count} expired`);
+    try {
+      // Ping DB first to wake Neon from auto-suspend before heavy aging queries
+      await prisma.$queryRaw`SELECT 1`;
+      const count = await runAging(prisma);
+      console.log(`[Scheduler] Aging complete: ${count} expired`);
+    } catch (err) {
+      console.error(`[Scheduler] Aging error: ${(err as Error).message}`);
+    }
   });
 
   scheduledJobs.push({ name: 'Aging', task: agingTask });
@@ -231,6 +237,25 @@ export async function startScheduler(prisma: PrismaClient): Promise<void> {
   });
   scheduledJobs.push({ name: 'Neon Keep-Alive', task: keepAliveTask });
   console.log('  - */4 * * * * → Neon DB keep-alive ping');
+
+  // ─── Supabase Keep-Alive ──────────────────────────────
+  // Supabase free tier pauses projects after 7 days of inactivity.
+  // Ping every 6 hours to prevent auto-pause.
+  const supabaseKeepAlive = cron.schedule('0 */6 * * *', async () => {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    if (!supabaseUrl) return;
+    try {
+      const res = await fetch(`${supabaseUrl}/auth/v1/health`, {
+        headers: { apikey: process.env.SUPABASE_SERVICE_KEY || '' },
+        signal: AbortSignal.timeout(10_000),
+      });
+      console.log(`[KeepAlive] Supabase ping: ${res.status}`);
+    } catch (err) {
+      console.error(`[KeepAlive] Supabase ping failed: ${(err as Error).message}`);
+    }
+  });
+  scheduledJobs.push({ name: 'Supabase Keep-Alive', task: supabaseKeepAlive });
+  console.log('  - 0 */6 * * * → Supabase keep-alive ping');
 
   console.log('[Scheduler] All jobs registered\n');
 }
