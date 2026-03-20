@@ -7,7 +7,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "postinstall": "node scripts/patch-expo-router.js"
+    "postinstall": "node scripts/patch-expo-router.js && node scripts/patch-turbomodule.js"
   },
   "dependencies": {
     "@expo/ngrok": "^4.1.3",

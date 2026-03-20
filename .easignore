@@ -1,0 +1,30 @@
+# Browser profiles and temp files
+.claude/
+.git/
+
+# Apps not needed for mobile build
+apps/api/
+apps/crawler/
+
+# Logs and temp
+*.log
+logs_tmp/
+
+# Large binary files at root
+/*.aab
+/*.ipa
+/*.zip
+/*.png
+/*.p8
+/*.sh
+/*.xlsx
+
+# Root temp scripts
+/*.js
+
+# Root temp JSON (keep essential)
+/*.json
+!package.json
+!package-lock.json
+!eas.json
+!tsconfig.json
