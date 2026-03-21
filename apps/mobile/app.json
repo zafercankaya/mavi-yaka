@@ -38,11 +38,6 @@
       "bundleIdentifier": "com.maviyaka.app",
       "buildNumber": "1",
       "supportsTablet": true,
-      "usesAppleSignIn": true,
-      "entitlements": {
-        "aps-environment": "production",
-        "com.apple.developer.applesignin": ["Default"]
-      },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -87,7 +82,6 @@
       ],
       "expo-web-browser",
       "expo-secure-store",
-      "expo-apple-authentication",
       [
         "expo-build-properties",
         {
