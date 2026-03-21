@@ -5,7 +5,12 @@ import { startScheduler, stopScheduler } from './scheduler';
 import { crawlAllActive, crawlByMarkets } from './engine';
 import { closeBrowser } from './processors/scrape.processor';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  log: [
+    { level: 'error', emit: 'stdout' },
+    { level: 'warn', emit: 'stdout' },
+  ],
+});
 let healthServer: Server | null = null;
 
 const INTERNAL_KEY = process.env.INTERNAL_API_KEY || '';
@@ -116,11 +121,25 @@ function handleStatus(res: ServerResponse) {
   json(res, 200, data);
 }
 
+async function connectWithRetry(maxAttempts = 5, baseDelayMs = 2000): Promise<void> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await prisma.$connect();
+      return;
+    } catch (err) {
+      if (attempt === maxAttempts) throw err;
+      const delay = baseDelayMs * Math.pow(2, attempt - 1);
+      console.warn(`[DB] Connection attempt ${attempt}/${maxAttempts} failed: ${(err as Error).message}. Retrying in ${delay}ms...`);
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+}
+
 async function main() {
   console.log('=== Mavi Yaka Crawler ===');
   console.log(`Mode: ${process.argv[2] || 'scheduler'}`);
 
-  await prisma.$connect();
+  await connectWithRetry();
   console.log('Database connected');
 
   const mode = process.argv[2];

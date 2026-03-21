@@ -396,10 +396,14 @@ export async function crawlAllActive(prisma: PrismaClient): Promise<CrawlResult[
 
   const results = await crawlSourcesConcurrently(prisma, sources);
 
-  // Run aging after all crawls
-  const aged = await runAging(prisma);
-  if (aged > 0) {
-    console.log(`[Aging] Expired ${aged} job listings`);
+  // Run aging after all crawls (with error handling — don't fail the entire crawl run)
+  try {
+    const aged = await runAging(prisma);
+    if (aged > 0) {
+      console.log(`[Aging] Expired ${aged} job listings`);
+    }
+  } catch (err) {
+    console.error(`[Aging] Error during post-crawl aging: ${(err as Error).message}`);
   }
 
   // Close browser if it was used
@@ -425,10 +429,14 @@ export async function crawlByMarkets(prisma: PrismaClient, markets: Market[]): P
 
   const results = await crawlSourcesConcurrently(prisma, sources);
 
-  // Run aging (global — checks all ACTIVE job listings)
-  const aged = await runAging(prisma);
-  if (aged > 0) {
-    console.log(`[Aging] Expired ${aged} job listings`);
+  // Run aging (global — checks all ACTIVE job listings, with error handling)
+  try {
+    const aged = await runAging(prisma);
+    if (aged > 0) {
+      console.log(`[Aging] Expired ${aged} job listings`);
+    }
+  } catch (err) {
+    console.error(`[Aging] Error during post-crawl aging: ${(err as Error).message}`);
   }
 
   await closeBrowser();

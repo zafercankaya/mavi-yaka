@@ -68,7 +68,8 @@ if (__DEV__) {
       if (status === 403 || status === 409) {
         console.log(`[API] ${status} ${error.config?.method?.toUpperCase()} ${error.config?.url} → ${error.response?.data?.message || error.message}`);
       } else {
-        console.error(`[API] ERROR ${error.config?.method?.toUpperCase()} ${error.config?.url} →`, error.message);
+        const params = error.config?.params ? JSON.stringify(error.config.params) : '';
+        console.error(`[API] ERROR ${error.config?.method?.toUpperCase()} ${error.config?.url} →`, error.message, params, error.response?.data);
       }
       return Promise.reject(error);
     },
