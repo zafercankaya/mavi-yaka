@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Platform, Alert } from 'react-native';
 import * as AuthSession from 'expo-auth-session';
-import * as AppleAuthentication from 'expo-apple-authentication';
 import * as WebBrowser from 'expo-web-browser';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -51,38 +50,10 @@ export function useSocialAuth() {
     }
   };
 
+  // Apple Sign In temporarily disabled — requires provisioning profile capabilities
   const signInWithApple = async () => {
     if (Platform.OS !== 'ios') return;
-
-    setLoading(true);
-    try {
-      const credential = await AppleAuthentication.signInAsync({
-        requestedScopes: [
-          AppleAuthentication.AppleAuthenticationScope.EMAIL,
-          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-        ],
-      });
-
-      if (!credential.identityToken) {
-        throw new Error('Apple Sign In: identityToken missing');
-      }
-
-      // Apple only sends fullName on FIRST sign-in, extract it
-      const fullName = credential.fullName;
-      const displayName = fullName
-        ? [fullName.givenName, fullName.familyName].filter(Boolean).join(' ') || undefined
-        : undefined;
-
-      const data = await socialLoginApi('APPLE', credential.identityToken, displayName);
-      await setAuth(data.user, data.accessToken, data.refreshToken);
-      router.replace('/(tabs)');
-    } catch (err: any) {
-      if (err.code === 'ERR_REQUEST_CANCELED') return;
-      const msg = err.response?.data?.message || t('auth.appleLoginFailed');
-      Alert.alert(t('auth.loginError'), msg);
-    } finally {
-      setLoading(false);
-    }
+    Alert.alert('Apple Sign In', 'Coming soon');
   };
 
   return {
