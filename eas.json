@@ -22,7 +22,9 @@
         "releaseStatus": "draft"
       },
       "ios": {
-        "ascAppId": "6760927433"
+        "appleId": "cicekyelda@hotmail.com",
+        "ascAppId": "6760927433",
+        "appleTeamId": "5VT7D2LVZQ"
       }
     }
   }
