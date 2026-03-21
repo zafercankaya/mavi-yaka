@@ -39,6 +39,10 @@
       "buildNumber": "1",
       "supportsTablet": true,
       "usesAppleSignIn": true,
+      "entitlements": {
+        "aps-environment": "production",
+        "com.apple.developer.applesignin": ["Default"]
+      },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },

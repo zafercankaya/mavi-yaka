@@ -41,4 +41,5 @@ jobs:
           retention-days: 30
 
       - name: Submit to App Store
+        continue-on-error: true
         run: cd apps/mobile && eas submit --platform ios --profile production --path ./build.ipa --non-interactive
