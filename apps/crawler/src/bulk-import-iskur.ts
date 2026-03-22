@@ -121,34 +121,41 @@ interface RawJob {
 }
 
 async function extractJobsFromPage(page: Page): Promise<RawJob[]> {
-  return page.$$eval('tr', trs => {
-    const jobs: Array<{ id: string; title: string; location: string }> = [];
-    for (const tr of trs) {
-      const cells = tr.querySelectorAll('td');
-      if (cells.length < 2) continue;
+  const html = await page.content();
+  const jobs: RawJob[] = [];
 
-      // Get the row text
+  // Extract job IDs
+  const idRegex = /uiID=(\d+)/g;
+  let match;
+  const ids: string[] = [];
+  while ((match = idRegex.exec(html)) !== null) {
+    if (!ids.includes(match[1])) ids.push(match[1]);
+  }
+
+  // Extract table rows with evaluate (returns serializable data)
+  const rows = await page.evaluate(() => {
+    const trs = Array.from(document.querySelectorAll('tr'));
+    return trs.map(tr => {
+      const cells = Array.from(tr.querySelectorAll('td'));
+      if (cells.length < 2) return null;
       const rowHtml = tr.innerHTML;
       const idMatch = rowHtml.match(/uiID=(\d+)/);
-      if (!idMatch) continue;
-
-      const id = idMatch[1];
-      const cellTexts = Array.from(cells).map(c => c.textContent?.trim() || '');
-
-      // First cell usually has the job title, second has location
-      const title = cellTexts[0] || '';
-      const locationCell = cellTexts[1] || '';
-
-      // Extract province from location text like "İlçe Geneli Başvuru (Çalışma Yeri: İSTANBUL / MALTEPE)"
-      const locMatch = locationCell.match(/Çalışma\s*Yeri\s*:\s*([^)]+)/i);
-      const location = locMatch ? locMatch[1].trim() : '';
-
-      if (title && id) {
-        jobs.push({ id, title, location });
-      }
-    }
-    return jobs;
+      if (!idMatch) return null;
+      return {
+        id: idMatch[1],
+        title: (cells[0] as HTMLElement)?.textContent?.trim() || '',
+        locText: (cells[1] as HTMLElement)?.textContent?.trim() || '',
+      };
+    }).filter(Boolean) as Array<{ id: string; title: string; locText: string }>;
   });
+
+  for (const row of rows) {
+    const locMatch = row.locText.match(/Çalışma\s*Yeri\s*:\s*([^)]+)/i);
+    const location = locMatch ? locMatch[1].trim() : '';
+    jobs.push({ id: row.id, title: row.title, location });
+  }
+
+  return jobs;
 }
 
 // ─── Main import ─────────────────────────────────────────────────────
@@ -249,16 +256,11 @@ async function main() {
 
       // Navigate to next page via PostBack
       try {
-        await page.evaluate(() => {
-          (window as any).__doPostBack('ctl04$ctlDataPagerDetay$btnNext', '');
-        });
+        await page.evaluate(`__doPostBack('ctl04$ctlDataPagerDetay$btnNext', '')`);
         await page.waitForTimeout(PAGE_DELAY_MS);
 
         // Wait for content to update
-        await page.waitForFunction(() => {
-          const rows = document.querySelectorAll('tr td');
-          return rows.length > 0;
-        }, { timeout: 15_000 }).catch(() => {});
+        await page.waitForSelector('tr td', { timeout: 15_000 }).catch(() => {});
 
       } catch (e) {
         console.warn(`Navigation error on page ${pageNum}: ${(e as Error).message?.substring(0, 100)}`);
