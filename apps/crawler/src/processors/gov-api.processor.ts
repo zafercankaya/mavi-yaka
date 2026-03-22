@@ -224,7 +224,8 @@ const BLUE_COLLAR_QUERIES: Record<string, { q: string; label: string }[]> = {
   ],
 };
 
-const MAX_RESULTS_PER_QUERY = 50;
+const MAX_RESULTS_PER_QUERY = 100;
+const MAX_PAGES_PER_QUERY = 20; // paginate up to 20 pages per keyword
 const API_DELAY_MS = 500;
 
 function delay(ms: number): Promise<void> {
@@ -250,31 +251,45 @@ async function fetchSE(): Promise<RawJobData[]> {
   const seen = new Set<string>();
 
   for (const { q } of BLUE_COLLAR_QUERIES.SE) {
-    try {
-      const data = await fetchJson(
-        `https://jobsearch.api.jobtechdev.se/search?q=${encodeURIComponent(q)}&limit=${MAX_RESULTS_PER_QUERY}`,
-        { headers: { accept: 'application/json' } },
-      );
+    let offset = 0;
+    let hasMore = true;
 
-      for (const hit of data.hits || []) {
-        const id = hit.id || hit.webpage_url;
-        if (seen.has(id)) continue;
-        seen.add(id);
+    while (hasMore) {
+      try {
+        const data = await fetchJson(
+          `https://jobsearch.api.jobtechdev.se/search?q=${encodeURIComponent(q)}&offset=${offset}&limit=${MAX_RESULTS_PER_QUERY}`,
+          { headers: { accept: 'application/json' } },
+        );
 
-        results.push({
-          title: hit.headline || hit.occupation?.label || q,
-          description: hit.description?.text?.substring(0, 2000),
-          sourceUrl: hit.webpage_url || `https://arbetsformedlingen.se/platsbanken/annonser/${hit.id}`,
-          locationText: [hit.workplace_address?.municipality, hit.workplace_address?.region].filter(Boolean).join(', '),
-          deadline: hit.application_deadline,
-          postedDate: hit.publication_date,
-          salaryText: hit.salary_description || undefined,
-          jobTypeText: hit.working_hours_type?.label || undefined,
-          experienceText: hit.experience_required === false ? 'No experience required' : undefined,
-        });
+        const hits = data.hits || [];
+        for (const hit of hits) {
+          const id = hit.id || hit.webpage_url;
+          if (seen.has(id)) continue;
+          seen.add(id);
+
+          results.push({
+            title: hit.headline || hit.occupation?.label || q,
+            description: hit.description?.text?.substring(0, 2000),
+            sourceUrl: hit.webpage_url || `https://arbetsformedlingen.se/platsbanken/annonser/${hit.id}`,
+            locationText: [hit.workplace_address?.municipality, hit.workplace_address?.region].filter(Boolean).join(', '),
+            deadline: hit.application_deadline,
+            postedDate: hit.publication_date,
+            salaryText: hit.salary_description || undefined,
+            jobTypeText: hit.working_hours_type?.label || undefined,
+            experienceText: hit.experience_required === false ? 'No experience required' : undefined,
+          });
+        }
+
+        const total = data.total?.value || 0;
+        offset += MAX_RESULTS_PER_QUERY;
+        // JobTech max offset = 2000
+        hasMore = hits.length === MAX_RESULTS_PER_QUERY && offset < 2000 && offset < total;
+
+        if (hasMore) await delay(API_DELAY_MS);
+      } catch (e) {
+        console.warn(`[GovAPI:SE] Query "${q}" offset=${offset} failed: ${(e as Error).message}`);
+        hasMore = false;
       }
-    } catch (e) {
-      console.warn(`[GovAPI:SE] Query "${q}" failed: ${(e as Error).message}`);
     }
     await delay(API_DELAY_MS);
   }
@@ -290,30 +305,44 @@ async function fetchDE(): Promise<RawJobData[]> {
   const seen = new Set<string>();
 
   for (const { q } of BLUE_COLLAR_QUERIES.DE) {
-    try {
-      const data = await fetchJson(
-        `https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs?was=${encodeURIComponent(q)}&size=${MAX_RESULTS_PER_QUERY}`,
-        { headers: { 'X-API-Key': 'jobboerse-jobsuche' } },
-      );
+    let page = 0;
+    let hasMore = true;
 
-      for (const job of data.stellenangebote || []) {
-        const ref = job.refnr || job.hashId;
-        if (seen.has(ref)) continue;
-        seen.add(ref);
+    while (hasMore) {
+      try {
+        const data = await fetchJson(
+          `https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs?was=${encodeURIComponent(q)}&page=${page}&size=${MAX_RESULTS_PER_QUERY}`,
+          { headers: { 'X-API-Key': 'jobboerse-jobsuche' } },
+        );
 
-        results.push({
-          title: job.titel || q,
-          description: job.beruf || undefined,
-          sourceUrl: job.externeUrl || `https://jobboerse.arbeitsagentur.de/vamJB/stellenangeboteFinden.html?execution=e1s1&d_${ref}`,
-          locationText: job.arbeitsort?.ort ? `${job.arbeitsort.ort}, ${job.arbeitsort.region || ''}`.trim() : undefined,
-          deadline: job.aktuelleVeroeffentlichungsdatum ? undefined : undefined,
-          postedDate: job.eintrittsdatum || job.aktuelleVeroeffentlichungsdatum,
-          salaryText: undefined, // DE API doesn't expose salary
-          jobTypeText: job.arbeitszeitmodell?.join(', ') || undefined,
-        });
+        const jobs = data.stellenangebote || [];
+        for (const job of jobs) {
+          const ref = job.refnr || job.hashId;
+          if (seen.has(ref)) continue;
+          seen.add(ref);
+
+          results.push({
+            title: job.titel || q,
+            description: job.beruf || undefined,
+            sourceUrl: job.externeUrl || `https://jobboerse.arbeitsagentur.de/vamJB/stellenangeboteFinden.html?execution=e1s1&d_${ref}`,
+            locationText: job.arbeitsort?.ort ? `${job.arbeitsort.ort}, ${job.arbeitsort.region || ''}`.trim() : undefined,
+            deadline: job.aktuelleVeroeffentlichungsdatum ? undefined : undefined,
+            postedDate: job.eintrittsdatum || job.aktuelleVeroeffentlichungsdatum,
+            salaryText: undefined, // DE API doesn't expose salary
+            jobTypeText: job.arbeitszeitmodell?.join(', ') || undefined,
+          });
+        }
+
+        const maxResults = data.maxErgebnisse || 0;
+        page++;
+        // Cap at MAX_PAGES_PER_QUERY pages to avoid very long crawls
+        hasMore = jobs.length === MAX_RESULTS_PER_QUERY && page < MAX_PAGES_PER_QUERY && (page * MAX_RESULTS_PER_QUERY) < maxResults;
+
+        if (hasMore) await delay(API_DELAY_MS);
+      } catch (e) {
+        console.warn(`[GovAPI:DE] Query "${q}" page=${page} failed: ${(e as Error).message}`);
+        hasMore = false;
       }
-    } catch (e) {
-      console.warn(`[GovAPI:DE] Query "${q}" failed: ${(e as Error).message}`);
     }
     await delay(API_DELAY_MS);
   }

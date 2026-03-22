@@ -150,7 +150,7 @@ const ADZUNA_COUNTRIES: Record<string, string> = {
 
 const ADZUNA_DELAY_MS = 350; // stay under ~250 req/day if running 10 queries
 const ADZUNA_RESULTS_PER_PAGE = 50;
-const ADZUNA_MAX_PAGES = 2; // 2 pages × 50 = 100 per query
+const ADZUNA_MAX_PAGES = 5; // 5 pages × 50 = 250 per query
 
 async function fetchAdzunaJobs(market: Market): Promise<RawJobData[]> {
   const appId = process.env.ADZUNA_APP_ID;
