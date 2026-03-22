@@ -99,7 +99,7 @@ async function getOrCreateSource(): Promise<{ id: string; companyId: string }> {
       data: {
         name: 'İŞKUR Government Job Listings',
         type: 'GOVERNMENT',
-        crawlMethod: 'SCRAPING',
+        crawlMethod: 'HTML',
         market: 'TR',
         companyId: company.id,
         seedUrls: ['https://esube.iskur.gov.tr/Istihdam/AcikIsIlanAra.aspx'],
