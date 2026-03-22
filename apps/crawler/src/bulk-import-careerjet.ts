@@ -18,13 +18,14 @@ const prisma = new PrismaClient();
 
 // CareerJet API key — obtained from publisher registration
 const CAREERJET_API_KEY = process.env.CAREERJET_API_KEY || '';
-const API_BASE = 'https://public.api.careerjet.net/search';
-const PAGE_SIZE = 99; // CareerJet max
-const MAX_PAGES = 10; // 10 × 99 = ~990 per keyword
+const API_BASE = 'https://search.api.careerjet.net/v4/query';
+const PAGE_SIZE = 100; // CareerJet V4 max
+const MAX_PAGES = 10; // 10 × 100 = 1000 per keyword
 const REQUEST_DELAY_MS = 500; // Be respectful
 const REQUEST_TIMEOUT_MS = 20_000;
+const REFERER = 'https://mavi-yaka-api.onrender.com/find-jobs/';
 
-// Fake user agent + IP for API requirement
+// User agent + IP for API requirement (required params)
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36';
 const USER_IP = '109.123.248.85'; // Contabo VPS IP
 
@@ -354,7 +355,9 @@ async function fetchCareerJet(locale: string, keyword: string, page: number): Pr
     locale_code: locale,
     keywords: keyword,
     page: String(page),
-    pagesize: String(PAGE_SIZE),
+    page_size: String(PAGE_SIZE),
+    fragment_size: '500',
+    sort: 'date',
     user_ip: USER_IP,
     user_agent: USER_AGENT,
   });
@@ -369,7 +372,8 @@ async function fetchCareerJet(locale: string, keyword: string, page: number): Pr
       signal: controller.signal,
       headers: {
         'Authorization': authHeader,
-        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Referer': REFERER,
       },
     });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
