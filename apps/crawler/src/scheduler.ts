@@ -257,6 +257,141 @@ export async function startScheduler(prisma: PrismaClient): Promise<void> {
   scheduledJobs.push({ name: 'Supabase Keep-Alive', task: supabaseKeepAlive });
   console.log('  - 0 */6 * * * → Supabase keep-alive ping');
 
+  // ─── Bulk Import Jobs (API aggregators & Gov APIs) ─────
+  // These run independently from the crawl schedule
+
+  // Daily Adzuna import at 06:00 UTC
+  const adzunaTask = cron.schedule('0 6 * * *', async () => {
+    console.log('[Scheduler] Running Adzuna bulk import...');
+    try {
+      const { execSync } = require('child_process');
+      execSync(
+        'npx ts-node --transpile-only src/bulk-import-adzuna.ts ALL',
+        {
+          cwd: __dirname.replace(/\/dist$/, '').replace(/\\dist$/, ''),
+          env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
+          timeout: 3600_000, // 1 hour max
+          stdio: 'inherit',
+        },
+      );
+      console.log('[Scheduler] Adzuna import complete');
+    } catch (err) {
+      console.error(`[Scheduler] Adzuna error: ${(err as Error).message?.substring(0, 200)}`);
+    }
+  });
+  scheduledJobs.push({ name: 'Adzuna Daily Import', task: adzunaTask });
+  console.log('  - 0 6 * * * → Adzuna bulk import (daily, 18 countries)');
+
+  // Weekly Sweden Arbetsförmedlingen at Tuesday 03:30 UTC
+  const swedenTask = cron.schedule('30 3 * * 2', async () => {
+    console.log('[Scheduler] Running Sweden Arbetsförmedlingen import...');
+    try {
+      const { execSync } = require('child_process');
+      execSync(
+        'npx ts-node --transpile-only src/bulk-import-arbetsformedlingen.ts',
+        {
+          cwd: __dirname.replace(/\/dist$/, '').replace(/\\dist$/, ''),
+          env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
+          timeout: 1800_000,
+          stdio: 'inherit',
+        },
+      );
+      console.log('[Scheduler] Sweden import complete');
+    } catch (err) {
+      console.error(`[Scheduler] Sweden error: ${(err as Error).message?.substring(0, 200)}`);
+    }
+  });
+  scheduledJobs.push({ name: 'Sweden Weekly Import', task: swedenTask });
+  console.log('  - 30 3 * * 2 → Sweden Arbetsförmedlingen (weekly Tue)');
+
+  // Weekly Germany Bundesagentur at Thursday 02:30 UTC
+  const germanyTask = cron.schedule('30 2 * * 4', async () => {
+    console.log('[Scheduler] Running Germany Bundesagentur import...');
+    try {
+      const { execSync } = require('child_process');
+      execSync(
+        'npx ts-node --transpile-only src/bulk-import-bundesagentur.ts',
+        {
+          cwd: __dirname.replace(/\/dist$/, '').replace(/\\dist$/, ''),
+          env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
+          timeout: 3600_000,
+          stdio: 'inherit',
+        },
+      );
+      console.log('[Scheduler] Germany import complete');
+    } catch (err) {
+      console.error(`[Scheduler] Germany error: ${(err as Error).message?.substring(0, 200)}`);
+    }
+  });
+  scheduledJobs.push({ name: 'Germany Weekly Import', task: germanyTask });
+  console.log('  - 30 2 * * 4 → Germany Bundesagentur (weekly Thu)');
+
+  // Monthly Canada Job Bank CSV at 1st of month 01:30 UTC
+  const canadaTask = cron.schedule('30 1 1 * *', async () => {
+    console.log('[Scheduler] Running Canada Job Bank CSV import...');
+    try {
+      const { execSync } = require('child_process');
+      execSync(
+        'npx ts-node --transpile-only src/bulk-import-jobbank-ca.ts',
+        {
+          cwd: __dirname.replace(/\/dist$/, '').replace(/\\dist$/, ''),
+          env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
+          timeout: 1800_000,
+          stdio: 'inherit',
+        },
+      );
+      console.log('[Scheduler] Canada import complete');
+    } catch (err) {
+      console.error(`[Scheduler] Canada error: ${(err as Error).message?.substring(0, 200)}`);
+    }
+  });
+  scheduledJobs.push({ name: 'Canada Monthly Import', task: canadaTask });
+  console.log('  - 30 1 1 * * → Canada Job Bank CSV (monthly 1st)');
+
+  // Weekly CareerJet at Sunday 05:30 UTC
+  const careerjetTask = cron.schedule('30 5 * * 0', async () => {
+    console.log('[Scheduler] Running CareerJet bulk import...');
+    try {
+      const { execSync } = require('child_process');
+      execSync(
+        'npx ts-node --transpile-only src/bulk-import-careerjet.ts ALL',
+        {
+          cwd: __dirname.replace(/\/dist$/, '').replace(/\\dist$/, ''),
+          env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
+          timeout: 3600_000,
+          stdio: 'inherit',
+        },
+      );
+      console.log('[Scheduler] CareerJet import complete');
+    } catch (err) {
+      console.error(`[Scheduler] CareerJet error: ${(err as Error).message?.substring(0, 200)}`);
+    }
+  });
+  scheduledJobs.push({ name: 'CareerJet Weekly Import', task: careerjetTask });
+  console.log('  - 30 5 * * 0 → CareerJet bulk import (weekly Sun)');
+
+  // Weekly USAJobs at Wednesday 07:30 UTC
+  const usajobsTask = cron.schedule('30 7 * * 3', async () => {
+    console.log('[Scheduler] Running USAJobs bulk import...');
+    try {
+      const { execSync } = require('child_process');
+      execSync(
+        'npx ts-node --transpile-only src/bulk-import-usajobs.ts',
+        {
+          cwd: __dirname.replace(/\/dist$/, '').replace(/\\dist$/, ''),
+          env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
+          timeout: 1800_000,
+          stdio: 'inherit',
+        },
+      );
+      console.log('[Scheduler] USAJobs import complete');
+    } catch (err) {
+      console.error(`[Scheduler] USAJobs error: ${(err as Error).message?.substring(0, 200)}`);
+    }
+  });
+  scheduledJobs.push({ name: 'USAJobs Weekly Import', task: usajobsTask });
+  console.log('  - 30 7 * * 3 → USAJobs bulk import (weekly Wed)');
+
   console.log('[Scheduler] All jobs registered\n');
 }
 
