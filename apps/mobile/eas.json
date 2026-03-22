@@ -47,9 +47,11 @@
         "track": "internal"
       },
       "ios": {
-        "appleId": "cicekyelda@hotmail.com",
-        "ascAppId": "6760295416",
-        "appleTeamId": "5VT7D2LVZQ"
+        "ascAppId": "6760927433",
+        "appleTeamId": "5VT7D2LVZQ",
+        "ascApiKeyId": "FP7HKC7HG4",
+        "ascApiKeyIssuerId": "47170daa-a9bc-41f4-9653-b6f6859347a6",
+        "ascApiKeyPath": "./AuthKey_FP7HKC7HG4.p8"
       }
     }
   }

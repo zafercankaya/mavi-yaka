@@ -40,6 +40,8 @@ jobs:
           path: apps/mobile/build.ipa
           retention-days: 30
 
+      - name: Write ASC API Key
+        run: echo "${{ secrets.ASC_API_KEY_P8 }}" | base64 -d > apps/mobile/AuthKey_FP7HKC7HG4.p8
+
       - name: Submit to App Store
-        continue-on-error: true
         run: cd apps/mobile && eas submit --platform ios --profile production --path ./build.ipa --non-interactive
