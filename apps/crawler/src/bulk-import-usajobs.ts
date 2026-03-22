@@ -106,6 +106,7 @@ async function getOrCreateSource(): Promise<{ id: string; companyId: string }> {
       company = await prisma.company.create({
         data: {
           name: 'USAJobs (Federal Government)',
+          slug: 'usajobs-federal-government',
           market: 'US',
           sector: 'OTHER',
           websiteUrl: 'https://www.usajobs.gov',

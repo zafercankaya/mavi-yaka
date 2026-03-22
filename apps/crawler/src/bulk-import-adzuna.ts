@@ -239,6 +239,7 @@ async function getOrCreateSource(market: Market): Promise<{ id: string; companyI
       company = await prisma.company.create({
         data: {
           name: 'Adzuna',
+          slug: `adzuna-${market.toLowerCase()}`,
           market,
           sector: 'OTHER',
           websiteUrl: 'https://www.adzuna.com',

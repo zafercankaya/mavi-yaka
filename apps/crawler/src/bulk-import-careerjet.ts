@@ -323,6 +323,7 @@ async function getOrCreateSource(market: Market): Promise<{ id: string; companyI
       company = await prisma.company.create({
         data: {
           name: 'CareerJet',
+          slug: `careerjet-${market.toLowerCase()}`,
           market,
           sector: 'OTHER',
           websiteUrl: 'https://www.careerjet.com',
