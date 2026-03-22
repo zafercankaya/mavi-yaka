@@ -83,125 +83,417 @@ interface MarketConfig {
 const MARKET_CONFIGS: MarketConfig[] = [
   {
     adzunaCode: 'us', market: 'US',
-    keywords: ['warehouse worker', 'forklift operator', 'truck driver', 'janitor', 'housekeeper',
-      'cook', 'dishwasher', 'cashier', 'stock clerk', 'laborer', 'construction worker',
-      'electrician', 'plumber', 'welder', 'machine operator', 'assembly line',
-      'delivery driver', 'security guard', 'custodian', 'landscaper', 'mover',
-      'farmworker', 'meatpacker', 'baker', 'roofer', 'painter', 'carpenter',
-      'mechanic', 'nursing aide', 'home health aide'],
+    keywords: [
+      // Warehouse & Logistics
+      'warehouse worker', 'forklift operator', 'truck driver', 'delivery driver', 'package handler',
+      'dock worker', 'shipping receiver', 'order picker', 'material handler', 'CDL driver',
+      // Cleaning & Facility
+      'janitor', 'housekeeper', 'custodian', 'groundskeeper', 'maintenance technician',
+      'building maintenance', 'window cleaner', 'pest control', 'HVAC technician',
+      // Food & Hospitality
+      'cook', 'dishwasher', 'food service', 'baker', 'butcher', 'line cook', 'prep cook',
+      'barista', 'busser', 'hotel housekeeper', 'laundry attendant',
+      // Retail & Cashier
+      'cashier', 'stock clerk', 'store associate', 'grocery stocker', 'retail associate',
+      // Construction & Trades
+      'construction worker', 'laborer', 'electrician', 'plumber', 'welder', 'carpenter',
+      'roofer', 'painter', 'concrete worker', 'ironworker', 'pipefitter', 'mason',
+      'drywall installer', 'insulation worker', 'tile setter', 'glazier', 'scaffolder',
+      // Manufacturing & Machine
+      'machine operator', 'assembly line', 'CNC operator', 'press operator', 'quality inspector',
+      'production worker', 'packaging operator', 'meatpacker',
+      // Auto & Mechanic
+      'mechanic', 'auto technician', 'diesel mechanic', 'tire technician', 'body shop',
+      // Healthcare Support
+      'nursing aide', 'home health aide', 'caregiver', 'patient care technician',
+      // Security & Other
+      'security guard', 'landscaper', 'mover', 'farmworker', 'animal caretaker',
+      'garbage collector', 'recycling worker', 'solar installer', 'cable technician',
+    ],
   },
   {
     adzunaCode: 'gb', market: 'UK',
-    keywords: ['warehouse operative', 'forklift driver', 'hgv driver', 'cleaner', 'kitchen porter',
-      'labourer', 'bricklayer', 'plumber', 'electrician', 'welder', 'care assistant',
-      'security officer', 'factory worker', 'packer', 'picker', 'scaffolder',
-      'roofer', 'painter decorator', 'farm worker', 'mechanic', 'chef',
-      'refuse collector', 'postman', 'caretaker', 'groundskeeper'],
+    keywords: [
+      // Warehouse & Logistics
+      'warehouse operative', 'forklift driver', 'hgv driver', 'van driver', 'picker packer',
+      'goods in', 'despatch', 'parcel sorter', 'delivery driver', 'courier',
+      // Cleaning & Facility
+      'cleaner', 'caretaker', 'groundskeeper', 'maintenance engineer', 'handyman',
+      'window cleaner', 'pest control',
+      // Food & Hospitality
+      'kitchen porter', 'chef', 'commis chef', 'baker', 'butcher', 'barista',
+      'waiting staff', 'bar staff', 'hotel housekeeper', 'kitchen assistant',
+      // Construction & Trades
+      'labourer', 'bricklayer', 'plumber', 'electrician', 'welder', 'scaffolder',
+      'roofer', 'painter decorator', 'plasterer', 'tiler', 'joiner', 'glazier',
+      'groundworker', 'steel fixer', 'demolition', 'CSCS card',
+      // Manufacturing
+      'factory worker', 'machine operator', 'production operative', 'CNC operator',
+      'packer', 'quality inspector', 'assembly worker',
+      // Auto & Mechanic
+      'mechanic', 'MOT tester', 'tyre fitter', 'vehicle technician', 'body shop',
+      // Healthcare & Care
+      'care assistant', 'support worker', 'healthcare assistant', 'carer',
+      // Security & Other
+      'security officer', 'door supervisor', 'farm worker', 'refuse collector',
+      'postman', 'bin man', 'landscape gardener', 'tree surgeon',
+    ],
   },
   {
     adzunaCode: 'de', market: 'DE',
-    keywords: ['Lagerarbeiter', 'Staplerfahrer', 'Berufskraftfahrer', 'Reinigungskraft',
-      'Koch', 'Produktionsmitarbeiter', 'Elektriker', 'Schweißer', 'Monteur',
-      'Bauarbeiter', 'Dachdecker', 'Maler', 'Schlosser', 'Gärtner', 'Altenpfleger',
-      'Sicherheitsmitarbeiter', 'Kommissionierer', 'Kellner', 'Bäcker', 'Fleischer'],
+    keywords: [
+      // Lager & Logistik
+      'Lagerarbeiter', 'Staplerfahrer', 'Berufskraftfahrer', 'Kommissionierer', 'Lkw Fahrer',
+      'Kurierfahrer', 'Paketzusteller', 'Versandmitarbeiter', 'Lagerhelfer',
+      // Reinigung & Gebäude
+      'Reinigungskraft', 'Hausmeister', 'Gebäudereiniger', 'Facility Manager',
+      // Gastronomie
+      'Koch', 'Küchenhilfe', 'Kellner', 'Bäcker', 'Fleischer', 'Konditor',
+      'Servicekraft', 'Spülkraft', 'Barkeeper',
+      // Bau & Handwerk
+      'Bauarbeiter', 'Dachdecker', 'Maler', 'Maurer', 'Zimmermann', 'Fliesenleger',
+      'Gerüstbauer', 'Estrichleger', 'Betonbauer', 'Straßenbauer', 'Tiefbauer',
+      // Produktion & Maschine
+      'Produktionsmitarbeiter', 'Maschinenführer', 'CNC Fräser', 'CNC Dreher',
+      'Produktionshelfer', 'Verpackungsmitarbeiter', 'Montierer',
+      // Metall & Schweißen
+      'Schweißer', 'Schlosser', 'Zerspanungsmechaniker', 'Industriemechaniker',
+      'Werkzeugmechaniker', 'Metallbauer', 'Dreher',
+      // Elektro & Technik
+      'Elektriker', 'Elektroniker', 'Monteur', 'Mechatroniker', 'Kältetechniker',
+      'Anlagenmechaniker', 'Heizungsmonteur',
+      // Pflege & Betreuung
+      'Altenpfleger', 'Pflegehelfer', 'Krankenpfleger', 'Betreuungskraft',
+      // Sicherheit & Sonstige
+      'Sicherheitsmitarbeiter', 'Gärtner', 'Landschaftsgärtner', 'Tierpfleger',
+      'Müllwerker', 'Straßenreiniger', 'Forstarbeiter',
+    ],
   },
   {
     adzunaCode: 'fr', market: 'FR',
-    keywords: ['manutentionnaire', 'cariste', 'chauffeur poids lourd', 'agent entretien',
-      'cuisinier', 'ouvrier production', 'électricien', 'soudeur', 'monteur',
-      'maçon', 'couvreur', 'peintre bâtiment', 'jardinier', 'aide soignant',
-      'agent sécurité', 'préparateur commandes', 'serveur', 'boulanger', 'boucher',
-      'plombier', 'mécanicien', 'conducteur bus', 'magasinier'],
+    keywords: [
+      // Logistique & Entrepôt
+      'manutentionnaire', 'cariste', 'chauffeur poids lourd', 'préparateur commandes',
+      'magasinier', 'livreur', 'agent logistique', 'emballeur',
+      // Nettoyage & Entretien
+      'agent entretien', 'agent propreté', 'femme ménage', 'gardien immeuble',
+      // Restauration & Hôtellerie
+      'cuisinier', 'serveur', 'boulanger', 'boucher', 'pâtissier', 'commis cuisine',
+      'plongeur', 'barman', 'femme chambre', 'valet chambre',
+      // BTP & Construction
+      'maçon', 'couvreur', 'peintre bâtiment', 'plombier', 'électricien', 'menuisier',
+      'charpentier', 'carreleur', 'plâtrier', 'ferronnier', 'coffreur', 'grutier',
+      'conducteur engins', 'manoeuvre',
+      // Industrie & Production
+      'ouvrier production', 'opérateur machine', 'agent fabrication', 'conditionneur',
+      'soudeur', 'monteur', 'tourneur', 'fraiseur', 'chaudronnier',
+      // Mécanique
+      'mécanicien', 'mécanicien automobile', 'carrossier', 'technicien maintenance',
+      // Santé & Aide
+      'aide soignant', 'aide domicile', 'auxiliaire vie', 'brancardier',
+      // Sécurité & Autres
+      'agent sécurité', 'jardinier', 'paysagiste', 'agent déchets', 'éboueur',
+      'conducteur bus', 'chauffeur taxi', 'agriculteur', 'ouvrier agricole',
+    ],
   },
   {
     adzunaCode: 'br', market: 'BR',
-    keywords: ['auxiliar logística', 'operador empilhadeira', 'motorista', 'auxiliar limpeza',
-      'cozinheiro', 'operador produção', 'eletricista', 'soldador', 'montador',
-      'pedreiro', 'pintor', 'jardineiro', 'cuidador', 'vigilante',
-      'separador', 'garçom', 'padeiro', 'açougueiro', 'mecânico', 'servente obras'],
+    keywords: [
+      // Logística & Armazém
+      'auxiliar logística', 'operador empilhadeira', 'motorista', 'entregador',
+      'separador', 'conferente', 'auxiliar expedição', 'estoquista',
+      // Limpeza & Manutenção
+      'auxiliar limpeza', 'zelador', 'porteiro', 'faxineiro', 'jardineiro',
+      // Alimentação & Hotelaria
+      'cozinheiro', 'garçom', 'padeiro', 'açougueiro', 'confeiteiro',
+      'auxiliar cozinha', 'barman', 'camareira', 'copeiro',
+      // Construção Civil
+      'pedreiro', 'pintor', 'servente obras', 'carpinteiro', 'armador',
+      'encanador', 'azulejista', 'gesseiro', 'impermeabilizador',
+      // Indústria & Produção
+      'operador produção', 'operador máquina', 'auxiliar produção', 'embalador',
+      'soldador', 'montador', 'torneiro', 'fresador',
+      // Elétrica & Técnico
+      'eletricista', 'mecânico', 'mecânico industrial', 'técnico manutenção',
+      'serralheiro', 'funileiro', 'caldeireiro',
+      // Saúde & Cuidados
+      'cuidador', 'auxiliar enfermagem', 'atendente hospitalar',
+      // Segurança & Outros
+      'vigilante', 'segurança patrimonial', 'agricultor', 'operador colheitadeira',
+      'cobrador ônibus', 'motorista ônibus', 'reciclador',
+    ],
   },
   {
     adzunaCode: 'mx', market: 'MX',
-    keywords: ['almacenista', 'montacarguista', 'chofer', 'auxiliar limpieza',
-      'cocinero', 'operador producción', 'electricista', 'soldador', 'mecánico',
-      'albañil', 'pintor', 'jardinero', 'guardia seguridad', 'empacador',
-      'mesero', 'panadero', 'carnicero', 'velador', 'obrero', 'ayudante general'],
+    keywords: [
+      // Logística & Almacén
+      'almacenista', 'montacarguista', 'chofer', 'repartidor', 'empacador',
+      'auxiliar almacén', 'operador logístico', 'estibador',
+      // Limpieza & Mantenimiento
+      'auxiliar limpieza', 'intendente', 'jardinero', 'velador', 'conserje',
+      // Alimentos & Hotelería
+      'cocinero', 'mesero', 'panadero', 'carnicero', 'tortillero',
+      'ayudante cocina', 'barman', 'camarista', 'lavalozas',
+      // Construcción
+      'albañil', 'pintor', 'plomero', 'electricista', 'carpintero', 'herrero',
+      'yesero', 'impermeabilizador', 'fierrero', 'ayudante obra',
+      // Producción & Manufactura
+      'operador producción', 'operador maquinaria', 'ayudante general',
+      'obrero', 'soldador', 'mecánico industrial', 'empaquetador',
+      // Mecánica
+      'mecánico', 'mecánico automotriz', 'técnico mantenimiento', 'hojalatero',
+      // Seguridad & Otros
+      'guardia seguridad', 'vigilante', 'agricultor', 'jornalero',
+      'conductor camión', 'operador grúa', 'barrendero',
+    ],
   },
   {
     adzunaCode: 'ca', market: 'CA',
-    keywords: ['warehouse worker', 'forklift operator', 'truck driver', 'janitor', 'cook',
-      'construction labourer', 'electrician', 'plumber', 'welder', 'machine operator',
-      'security guard', 'landscaper', 'farm worker', 'mechanic', 'housekeeper',
-      'delivery driver', 'roofer', 'painter', 'carpenter', 'caretaker'],
+    keywords: [
+      // Warehouse & Logistics
+      'warehouse worker', 'forklift operator', 'truck driver', 'delivery driver',
+      'order picker', 'shipping receiver', 'material handler', 'dock worker',
+      // Cleaning & Facility
+      'janitor', 'housekeeper', 'caretaker', 'groundskeeper', 'maintenance worker',
+      // Food & Hospitality
+      'cook', 'dishwasher', 'baker', 'butcher', 'line cook', 'kitchen helper',
+      'barista', 'hotel housekeeper', 'laundry attendant',
+      // Construction & Trades
+      'construction labourer', 'electrician', 'plumber', 'welder', 'carpenter',
+      'roofer', 'painter', 'ironworker', 'concrete finisher', 'scaffolder',
+      'heavy equipment operator', 'millwright',
+      // Manufacturing
+      'machine operator', 'assembly worker', 'production worker', 'CNC operator',
+      'quality inspector', 'packaging worker',
+      // Auto & Mechanic
+      'mechanic', 'auto technician', 'heavy duty mechanic', 'body shop',
+      // Healthcare Support
+      'personal support worker', 'care aide', 'nursing aide',
+      // Security & Other
+      'security guard', 'landscaper', 'farm worker', 'arborist', 'mover',
+      'garbage collector', 'snow removal', 'cable technician',
+    ],
   },
   {
     adzunaCode: 'es', market: 'ES',
-    keywords: ['mozo almacén', 'carretillero', 'conductor', 'limpiador', 'cocinero',
-      'operario producción', 'electricista', 'soldador', 'mecánico', 'albañil',
-      'pintor', 'jardinero', 'vigilante seguridad', 'empaquetador', 'camarero',
-      'panadero', 'carnicero', 'peón', 'fontanero', 'carpintero'],
+    keywords: [
+      // Logística & Almacén
+      'mozo almacén', 'carretillero', 'conductor', 'repartidor', 'empaquetador',
+      'preparador pedidos', 'auxiliar logístico', 'estibador',
+      // Limpieza & Mantenimiento
+      'limpiador', 'conserje', 'mantenimiento edificios', 'jardinero',
+      // Restauración & Hostelería
+      'cocinero', 'camarero', 'panadero', 'carnicero', 'pastelero',
+      'pinche cocina', 'friegaplatos', 'barman', 'camarera pisos',
+      // Construcción
+      'albañil', 'pintor', 'fontanero', 'electricista', 'carpintero',
+      'soldador', 'ferrallista', 'encofrador', 'yesero', 'cristalero',
+      'gruista', 'peón construcción',
+      // Industria & Producción
+      'operario producción', 'operario fábrica', 'empacador', 'montador',
+      'tornero', 'fresador', 'calderero', 'soldador industrial',
+      // Mecánica
+      'mecánico', 'mecánico automóvil', 'chapista', 'técnico mantenimiento',
+      // Seguridad & Otros
+      'vigilante seguridad', 'peón', 'jornalero', 'agricultor',
+      'conductor autobús', 'barrendero', 'recolector',
+    ],
   },
   {
     adzunaCode: 'au', market: 'AU',
-    keywords: ['warehouse worker', 'forklift driver', 'truck driver', 'cleaner', 'cook',
-      'labourer', 'electrician', 'plumber', 'welder', 'machine operator',
-      'security officer', 'factory worker', 'packer', 'picker', 'mechanic',
-      'landscaper', 'farmhand', 'housekeeper', 'roofer', 'painter'],
+    keywords: [
+      // Warehouse & Logistics
+      'warehouse worker', 'forklift driver', 'truck driver', 'delivery driver',
+      'picker packer', 'storeperson', 'dock hand', 'courier',
+      // Cleaning & Facility
+      'cleaner', 'groundskeeper', 'maintenance worker', 'handyman', 'caretaker',
+      // Food & Hospitality
+      'cook', 'kitchen hand', 'baker', 'butcher', 'barista', 'chef',
+      'food and beverage', 'hotel housekeeper', 'dishwasher',
+      // Construction & Trades
+      'labourer', 'electrician', 'plumber', 'welder', 'carpenter', 'roofer',
+      'painter', 'concreter', 'scaffolder', 'steel fixer', 'bricklayer',
+      'heavy equipment operator', 'crane operator', 'rigger', 'boilermaker',
+      // Manufacturing
+      'machine operator', 'factory worker', 'production worker', 'packer',
+      'CNC operator', 'quality inspector', 'process worker',
+      // Auto & Mechanic
+      'mechanic', 'diesel fitter', 'panel beater', 'auto electrician',
+      // Healthcare & Care
+      'aged care worker', 'disability support worker', 'nursing assistant',
+      // Security & Other
+      'security officer', 'landscaper', 'farmhand', 'fruit picker',
+      'station hand', 'tree lopper', 'pest controller',
+    ],
   },
   {
     adzunaCode: 'in', market: 'IN',
-    keywords: ['warehouse helper', 'driver', 'peon', 'cook', 'factory worker',
-      'electrician', 'welder', 'fitter', 'mason', 'painter', 'security guard',
-      'packer', 'cleaner', 'delivery boy', 'mechanic', 'plumber',
-      'construction worker', 'gardener', 'helper', 'loader'],
+    keywords: [
+      // Warehouse & Logistics
+      'warehouse helper', 'driver', 'delivery boy', 'loader', 'packer',
+      'forklift operator', 'godown keeper', 'material handler', 'courier boy',
+      // Cleaning & Facility
+      'cleaner', 'housekeeping', 'sweeper', 'office boy', 'peon', 'watchman',
+      // Food & Hospitality
+      'cook', 'kitchen helper', 'tandoor chef', 'baker', 'waiter',
+      'room attendant', 'steward', 'dishwasher',
+      // Construction & Trades
+      'construction worker', 'mason', 'painter', 'plumber', 'electrician',
+      'welder', 'carpenter', 'fitter', 'bar bender', 'scaffolder', 'helper',
+      'crane operator', 'tile mason', 'shuttering carpenter',
+      // Manufacturing
+      'factory worker', 'machine operator', 'production operator', 'assembly operator',
+      'CNC operator', 'packaging helper', 'store keeper',
+      // Auto & Mechanic
+      'mechanic', 'auto mechanic', 'diesel mechanic', 'motor winder',
+      // Healthcare & Care
+      'ward boy', 'nursing assistant', 'patient attendant',
+      // Security & Other
+      'security guard', 'gardener', 'farm labourer', 'dairy worker',
+      'cable technician', 'lineman', 'pump operator',
+    ],
   },
   {
     adzunaCode: 'it', market: 'IT',
-    keywords: ['magazziniere', 'carrellista', 'autista', 'addetto pulizie',
-      'cuoco', 'operaio produzione', 'elettricista', 'saldatore', 'meccanico',
-      'muratore', 'imbianchino', 'giardiniere', 'guardia giurata', 'cameriere',
-      'panettiere', 'macellaio', 'idraulico', 'carpentiere', 'facchino', 'manovale'],
+    keywords: [
+      // Logistica & Magazzino
+      'magazziniere', 'carrellista', 'autista', 'corriere', 'facchino',
+      'addetto spedizioni', 'mulettista', 'picker',
+      // Pulizia & Manutenzione
+      'addetto pulizie', 'portiere', 'giardiniere', 'manutentore',
+      // Ristorazione & Ospitalità
+      'cuoco', 'cameriere', 'panettiere', 'macellaio', 'pasticciere',
+      'aiuto cuoco', 'lavapiatti', 'barista', 'cameriera ai piani',
+      // Edilizia & Costruzioni
+      'muratore', 'imbianchino', 'idraulico', 'elettricista', 'carpentiere',
+      'saldatore', 'ferraiolo', 'piastrellista', 'cartongessista',
+      'gruista', 'manovale', 'operaio edile',
+      // Industria & Produzione
+      'operaio produzione', 'operatore macchina', 'addetto confezionamento',
+      'montatore', 'tornitore', 'fresatore', 'saldatore industriale',
+      // Meccanica
+      'meccanico', 'meccanico auto', 'carrozziere', 'manutentore meccanico',
+      // Sicurezza & Altro
+      'guardia giurata', 'addetto sicurezza', 'operaio agricolo', 'bracciante',
+      'autista bus', 'netturbino', 'spazzino',
+    ],
   },
   {
     adzunaCode: 'nl', market: 'NL',
-    keywords: ['magazijnmedewerker', 'heftruckchauffeur', 'vrachtwagenchauffeur', 'schoonmaker',
-      'kok', 'productiemedewerker', 'elektricien', 'lasser', 'monteur',
-      'bouwvakker', 'schilder', 'tuinman', 'beveiliger', 'orderpicker',
-      'kelner', 'bakker', 'slager', 'loodgieter', 'timmerman', 'inpakker'],
+    keywords: [
+      // Magazijn & Logistiek
+      'magazijnmedewerker', 'heftruckchauffeur', 'vrachtwagenchauffeur', 'orderpicker',
+      'inpakker', 'bezorger', 'koerier', 'expeditiemedewerker',
+      // Schoonmaak & Onderhoud
+      'schoonmaker', 'conciërge', 'onderhoudsmonteur', 'tuinman', 'glazenwasser',
+      // Horeca
+      'kok', 'kelner', 'bakker', 'slager', 'barista', 'keukenhulp',
+      'afwasser', 'bediening', 'kamermeisje',
+      // Bouw & Techniek
+      'bouwvakker', 'schilder', 'loodgieter', 'elektricien', 'timmerman',
+      'lasser', 'metselaar', 'dakdekker', 'tegelzetter', 'stukadoor',
+      'betonvlechter', 'kraanmachinist', 'grondwerker',
+      // Productie & Industrie
+      'productiemedewerker', 'machine operator', 'inpakmedewerker', 'monteur',
+      'CNC operator', 'kwaliteitscontroleur', 'assemblagemedewerker',
+      // Techniek
+      'monteur', 'automonteur', 'installatiemonteur', 'servicemonteur',
+      // Beveiliging & Overig
+      'beveiliger', 'hovenier', 'chauffeur', 'vuilnisman', 'postbode',
+      'agrarisch medewerker', 'melkveehouder',
+    ],
   },
   {
     adzunaCode: 'pl', market: 'PL',
-    keywords: ['magazynier', 'operator wózka', 'kierowca', 'sprzątaczka',
-      'kucharz', 'pracownik produkcji', 'elektryk', 'spawacz', 'mechanik',
-      'murarz', 'malarz', 'ogrodnik', 'ochroniarz', 'pakowacz',
-      'kelner', 'piekarz', 'rzeźnik', 'hydraulik', 'cieśla', 'pomocnik'],
+    keywords: [
+      // Magazyn & Logistyka
+      'magazynier', 'operator wózka', 'kierowca', 'dostawca', 'pakowacz',
+      'kompletowacz', 'sortowacz', 'spedytor',
+      // Sprzątanie & Utrzymanie
+      'sprzątaczka', 'konserwator', 'ogrodnik', 'dozorca', 'szatniarz',
+      // Gastronomia & Hotelarstwo
+      'kucharz', 'kelner', 'piekarz', 'rzeźnik', 'cukiernik',
+      'pomoc kuchenna', 'barman', 'pokojówka', 'zmywak',
+      // Budownictwo
+      'murarz', 'malarz', 'hydraulik', 'elektryk', 'cieśla',
+      'spawacz', 'dekarz', 'glazurnik', 'tynkarz', 'zbrojarz',
+      'operator koparki', 'robotnik budowlany', 'pomocnik',
+      // Produkcja & Przemysł
+      'pracownik produkcji', 'operator maszyn', 'monter', 'tokarz', 'frezer',
+      'ślusarz', 'lakiernik', 'pakowacz', 'kontroler jakości',
+      // Mechanika
+      'mechanik', 'mechanik samochodowy', 'blacharz', 'wulkanizator',
+      // Ochrona & Inne
+      'ochroniarz', 'pracownik gospodarczy', 'rolnik', 'leśnik',
+      'kierowca autobusu', 'śmieciarz', 'instalator',
+    ],
   },
   {
     adzunaCode: 'za', market: 'ZA',
-    keywords: ['warehouse worker', 'forklift operator', 'driver', 'cleaner', 'cook',
-      'general worker', 'electrician', 'welder', 'machine operator', 'builder',
-      'painter', 'gardener', 'security guard', 'packer', 'mechanic',
-      'plumber', 'farmworker', 'housekeeper', 'labourer', 'delivery driver'],
+    keywords: [
+      // Warehouse & Logistics
+      'warehouse worker', 'forklift operator', 'driver', 'delivery driver',
+      'picker packer', 'dispatch clerk', 'freight handler', 'courier',
+      // Cleaning & Facility
+      'cleaner', 'general worker', 'groundsman', 'maintenance worker', 'handyman',
+      // Food & Hospitality
+      'cook', 'chef', 'baker', 'butcher', 'waiter', 'kitchen assistant',
+      'barista', 'room attendant', 'dishwasher',
+      // Construction & Trades
+      'builder', 'bricklayer', 'painter', 'plumber', 'electrician',
+      'welder', 'carpenter', 'tiler', 'roofer', 'scaffolder',
+      'plant operator', 'construction labourer',
+      // Manufacturing & Mining
+      'machine operator', 'factory worker', 'production worker', 'packer',
+      'boilermaker', 'fitter and turner', 'miner', 'drill operator',
+      // Auto & Mechanic
+      'mechanic', 'diesel mechanic', 'panel beater', 'auto electrician',
+      // Healthcare & Care
+      'caregiver', 'nursing assistant', 'home based carer',
+      // Security & Other
+      'security guard', 'security officer', 'gardener', 'farmworker',
+      'housekeeper', 'labourer', 'petrol attendant', 'refuse collector',
+    ],
   },
   {
-    adzunaCode: 'at', market: 'DE', // Austria → DE market (German-speaking, same sector)
-    keywords: ['Lagerarbeiter', 'Staplerfahrer', 'Berufskraftfahrer', 'Reinigungskraft',
-      'Koch', 'Produktionsmitarbeiter', 'Elektriker', 'Schweißer', 'Monteur'],
+    adzunaCode: 'at', market: 'DE', // Austria → DE market (German-speaking)
+    keywords: [
+      'Lagerarbeiter', 'Staplerfahrer', 'Berufskraftfahrer', 'Reinigungskraft',
+      'Koch', 'Produktionsmitarbeiter', 'Elektriker', 'Schweißer', 'Monteur',
+      'Bauarbeiter', 'Installateur', 'Maler', 'Dachdecker', 'Schlosser',
+      'Kommissionierer', 'Kellner', 'Bäcker', 'Fleischer', 'Altenpfleger',
+      'Maurer', 'Zimmerer', 'Spengler', 'Fliesenleger', 'Gerüstbauer',
+    ],
   },
   {
     adzunaCode: 'ch', market: 'DE', // Switzerland → DE market
-    keywords: ['Lagerarbeiter', 'Staplerfahrer', 'Chauffeur', 'Reinigungskraft',
-      'Koch', 'Produktionsmitarbeiter', 'Elektriker', 'Schweisser', 'Monteur'],
+    keywords: [
+      'Lagerarbeiter', 'Staplerfahrer', 'Chauffeur', 'Reinigungskraft',
+      'Koch', 'Produktionsmitarbeiter', 'Elektriker', 'Schweisser', 'Monteur',
+      'Bauarbeiter', 'Sanitärinstallateur', 'Maler', 'Dachdecker', 'Schlosser',
+      'Kommissionierer', 'Serviceangestellter', 'Bäcker', 'Metzger', 'Pflegehelfer',
+      'Maurer', 'Zimmermann', 'Spengler', 'Plattenleger', 'Landschaftsgärtner',
+    ],
   },
   {
-    adzunaCode: 'sg', market: 'MY', // Singapore → MY market (similar region)
-    keywords: ['warehouse worker', 'driver', 'cleaner', 'cook', 'factory worker',
-      'security guard', 'packer', 'mechanic', 'electrician', 'labourer'],
+    adzunaCode: 'sg', market: 'MY', // Singapore → MY market
+    keywords: [
+      'warehouse worker', 'driver', 'cleaner', 'cook', 'factory worker',
+      'security guard', 'packer', 'mechanic', 'electrician', 'labourer',
+      'delivery rider', 'kitchen assistant', 'technician', 'welder',
+      'production operator', 'forklift operator', 'landscaper', 'housekeeper',
+      'plumber', 'construction worker', 'painter', 'aircon technician',
+    ],
   },
   {
     adzunaCode: 'nz', market: 'AU', // NZ → AU market
-    keywords: ['warehouse worker', 'truck driver', 'cleaner', 'cook', 'labourer',
-      'electrician', 'plumber', 'mechanic', 'farmhand', 'factory worker'],
+    keywords: [
+      'warehouse worker', 'truck driver', 'cleaner', 'cook', 'labourer',
+      'electrician', 'plumber', 'mechanic', 'farmhand', 'factory worker',
+      'forklift operator', 'picker packer', 'builder', 'painter', 'welder',
+      'scaffolder', 'roofer', 'landscaper', 'security guard', 'fruit picker',
+      'dairy farm worker', 'tractor driver', 'fencer',
+    ],
   },
 ];
 
