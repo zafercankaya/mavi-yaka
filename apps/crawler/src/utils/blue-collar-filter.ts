@@ -158,6 +158,7 @@ const BLUE_COLLAR_KEYWORDS = [
   'gärtner', 'landwirt', 'erntehelfer',
   'monteur', 'servicetechniker', 'wartungstechniker',
   'helfer', 'aushilfe', 'fachkraft', 'ausbildung',
+  'mechatroniker', 'elektroniker',
   'zerspanungsmechaniker', 'industriemechaniker', 'kfz-mechatroniker',
   'berufskraftfahrer', 'kraftfahrer', 'busfahrer',
   'anlagenmechaniker', 'konstruktionsmechaniker',
@@ -171,6 +172,9 @@ const BLUE_COLLAR_KEYWORDS = [
   'rettungssanitäter', 'notfallsanitäter',
   'sicherheitsmitarbeiter', 'objektschützer',
   'versandmitarbeiter', 'lagermitarbeiter', 'produktionsmitarbeiter',
+  'handwerker', 'facharbeiter', 'bauwerksabdichter',
+  'maschinenführer', 'anlagenführer', 'fahrzeugführer',
+  'fachangestellte', 'allrounder', 'innenausbau',
   // Portuguese
   'motorista', 'caminhoneiro', 'entregador', 'motoboy',
   'eletricista', 'encanador', 'pedreiro', 'pintor', 'soldador',
@@ -367,7 +371,7 @@ export function isBlueCollar(title: string, description?: string | null): boolea
   for (const word of titleWords) {
     if (word.length < 4) continue;
     for (const suffix of _blueCollarSuffixesLower) {
-      if (word.endsWith(suffix) && word.length > suffix.length) {
+      if (word.endsWith(suffix) && word.length >= suffix.length) {
         return true;
       }
     }
