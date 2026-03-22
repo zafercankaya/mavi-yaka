@@ -157,7 +157,20 @@ const BLUE_COLLAR_KEYWORDS = [
   'schneider', 'näher', 'textilarbeiter',
   'gärtner', 'landwirt', 'erntehelfer',
   'monteur', 'servicetechniker', 'wartungstechniker',
-  'helfer', 'aushilfe', 'fachkraft',
+  'helfer', 'aushilfe', 'fachkraft', 'ausbildung',
+  'zerspanungsmechaniker', 'industriemechaniker', 'kfz-mechatroniker',
+  'berufskraftfahrer', 'kraftfahrer', 'busfahrer',
+  'anlagenmechaniker', 'konstruktionsmechaniker',
+  'fachlagerist', 'fachkraft für lagerlogistik',
+  'verfahrensmechaniker', 'werkzeugmechaniker',
+  'rohrleitungsbauer', 'kanalbauer', 'straßenbauer',
+  'tiefbaufacharbeiter', 'hochbaufacharbeiter',
+  'gebäudereiniger', 'textilreiniger',
+  'fleischer', 'konditor', 'bäckereifachverkäufer',
+  'pflegefachkraft', 'pflegeassistent', 'krankenpflegehelfer',
+  'rettungssanitäter', 'notfallsanitäter',
+  'sicherheitsmitarbeiter', 'objektschützer',
+  'versandmitarbeiter', 'lagermitarbeiter', 'produktionsmitarbeiter',
   // Portuguese
   'motorista', 'caminhoneiro', 'entregador', 'motoboy',
   'eletricista', 'encanador', 'pedreiro', 'pintor', 'soldador',
@@ -281,6 +294,37 @@ const BLUE_COLLAR_KEYWORDS = [
   'wage grade', 'wg-',
 ];
 
+// ─── Suffix patterns for compound-word languages (DE, NL, SE, etc.) ─
+
+// These suffixes indicate blue-collar roles in German/Dutch/Swedish compound words
+// e.g., "Zerspanungsmechaniker", "Berufskraftfahrer", "Gabelstaplerfahrer"
+const BLUE_COLLAR_SUFFIXES = [
+  // German compound suffixes (very common in blue-collar job titles)
+  'mechaniker', 'mechatroniker', 'elektriker', 'elektroniker', 'techniker',
+  'fahrer', 'monteur', 'monteurin', 'arbeiter', 'arbeiterin',
+  'helfer', 'helferin', 'pfleger', 'pflegerin', 'kraft',
+  'meister', 'meisterin', 'geselle', 'gesellin',
+  'schlosser', 'schweißer', 'dreher', 'fräser',
+  'installateur', 'installateurin', 'bediener', 'bedienerin',
+  'reiniger', 'reinigerin', 'putzer', 'putzerin',
+  'lagerist', 'lageristin', 'kommissionierer', 'packer',
+  'staplerfahrer', 'kranführer', 'baggerführer',
+  'dachdecker', 'fliesenleger', 'verputzer', 'lackierer',
+  'schreiner', 'tischler', 'zimmermann', 'maurer',
+  'fleischer', 'bäcker', 'konditor', 'kellner', 'koch',
+  'wachmann', 'wachschutz', 'pförtner',
+  'gärtner', 'landwirt', 'erntehelfer',
+  'näher', 'näherin', 'schneider', 'schneiderin',
+  'fachkraft', 'servicekraft', 'hilfskraft', 'aushilfe',
+  'mitarbeiter', 'mitarbeiterin', // generic but very common in DE blue-collar
+  // Dutch compound suffixes
+  'medewerker', 'medewerkster', 'monteur', 'lasser',
+  // Swedish compound suffixes
+  'förare', 'arbetare', 'montör', 'tekniker', 'operatör',
+];
+
+const _blueCollarSuffixesLower = BLUE_COLLAR_SUFFIXES.map(s => s.toLowerCase());
+
 // Pre-compile for performance
 const _whiteCollarSet = new Set(WHITE_COLLAR_KEYWORDS.map(k => k.toLowerCase()));
 const _blueCollarLower = BLUE_COLLAR_KEYWORDS.map(k => k.toLowerCase());
@@ -298,14 +342,11 @@ export function isBlueCollar(title: string, description?: string | null): boolea
   // Step 1: Check white-collar keywords in title — REJECT
   for (const wc of _whiteCollarSet) {
     if (wc.includes(' ')) {
-      // Multi-word: substring match in title
       if (titleLower.includes(wc)) {
-        // Exception: blue-collar manager/engineer roles
         if (_isBlueCollarException(titleLower)) continue;
         return false;
       }
     } else {
-      // Single word: word boundary match in title
       const re = new RegExp(`\\b${_escapeRegex(wc)}\\b`, 'i');
       if (re.test(titleLower)) {
         if (_isBlueCollarException(titleLower)) continue;
@@ -314,17 +355,28 @@ export function isBlueCollar(title: string, description?: string | null): boolea
     }
   }
 
-  // Step 2: Check blue-collar keywords in title OR description — ACCEPT
+  // Step 2: Check blue-collar keywords — ACCEPT
+  // 2a: Substring match (handles compound words like "Gabelstaplerfahrer")
   for (const bc of _blueCollarLower) {
-    if (bc.includes(' ')) {
-      if (fullText.includes(bc)) return true;
-    } else {
-      const re = new RegExp(`\\b${_escapeRegex(bc)}\\b`, 'i');
-      if (re.test(fullText)) return true;
+    if (fullText.includes(bc)) return true;
+  }
+
+  // 2b: Suffix match for compound-word languages (DE/NL/SE)
+  // Split title into words and check if any word ends with a blue-collar suffix
+  const titleWords = titleLower.split(/[\s\/\-\(\),;:]+/);
+  for (const word of titleWords) {
+    if (word.length < 4) continue;
+    for (const suffix of _blueCollarSuffixesLower) {
+      if (word.endsWith(suffix) && word.length > suffix.length) {
+        return true;
+      }
     }
   }
 
-  // Step 3: Neither blue nor white → REJECT (when in doubt, filter out)
+  // Step 3: Check description for blue-collar keywords (substring match)
+  // Already handled in step 2a via fullText
+
+  // Step 4: Neither blue nor white → REJECT (when in doubt, filter out)
   return false;
 }
 
