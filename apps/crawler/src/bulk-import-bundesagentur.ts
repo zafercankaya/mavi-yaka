@@ -117,10 +117,11 @@ async function getOrCreateSource(): Promise<{ id: string; companyId: string }> {
     });
 
     if (!company) {
+      const uniqueSlug = `bundesagentur-fur-arbeit-gov-de-${Date.now().toString(36)}`;
       company = await prisma.company.create({
         data: {
           name: 'Bundesagentur für Arbeit',
-          slug: 'bundesagentur-fur-arbeit',
+          slug: uniqueSlug,
           market: 'DE',
           sector: 'OTHER',
           websiteUrl: 'https://www.arbeitsagentur.de',

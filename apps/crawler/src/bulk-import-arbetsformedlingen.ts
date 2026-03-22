@@ -111,10 +111,11 @@ async function getOrCreateSource(): Promise<{ id: string; companyId: string }> {
     });
 
     if (!company) {
+      const uniqueSlug = `arbetsformedlingen-gov-se-${Date.now().toString(36)}`;
       company = await prisma.company.create({
         data: {
           name: 'Arbetsförmedlingen',
-          slug: 'arbetsformedlingen',
+          slug: uniqueSlug,
           market: 'SE',
           sector: 'OTHER',
           websiteUrl: 'https://arbetsformedlingen.se',
