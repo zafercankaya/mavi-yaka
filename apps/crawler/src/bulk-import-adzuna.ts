@@ -8,6 +8,7 @@
 
 import { PrismaClient, Market, JobStatus, Sector } from '@prisma/client';
 import { createHash } from 'crypto';
+import { isBlueCollar } from './utils/blue-collar-filter';
 
 const prisma = new PrismaClient();
 
@@ -301,6 +302,13 @@ async function importMarket(config: MarketConfig, stats: ImportStats): Promise<n
           const lat = job.latitude || null;
           const lon = job.longitude || null;
 
+          // Blue-collar filter — reject white-collar jobs
+          const desc = job.description?.substring(0, 5000) || null;
+          if (!isBlueCollar(title, desc)) {
+            stats.skipped++;
+            continue;
+          }
+
           batch.push({
             title,
             slug,
@@ -314,8 +322,8 @@ async function importMarket(config: MarketConfig, stats: ImportStats): Promise<n
             state,
             latitude: lat,
             longitude: lon,
-            sector: detectSector(title, job.description),
-            description: job.description?.substring(0, 5000) || null,
+            sector: detectSector(title, desc),
+            description: desc,
             postedDate: job.created ? new Date(job.created) : null,
             lastSeenAt: new Date(),
             status: 'ACTIVE' as JobStatus,

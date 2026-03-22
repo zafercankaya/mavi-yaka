@@ -1,6 +1,7 @@
 import { Market } from '@prisma/client';
 import { NormalizedJobListing } from './normalize';
 import { classifyAndEnrich } from '../utils/ai-client';
+import { isBlueCollar } from '../utils/blue-collar-filter';
 
 // ====== SCORING THRESHOLDS ======
 
@@ -1179,6 +1180,13 @@ export function filterJobListings(
       continue;
     }
 
+    // Blue-collar filter — reject non-blue-collar jobs at ingestion
+    if (!isBlueCollar(listing.title, listing.description)) {
+      console.log(`  [Quality] NOT_BLUE_COLLAR: "${listing.title.substring(0, 60)}"`);
+      rejected.push(listing);
+      continue;
+    }
+
     // Score
     const result = scoreJobListing(listing, keywords, companyName);
 
@@ -1216,6 +1224,13 @@ export async function filterJobListingsWithAI(
     const rejectReason = hardReject(listing, keywords, market);
     if (rejectReason) {
       console.log(`  [Quality] HARD_REJECT (${rejectReason}): "${listing.title.substring(0, 60)}"`);
+      rejected.push(listing);
+      continue;
+    }
+
+    // Blue-collar filter — reject non-blue-collar jobs at ingestion
+    if (!isBlueCollar(listing.title, listing.description)) {
+      console.log(`  [Quality] NOT_BLUE_COLLAR: "${listing.title.substring(0, 60)}"`);
       rejected.push(listing);
       continue;
     }

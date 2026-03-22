@@ -12,6 +12,7 @@
 
 import { PrismaClient, Market, JobStatus, Sector } from '@prisma/client';
 import { createHash } from 'crypto';
+import { isBlueCollar } from './utils/blue-collar-filter';
 
 const prisma = new PrismaClient();
 
@@ -242,8 +243,15 @@ async function main() {
           // Posted date
           const postedDate = obj.PublicationStartDate ? new Date(obj.PublicationStartDate) : null;
 
+          // Blue-collar filter — reject white-collar jobs
+          const fullTitle = `${title}${obj.OrganizationName ? ` - ${obj.OrganizationName}` : ''}`;
+          if (!isBlueCollar(fullTitle, description)) {
+            stats.skipped++;
+            continue;
+          }
+
           batch.push({
-            title: `${title}${obj.OrganizationName ? ` - ${obj.OrganizationName}` : ''}`,
+            title: fullTitle,
             slug,
             sourceUrl,
             canonicalUrl,
