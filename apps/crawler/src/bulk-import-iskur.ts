@@ -121,34 +121,23 @@ interface RawJob {
 }
 
 async function extractJobsFromPage(page: Page): Promise<RawJob[]> {
-  const html = await page.content();
-  const jobs: RawJob[] = [];
-
-  // Extract job IDs
-  const idRegex = /uiID=(\d+)/g;
-  let match;
-  const ids: string[] = [];
-  while ((match = idRegex.exec(html)) !== null) {
-    if (!ids.includes(match[1])) ids.push(match[1]);
-  }
-
-  // Extract table rows with evaluate (returns serializable data)
-  const rows = await page.evaluate(() => {
-    const trs = Array.from(document.querySelectorAll('tr'));
-    return trs.map(tr => {
-      const cells = Array.from(tr.querySelectorAll('td'));
+  // Use $$eval with string-typed return to avoid DOM type issues
+  const rows: Array<{ id: string; title: string; locText: string }> = await page.$$eval('tr', (trs: any[]) => {
+    return trs.map((tr: any) => {
+      const cells = tr.querySelectorAll('td');
       if (cells.length < 2) return null;
       const rowHtml = tr.innerHTML;
       const idMatch = rowHtml.match(/uiID=(\d+)/);
       if (!idMatch) return null;
       return {
         id: idMatch[1],
-        title: (cells[0] as HTMLElement)?.textContent?.trim() || '',
-        locText: (cells[1] as HTMLElement)?.textContent?.trim() || '',
+        title: cells[0]?.textContent?.trim() || '',
+        locText: cells[1]?.textContent?.trim() || '',
       };
-    }).filter(Boolean) as Array<{ id: string; title: string; locText: string }>;
+    }).filter(Boolean);
   });
 
+  const jobs: RawJob[] = [];
   for (const row of rows) {
     const locMatch = row.locText.match(/Çalışma\s*Yeri\s*:\s*([^)]+)/i);
     const location = locMatch ? locMatch[1].trim() : '';
