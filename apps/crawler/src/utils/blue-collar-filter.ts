@@ -320,6 +320,8 @@ const BLUE_COLLAR_SUFFIXES = [
   'gärtner', 'landwirt', 'erntehelfer',
   'näher', 'näherin', 'schneider', 'schneiderin',
   'fachkraft', 'servicekraft', 'hilfskraft', 'aushilfe',
+  'einsteller', 'einstellerin', 'einrichter', 'einrichterin',
+  'bediener', 'bedienerin', 'führer', 'führerin',
   'mitarbeiter', 'mitarbeiterin', // generic but very common in DE blue-collar
   // Dutch compound suffixes
   'medewerker', 'medewerkster', 'monteur', 'lasser',
