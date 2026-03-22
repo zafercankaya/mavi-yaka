@@ -122,7 +122,7 @@ interface RawJob {
 
 async function extractJobsFromPage(page: Page): Promise<RawJob[]> {
   // Use $$eval with string-typed return to avoid DOM type issues
-  const rows: Array<{ id: string; title: string; locText: string }> = await page.$$eval('tr', (trs: any[]) => {
+  const rows = await page.$$eval('tr', (trs: any[]) => {
     return trs.map((tr: any) => {
       const cells = tr.querySelectorAll('td');
       if (cells.length < 2) return null;
@@ -138,8 +138,9 @@ async function extractJobsFromPage(page: Page): Promise<RawJob[]> {
   });
 
   const jobs: RawJob[] = [];
-  for (const row of rows) {
-    const locMatch = row.locText.match(/Çalışma\s*Yeri\s*:\s*([^)]+)/i);
+  for (const row of rows as any[]) {
+    if (!row) continue;
+    const locMatch = (row.locText || '').match(/Çalışma\s*Yeri\s*:\s*([^)]+)/i);
     const location = locMatch ? locMatch[1].trim() : '';
     jobs.push({ id: row.id, title: row.title, location });
   }
