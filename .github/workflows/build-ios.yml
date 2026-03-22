@@ -30,8 +30,22 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
+      - name: Setup iOS signing credentials
+        env:
+          IOS_DIST_CERT_P12_BASE64: ${{ secrets.IOS_DIST_CERT_P12_BASE64 }}
+          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+          IOS_DIST_CERT_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+        run: |
+          cd apps/mobile
+          echo "$IOS_DIST_CERT_P12_BASE64" | base64 -d > dist_cert.p12
+          echo "$IOS_PROVISIONING_PROFILE_BASE64" | base64 -d > dist_profile.mobileprovision
+          echo "{\"ios\":{\"provisioningProfilePath\":\"./dist_profile.mobileprovision\",\"distributionCertificate\":{\"path\":\"./dist_cert.p12\",\"password\":\"$IOS_DIST_CERT_PASSWORD\"}}}" > credentials.json
+          echo "Local credentials configured"
+
       - name: Build iOS IPA (local)
         run: cd apps/mobile && eas build --platform ios --profile production --local --non-interactive --output ./build.ipa
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
@@ -45,3 +59,5 @@ jobs:
 
       - name: Submit to App Store
         run: cd apps/mobile && eas submit --platform ios --profile production --path ./build.ipa --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
