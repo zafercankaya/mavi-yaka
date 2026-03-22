@@ -392,6 +392,28 @@ export async function startScheduler(prisma: PrismaClient): Promise<void> {
   scheduledJobs.push({ name: 'USAJobs Weekly Import', task: usajobsTask });
   console.log('  - 30 7 * * 3 → USAJobs bulk import (weekly Wed)');
 
+  // Weekly Russia Trudvsem at Friday 04:30 UTC
+  const trudvsemTask = cron.schedule('30 4 * * 5', async () => {
+    console.log('[Scheduler] Running Trudvsem.ru bulk import...');
+    try {
+      const { execSync } = require('child_process');
+      execSync(
+        'npx ts-node --transpile-only src/bulk-import-trudvsem.ts',
+        {
+          cwd: __dirname.replace(/\/dist$/, '').replace(/\\dist$/, ''),
+          env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
+          timeout: 3600_000,
+          stdio: 'inherit',
+        },
+      );
+      console.log('[Scheduler] Trudvsem import complete');
+    } catch (err) {
+      console.error(`[Scheduler] Trudvsem error: ${(err as Error).message?.substring(0, 200)}`);
+    }
+  });
+  scheduledJobs.push({ name: 'Russia Trudvsem Weekly Import', task: trudvsemTask });
+  console.log('  - 30 4 * * 5 → Russia Trudvsem.ru (weekly Fri)');
+
   console.log('[Scheduler] All jobs registered\n');
 }
 
