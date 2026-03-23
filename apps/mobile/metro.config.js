@@ -11,6 +11,9 @@ const monorepoRoot = path.resolve(projectRoot, '../..');
 
 const config = getDefaultConfig(projectRoot);
 
+// Explicitly set projectRoot to prevent monorepo root from being used
+config.projectRoot = projectRoot;
+
 // 1. Watch shared packages (not the entire monorepo root)
 config.watchFolders = [
   path.resolve(monorepoRoot, 'packages'),

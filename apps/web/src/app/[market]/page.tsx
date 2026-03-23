@@ -48,7 +48,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!config) return {};
 
   const listing = LISTINGS[config.storeListingFile];
-  const BASE_URL = 'https://maviyaka.com';
+  const BASE_URL = 'https://mavi-yaka-web.vercel.app';
 
   return {
     title: `${config.appName} - ${listing.shortDescription}`,
@@ -60,7 +60,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       type: 'website',
       locale: config.locale,
       url: `${BASE_URL}/${slug}`,
-      siteName: config.appName,
+      siteName: 'Mavi Yaka',
       images: [{ url: `${BASE_URL}/images/og-image.png`, width: 1200, height: 630, alt: config.appName }],
     },
     twitter: {
@@ -90,10 +90,10 @@ export default async function MarketPage({ params }: Props) {
 
   const jsonLd = {
     '@context': 'https://schema.org',
-    '@type': 'SoftwareApplication',
+    '@type': 'WebApplication',
     name: config.appName,
     description: listing.shortDescription,
-    applicationCategory: 'ShoppingApplication',
+    applicationCategory: 'BusinessApplication',
     operatingSystem: 'Android, iOS',
     offers: {
       '@type': 'Offer',

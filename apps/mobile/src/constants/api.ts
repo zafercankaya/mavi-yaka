@@ -18,7 +18,7 @@ function getDevApiUrl(): string {
 }
 
 // Dev'de de production API kullan (local network sorunlarını atla)
-export const API_BASE_URL = 'http://109.123.248.85:3001';
+export const API_BASE_URL = 'https://maviyaka-api.duckdns.org';
 
 if (__DEV__) {
   console.log('[API] Base URL:', API_BASE_URL);

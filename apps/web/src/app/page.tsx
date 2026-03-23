@@ -3,10 +3,10 @@ import { MARKETS } from '@/data/markets';
 
 const jsonLd = {
   '@context': 'https://schema.org',
-  '@type': 'SoftwareApplication',
-  name: 'Deal Box',
-  description: 'Track deals, coupons, and discounts from over 5,000 brands across 31 countries.',
-  applicationCategory: 'ShoppingApplication',
+  '@type': 'WebApplication',
+  name: 'Mavi Yaka',
+  description: 'Blue-collar job aggregator covering 31 countries with 670,000+ listings in warehouse, factory, construction, logistics, and security sectors.',
+  applicationCategory: 'BusinessApplication',
   operatingSystem: 'Android, iOS',
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
 };
@@ -21,10 +21,13 @@ export default function HomePage() {
       <div className="max-w-4xl mx-auto px-4 py-16">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Deal Box
+            Mavi Yaka
           </h1>
-          <p className="text-xl text-gray-600">
-            Deals & discounts from 5,000+ brands across 31 countries
+          <p className="text-xl text-gray-600 mb-2">
+            Blue-Collar Jobs in 31 Countries
+          </p>
+          <p className="text-lg text-gray-500">
+            670,000+ warehouse, factory, construction, logistics & security jobs
           </p>
         </div>
 
@@ -37,7 +40,7 @@ export default function HomePage() {
             <Link
               key={market.slug}
               href={`/${market.slug}`}
-              className="flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-orange-400 hover:bg-orange-50 transition-colors"
+              className="flex items-center gap-3 p-4 rounded-xl border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-colors"
             >
               <span className="text-3xl">{market.flag}</span>
               <div>

@@ -32,7 +32,7 @@ export default function Footer({ config, strings, markets }: Props) {
         <div className="border-t border-gray-800 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
           <p>&copy; {new Date().getFullYear()} {config.appName}. {strings.allRightsReserved}</p>
           <a
-            href="https://mavi-yaka-api.onrender.com/privacy-policy"
+            href="https://maviyaka-api.duckdns.org/privacy-policy"
             target="_blank"
             rel="noopener noreferrer"
             className="hover:text-gray-300 transition-colors"

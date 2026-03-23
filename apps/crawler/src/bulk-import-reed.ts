@@ -27,6 +27,17 @@ function delay(ms: number): Promise<void> {
   return new Promise(r => setTimeout(r, ms));
 }
 
+function parseReedDate(dateStr: string): Date | null {
+  if (!dateStr) return null;
+  // Reed dates are dd/mm/yyyy
+  const parts = dateStr.split('/');
+  if (parts.length === 3) {
+    const [day, month, year] = parts;
+    return new Date(`${year}-${month}-${day}`);
+  }
+  return new Date(dateStr);
+}
+
 function md5(s: string): string {
   return createHash('md5').update(s).digest('hex');
 }
@@ -240,15 +251,8 @@ async function main() {
           // Parse salary
           let salaryMin: number | null = null;
           let salaryMax: number | null = null;
-          let salaryPeriod: string | null = null;
           if (job.minimumSalary) salaryMin = Math.round(job.minimumSalary);
           if (job.maximumSalary) salaryMax = Math.round(job.maximumSalary);
-          // Reed salary is typically annual for permanent, hourly for temp
-          if (job.currency === 'GBP') {
-            if (salaryMin && salaryMin < 100) salaryPeriod = 'HOURLY';
-            else if (salaryMin && salaryMin < 1000) salaryPeriod = 'DAILY';
-            else salaryPeriod = 'YEARLY';
-          }
 
           batch.push({
             title,
@@ -265,9 +269,8 @@ async function main() {
             salaryMin,
             salaryMax,
             salaryCurrency: job.currency || 'GBP',
-            salaryPeriod: salaryPeriod as any,
-            postedDate: job.date ? new Date(job.date) : null,
-            expirationDate: job.expirationDate ? new Date(job.expirationDate) : null,
+            postedDate: job.date ? parseReedDate(job.date) : null,
+            deadline: job.expirationDate ? parseReedDate(job.expirationDate) : null,
             lastSeenAt: new Date(),
             status: 'ACTIVE' as JobStatus,
           });

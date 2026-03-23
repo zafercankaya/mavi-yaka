@@ -9,7 +9,7 @@ interface Props {
 
 export default function Hero({ config, listing, strings }: Props) {
   return (
-    <section className="bg-gradient-to-b from-orange-50 to-white py-16 sm:py-24">
+    <section className="bg-gradient-to-b from-blue-50 to-white py-16 sm:py-24">
       <div className="max-w-4xl mx-auto px-4 text-center">
         <div className="mb-6">
           <span className="text-5xl">{config.flag}</span>
