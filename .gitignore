@@ -21,6 +21,12 @@ nul
 .claude/settings.local.json
 .playwright-mcp/
 
+# iOS signing credentials
+*.p12
+*.mobileprovision
+*.p8
+credentials.json
+
 # Screenshots (debug/docs)
 admin-campaigns.png
 admin-dashboard.png

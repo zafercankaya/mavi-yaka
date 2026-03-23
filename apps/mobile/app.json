@@ -36,7 +36,7 @@
     },
     "ios": {
       "bundleIdentifier": "com.maviyaka.app",
-      "buildNumber": "1",
+      "buildNumber": "4",
       "supportsTablet": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -113,9 +113,9 @@
         "root": "./app"
       },
       "eas": {
-        "projectId": "d28da1c1-0862-4d3e-8fb1-fe5154e4774c"
+        "projectId": "d6a4eb2f-439a-4d98-bbf3-74c98120780c"
       }
     },
-    "owner": "zafer77can"
+    "owner": "kampanyasepeti2"
   }
 }

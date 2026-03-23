@@ -1,6 +1,12 @@
 # Browser profiles and temp files
 .claude/
 .git/
+.pw-*/
+.playwright-mcp/
+
+# Apps not needed for mobile build (web, admin)
+apps/web/
+apps/admin/
 
 # Apps not needed for mobile build
 apps/api/
@@ -9,6 +15,9 @@ apps/crawler/
 # Logs and temp
 *.log
 logs_tmp/
+
+# Signing files at root (credentials.json refs them relatively)
+# Keep dist_cert.p12, dist_profile.mobileprovision, AuthKey in apps/mobile/
 
 # Large binary files at root
 /*.aab

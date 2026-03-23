@@ -436,6 +436,138 @@ export async function startScheduler(prisma: PrismaClient): Promise<void> {
   scheduledJobs.push({ name: 'Turkey İŞKUR Weekly Import', task: iskurTask });
   console.log('  - 30 8 * * 6 → Turkey İŞKUR (weekly Sat)');
 
+  // ─── CareerJet Deep (weak markets, expanded keywords) ─── bi-weekly Monday
+  const cjDeepTask = cron.schedule('0 9 * * 1', async () => {
+    // Only run on 1st and 3rd Monday of the month
+    const dayOfMonth = new Date().getDate();
+    if (dayOfMonth > 14 && dayOfMonth <= 21) return; // skip 3rd week actually run 1st & 3rd
+    if (dayOfMonth > 7 && dayOfMonth <= 14) return; // skip 2nd week
+
+    console.log('[Scheduler] Starting CareerJet Deep import (weak markets)...');
+    try {
+      const { execSync } = require('child_process');
+      execSync(
+        'npx ts-node --transpile-only src/bulk-import-careerjet-deep.ts ALL',
+        {
+          cwd: __dirname.replace(/\/dist$/, '').replace(/\\dist$/, ''),
+          env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
+          timeout: 7200_000, // 2 hours
+          stdio: 'inherit',
+        },
+      );
+      console.log('[Scheduler] CareerJet Deep import complete');
+    } catch (err) {
+      console.error(`[Scheduler] CareerJet Deep error: ${(err as Error).message?.substring(0, 200)}`);
+    }
+  });
+  scheduledJobs.push({ name: 'CareerJet Deep Bi-Weekly Import', task: cjDeepTask });
+  console.log('  - 0 9 * * 1 → CareerJet Deep (bi-weekly Mon, weak markets)');
+
+  // ─── Adzuna Deep (mid-tier markets, expanded keywords) ─── bi-weekly Thursday
+  const adzunaDeepTask = cron.schedule('0 10 * * 4', async () => {
+    // Run on 1st and 3rd Thursday only
+    const dayOfMonth = new Date().getDate();
+    if (dayOfMonth > 7 && dayOfMonth <= 14) return;
+    if (dayOfMonth > 21) return;
+
+    console.log('[Scheduler] Starting Adzuna Deep import...');
+    try {
+      const { execSync } = require('child_process');
+      execSync(
+        'npx ts-node --transpile-only src/bulk-import-adzuna-deep.ts ALL',
+        {
+          cwd: __dirname.replace(/\/dist$/, '').replace(/\\dist$/, ''),
+          env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
+          timeout: 7200_000,
+          stdio: 'inherit',
+        },
+      );
+      console.log('[Scheduler] Adzuna Deep import complete');
+    } catch (err) {
+      console.error(`[Scheduler] Adzuna Deep error: ${(err as Error).message?.substring(0, 200)}`);
+    }
+  });
+  scheduledJobs.push({ name: 'Adzuna Deep Bi-Weekly Import', task: adzunaDeepTask });
+  console.log('  - 0 10 * * 4 → Adzuna Deep (bi-weekly Thu, mid-tier markets)');
+
+  // ─── Jooble (31 countries) ─── weekly Wednesday evening
+  const joobleTask = cron.schedule('0 20 * * 3', async () => {
+    if (!process.env.JOOBLE_API_KEY) {
+      console.log('[Scheduler] JOOBLE_API_KEY not set, skipping');
+      return;
+    }
+    console.log('[Scheduler] Starting Jooble import (31 countries)...');
+    try {
+      const { execSync } = require('child_process');
+      execSync(
+        'npx ts-node --transpile-only src/bulk-import-jooble.ts ALL',
+        {
+          cwd: __dirname.replace(/\/dist$/, '').replace(/\\dist$/, ''),
+          env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
+          timeout: 7200_000,
+          stdio: 'inherit',
+        },
+      );
+      console.log('[Scheduler] Jooble import complete');
+    } catch (err) {
+      console.error(`[Scheduler] Jooble error: ${(err as Error).message?.substring(0, 200)}`);
+    }
+  });
+  scheduledJobs.push({ name: 'Jooble Weekly Import', task: joobleTask });
+  console.log('  - 0 20 * * 3 → Jooble (weekly Wed evening, 31 countries)');
+
+  // ─── Reed.co.uk (UK jobs) ─── weekly Tuesday
+  const reedTask = cron.schedule('0 11 * * 2', async () => {
+    if (!process.env.REED_API_KEY) {
+      console.log('[Scheduler] REED_API_KEY not set, skipping');
+      return;
+    }
+    console.log('[Scheduler] Starting Reed.co.uk import...');
+    try {
+      const { execSync } = require('child_process');
+      execSync(
+        'npx ts-node --transpile-only src/bulk-import-reed.ts',
+        {
+          cwd: __dirname.replace(/\/dist$/, '').replace(/\\dist$/, ''),
+          env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
+          timeout: 3600_000,
+          stdio: 'inherit',
+        },
+      );
+      console.log('[Scheduler] Reed.co.uk import complete');
+    } catch (err) {
+      console.error(`[Scheduler] Reed error: ${(err as Error).message?.substring(0, 200)}`);
+    }
+  });
+  scheduledJobs.push({ name: 'Reed UK Weekly Import', task: reedTask });
+  console.log('  - 0 11 * * 2 → Reed.co.uk UK (weekly Tue)');
+
+  // ─── WorkNet Korea (government) ─── weekly Monday
+  const worknetTask = cron.schedule('0 14 * * 1', async () => {
+    if (!process.env.WORKNET_API_KEY) {
+      console.log('[Scheduler] WORKNET_API_KEY not set, skipping');
+      return;
+    }
+    console.log('[Scheduler] Starting WorkNet Korea import...');
+    try {
+      const { execSync } = require('child_process');
+      execSync(
+        'npx ts-node --transpile-only src/bulk-import-worknet-kr.ts',
+        {
+          cwd: __dirname.replace(/\/dist$/, '').replace(/\\dist$/, ''),
+          env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
+          timeout: 3600_000,
+          stdio: 'inherit',
+        },
+      );
+      console.log('[Scheduler] WorkNet Korea import complete');
+    } catch (err) {
+      console.error(`[Scheduler] WorkNet error: ${(err as Error).message?.substring(0, 200)}`);
+    }
+  });
+  scheduledJobs.push({ name: 'WorkNet Korea Weekly Import', task: worknetTask });
+  console.log('  - 0 14 * * 1 → WorkNet Korea (weekly Mon)');
+
   console.log('[Scheduler] All jobs registered\n');
 }
 
