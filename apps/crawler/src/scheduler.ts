@@ -568,6 +568,26 @@ export async function startScheduler(prisma: PrismaClient): Promise<void> {
   scheduledJobs.push({ name: 'WorkNet Korea Weekly Import', task: worknetTask });
   console.log('  - 0 14 * * 1 → WorkNet Korea (weekly Mon)');
 
+  // ─── CBOP Poland (government) ─── weekly Wednesday
+  const cbopTask = cron.schedule('30 12 * * 3', async () => {
+    console.log('[Scheduler] Starting CBOP Poland import...');
+    try {
+      const { execSync } = require('child_process');
+      const cwd = __dirname.replace(/\/dist$/, '').replace(/\\dist$/, '');
+      execSync(`npx ts-node --transpile-only src/bulk-import-cbop-pl.ts`, {
+        cwd,
+        timeout: 30 * 60 * 1000,
+        env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
+        stdio: 'inherit',
+      });
+      console.log('[Scheduler] CBOP Poland import complete');
+    } catch (err) {
+      console.error(`[Scheduler] CBOP error: ${(err as Error).message?.substring(0, 200)}`);
+    }
+  });
+  scheduledJobs.push({ name: 'CBOP Poland Weekly Import', task: cbopTask });
+  console.log('  - 30 12 * * 3 → CBOP Poland (weekly Wed)');
+
   console.log('[Scheduler] All jobs registered\n');
 }
 
