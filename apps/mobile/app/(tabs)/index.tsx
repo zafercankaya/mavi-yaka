@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View, FlatList, ActivityIndicator, RefreshControl, Text, Alert,
   ScrollView, Pressable, StyleSheet, StatusBar, Dimensions, TextInput,
+  TouchableOpacity, Keyboard,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useScrollToTop } from '@react-navigation/native';
@@ -288,15 +289,12 @@ export default function HomeScreen() {
           onChangeText={(text) => {
             setLocationText(text);
             setLocationSelected(false);
+            setSelectedLocationState(undefined);
             if (text.trim().length >= 2) {
               searchLocations(text.trim(), 15, 'state').then(setLocationSuggestions).catch(() => {});
             } else {
               setLocationSuggestions([]);
             }
-          }}
-          onBlur={() => {
-            // Delay to allow dropdown item press to register
-            setTimeout(() => setLocationSuggestions([]), 200);
           }}
           returnKeyType="done"
         />
@@ -309,15 +307,17 @@ export default function HomeScreen() {
       {locationSuggestions.length > 0 && !locationSelected && (
         <View style={styles.locationDropdown}>
           {locationSuggestions.map((loc, i) => (
-            <Pressable
+            <TouchableOpacity
               key={`${loc.state}-${loc.city}-${i}`}
               style={styles.locationOption}
+              activeOpacity={0.6}
               onPress={() => {
                 const display = loc.nameLocal || loc.state || '';
                 setLocationText(display);
                 setSelectedLocationState(loc.state || undefined);
                 setLocationSuggestions([]);
                 setLocationSelected(true);
+                Keyboard.dismiss();
               }}
             >
               <MapPin size={12} color={Colors.textTertiary} />
@@ -329,7 +329,7 @@ export default function HomeScreen() {
                   {loc.population > 1000000 ? `${(loc.population / 1000000).toFixed(1)}M` : loc.population > 1000 ? `${Math.round(loc.population / 1000)}K` : ''}
                 </Text>
               ) : null}
-            </Pressable>
+            </TouchableOpacity>
           ))}
         </View>
       )}

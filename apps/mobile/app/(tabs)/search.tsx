@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useMemo } from 'react';
 import {
   View, TextInput, FlatList, ActivityIndicator, RefreshControl,
   Text, StyleSheet, Pressable, Keyboard, ScrollView, Dimensions, Platform, KeyboardAvoidingView,
+  TouchableOpacity,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useScrollToTop } from '@react-navigation/native';
@@ -480,9 +481,6 @@ export default function SearchScreen() {
                     setLocationSuggestions([]);
                   }
                 }}
-                onBlur={() => {
-                  setTimeout(() => setLocationSuggestions([]), 200);
-                }}
                 returnKeyType="done"
               />
               {stateText.length > 0 && (
@@ -494,15 +492,17 @@ export default function SearchScreen() {
             {locationSuggestions.length > 0 && !locationSelected && (
               <View style={styles.locationDropdown}>
                 {locationSuggestions.map((loc, i) => (
-                  <Pressable
+                  <TouchableOpacity
                     key={`${loc.state}-${loc.city}-${i}`}
                     style={styles.locationOption}
+                    activeOpacity={0.6}
                     onPress={() => {
                       const display = loc.nameLocal || loc.state || '';
                       setStateText(display);
                       setSelectedLocationState(loc.state || undefined);
                       setLocationSuggestions([]);
                       setLocationSelected(true);
+                      Keyboard.dismiss();
                     }}
                   >
                     <MapPin size={12} color={Colors.textTertiary} />
@@ -514,7 +514,7 @@ export default function SearchScreen() {
                         {loc.population > 1000000 ? `${(loc.population / 1000000).toFixed(1)}M` : loc.population > 1000 ? `${Math.round(loc.population / 1000)}K` : ''}
                       </Text>
                     ) : null}
-                  </Pressable>
+                  </TouchableOpacity>
                 ))}
               </View>
             )}
