@@ -66,16 +66,11 @@ function extractLocationFromUrl(url: string): { city: string | null; state: stri
   for (let i = 0; i < parts.length - 1; i++) {
     const matchedProvince = TR_PROVINCES_ASCII.get(parts[i]);
     if (matchedProvince) {
-      const ilceParts: string[] = [];
-      for (let j = i + 1; j < parts.length; j++) {
-        if (TR_PROVINCES_ASCII.has(parts[j])) break;
-        ilceParts.push(parts[j]);
-        if (ilceParts.length >= 3) break;
-      }
+      // Only extract province from URL — ilçe/pozisyon boundary is unreliable in slugs
       const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
       return {
         state: capitalize(matchedProvince),
-        city: ilceParts.length > 0 ? ilceParts.map(capitalize).join(' ') : null,
+        city: null,
       };
     }
   }

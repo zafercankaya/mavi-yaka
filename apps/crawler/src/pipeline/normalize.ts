@@ -628,21 +628,11 @@ function extractLocationFromUrl(url: string): { city: string | null; state: stri
     const candidate = parts[i];
     const matchedProvince = TR_PROVINCES_ASCII.get(candidate);
     if (matchedProvince) {
-      // Next part is likely ilçe
-      const ilceParts: string[] = [];
-      for (let j = i + 1; j < parts.length; j++) {
-        // Stop if we hit a known job-related word
-        if (TR_PROVINCES_ASCII.has(parts[j])) break;
-        ilceParts.push(parts[j]);
-        // Ilçe names are usually 1-3 words
-        if (ilceParts.length >= 3) break;
-      }
-      const ilce = ilceParts.length > 0 ? ilceParts.join(' ') : null;
-      // Capitalize first letter
+      // Only extract province from URL — ilçe/pozisyon boundary is unreliable in slugs
       const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
       return {
         state: capitalize(matchedProvince),
-        city: ilce ? ilce.split(' ').map(capitalize).join(' ') : null,
+        city: null,
       };
     }
   }
