@@ -731,7 +731,9 @@ function isValidLocationValue(value: string): boolean {
   const wordCount = value.split(/\s+/).length;
   if (wordCount > 5) return false;
   // Reject if it looks like a sentence (contains common non-location words)
-  if (/\b(?:includes|all|jobs|the|this|that|with|from|your|our|and|for|are|was|has|have|will|can|may|must|should|group|family|team|department|company|role)\b/i.test(value)) return false;
+  if (/\b(?:includes|all|jobs|the|this|that|with|from|your|our|and|for|are|was|has|have|will|can|may|must|should|group|family|team|department|company|role|at|title|position)\b/i.test(value)) return false;
+  // Reject "work from home" style values (not a physical location)
+  if (/\b(?:hemifrån|remote|home|work from|telework|virtual|anywhere|online)\b/i.test(value)) return false;
   // Reject if it starts with lowercase (location names typically start uppercase, except in non-Latin scripts)
   const isLatinScript = /^[a-zA-Z]/.test(value);
   if (isLatinScript && /^[a-z]/.test(value)) return false;
