@@ -400,7 +400,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '500',
     color: Colors.textSecondary,
-    maxWidth: 100,
+    maxWidth: 140,
   },
   salaryRow: {
     flexDirection: 'row',
