@@ -129,21 +129,30 @@ function JobCardInner({ job, onPress }: JobCardProps) {
         {/* Image area — ALWAYS same height */}
         <View style={styles.imageContainer}>
           {hasImage ? (
-            <Image
-              source={{ uri: jobImage! }}
-              style={styles.image}
-              contentFit="cover"
-              transition={200}
-              placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}
-            />
+            <View style={styles.imageWithOverlay}>
+              <Image
+                source={{ uri: jobImage! }}
+                style={styles.image}
+                contentFit="cover"
+                transition={200}
+                placeholder={{ blurhash: 'L6PZfSi_.AyE_3t7t7R**0o#DgR4' }}
+              />
+              {/* Gradient overlay at bottom for text readability */}
+              <View style={styles.imageGradient} />
+            </View>
           ) : companyLogo ? (
             <View style={[styles.companyLogoFill, { backgroundColor: getCompanyColor(companyName || job.title) }]}>
-              <Image
-                source={{ uri: companyLogo }}
-                style={styles.companyLogoCard}
-                contentFit="contain"
-                transition={200}
-              />
+              <View style={styles.logoWhiteCircle}>
+                <Image
+                  source={{ uri: companyLogo }}
+                  style={styles.companyLogoCard}
+                  contentFit="contain"
+                  transition={200}
+                />
+              </View>
+              <Text style={styles.logoCompanyName} numberOfLines={1}>
+                {companyName}
+              </Text>
             </View>
           ) : (
             <View style={[styles.noImageFill, { backgroundColor: getCompanyColor(companyName || job.title) }]}>
@@ -179,11 +188,14 @@ function JobCardInner({ job, onPress }: JobCardProps) {
             {job.company && (
               <View style={styles.companyRow}>
                 {job.company.logoUrl && (
-                  <Image
-                    source={{ uri: job.company.logoUrl }}
-                    style={styles.companyLogo}
-                    contentFit="cover"
-                  />
+                  <View style={styles.companyLogoWrap}>
+                    <Image
+                      source={{ uri: job.company.logoUrl }}
+                      style={styles.companyLogo}
+                      contentFit="contain"
+                      transition={100}
+                    />
+                  </View>
                 )}
                 <Text style={styles.companyName} numberOfLines={1}>{job.company.name}</Text>
               </View>
@@ -272,21 +284,55 @@ const styles = StyleSheet.create({
   imageContainer: {
     position: 'relative',
     height: IMAGE_HEIGHT,
+    overflow: 'hidden',
+  },
+  imageWithOverlay: {
+    width: '100%',
+    height: '100%',
   },
   image: {
     width: '100%',
     height: '100%',
+  },
+  imageGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 40,
+    backgroundColor: 'transparent',
   },
   companyLogoFill: {
     width: '100%',
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    gap: 10,
+  },
+  logoWhiteCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   companyLogoCard: {
-    width: '60%',
-    height: '60%',
+    width: '100%',
+    height: '100%',
+  },
+  logoCompanyName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.9)',
+    textAlign: 'center',
+    paddingHorizontal: 24,
   },
   noImageFill: {
     width: '100%',
@@ -351,11 +397,20 @@ const styles = StyleSheet.create({
     gap: 6,
     flex: 1,
   },
+  companyLogoWrap: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.borderLight,
+    overflow: 'hidden',
+  },
   companyLogo: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: Colors.borderLight,
+    width: 20,
+    height: 20,
   },
   companyName: {
     fontSize: 13,
