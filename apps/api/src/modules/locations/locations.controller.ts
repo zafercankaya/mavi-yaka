@@ -128,10 +128,10 @@ export class LocationsController {
         // state-only mode: only return state-level entries (city is null)
         ...(stateOnly && { city: null }),
         OR: [
-          { nameLocal: { contains: query, mode: 'insensitive' } },
-          { nameEn: { contains: query, mode: 'insensitive' } },
-          { state: { contains: query, mode: 'insensitive' } },
-          ...(!stateOnly ? [{ city: { contains: query, mode: 'insensitive' } }] : []),
+          { nameLocal: { contains: query, mode: 'insensitive' as const } },
+          { nameEn: { contains: query, mode: 'insensitive' as const } },
+          { state: { contains: query, mode: 'insensitive' as const } },
+          ...(!stateOnly ? [{ city: { contains: query, mode: 'insensitive' as const } }] : []),
         ],
       },
       select: {
