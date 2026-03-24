@@ -377,7 +377,7 @@ export function normalizeJobListing(raw: RawJobData, market: Market = 'TR'): Nor
   const workMode = detectWorkMode(raw.workModeText || allText, market);
   const experienceLevel = detectExperienceLevel(raw.experienceText || allText);
   const sector = detectSector(allText, market);
-  const location = parseLocation(raw.locationText, raw.title, raw.sourceUrl, description);
+  const location = parseLocation(raw.locationText, raw.title, raw.sourceUrl, description ?? undefined);
 
   return {
     title,
