@@ -13,26 +13,24 @@ export class SavedJobsService {
   ) {}
 
   async findUserSavedJobs(userId: string, filter: SavedJobFilter = 'active', market?: Market) {
-    const jobConditions: any[] = [];
+    const jobConditions: any = {};
 
     if (market) {
-      jobConditions.push({ market });
+      jobConditions.market = market;
     }
 
     if (filter === 'active') {
-      jobConditions.push({ status: JobStatus.ACTIVE });
+      jobConditions.status = JobStatus.ACTIVE;
     } else if (filter === 'expired') {
-      jobConditions.push({
-        OR: [
-          { status: JobStatus.EXPIRED },
-          { status: JobStatus.REMOVED },
-        ],
-      });
+      jobConditions.OR = [
+        { status: JobStatus.EXPIRED },
+        { status: JobStatus.REMOVED },
+      ];
     }
 
     const where: any = { userId };
-    if (jobConditions.length > 0) {
-      where.jobListing = { AND: jobConditions };
+    if (Object.keys(jobConditions).length > 0) {
+      where.jobListing = jobConditions;
     }
 
     return this.prisma.savedJob.findMany({
