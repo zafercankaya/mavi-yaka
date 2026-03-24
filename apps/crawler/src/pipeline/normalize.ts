@@ -377,7 +377,7 @@ export function normalizeJobListing(raw: RawJobData, market: Market = 'TR'): Nor
   const workMode = detectWorkMode(raw.workModeText || allText, market);
   const experienceLevel = detectExperienceLevel(raw.experienceText || allText);
   const sector = detectSector(allText, market);
-  const location = parseLocation(raw.locationText, raw.title, raw.sourceUrl);
+  const location = parseLocation(raw.locationText, raw.title, raw.sourceUrl, description);
 
   return {
     title,
@@ -639,7 +639,82 @@ function extractLocationFromUrl(url: string): { city: string | null; state: stri
   return null;
 }
 
-function parseLocation(text?: string, title?: string, sourceUrl?: string): { city: string | null; state: string | null } | null {
+/**
+ * Extract location from description using structured labels.
+ * Supports multi-language patterns: "Location: City", "Standort: Berlin", etc.
+ */
+export function extractLocationFromDescription(desc: string): { city: string | null; state: string | null } | null {
+  if (!desc || desc.length < 10) return null;
+
+  // Multi-language location label patterns (label + colon + value)
+  const labelPatterns = [
+    // English
+    /(?:location|work\s*location|job\s*location|city|region|area|based\s*in)\s*[:：]\s*([^\n,;|]{2,40})/i,
+    // Turkish
+    /(?:lokasyon|şehir|il|çalışma\s*yeri|konum|yer)\s*[:：]\s*([^\n,;|]{2,40})/i,
+    // German
+    /(?:standort|arbeitsort|einsatzort|ort|stadt|region)\s*[:：]\s*([^\n,;|]{2,40})/i,
+    // French
+    /(?:localisation|lieu|ville|emplacement)\s*[:：]\s*([^\n,;|]{2,40})/i,
+    // Spanish
+    /(?:ubicación|localización|ciudad|lugar)\s*[:：]\s*([^\n,;|]{2,40})/i,
+    // Portuguese
+    /(?:localização|cidade|local)\s*[:：]\s*([^\n,;|]{2,40})/i,
+    // Italian
+    /(?:sede|luogo|località|città)\s*[:：]\s*([^\n,;|]{2,40})/i,
+    // Dutch
+    /(?:locatie|standplaats|werklocatie|plaats)\s*[:：]\s*([^\n,;|]{2,40})/i,
+    // Swedish
+    /(?:plats|arbetsplats|ort|arbetsort)\s*[:：]\s*([^\n,;|]{2,40})/i,
+    // Polish
+    /(?:lokalizacja|miejsce|miasto)\s*[:：]\s*([^\n,;|]{2,40})/i,
+    // Russian
+    /(?:местоположение|город|место\s*работы|регион)\s*[:：]\s*([^\n,;|]{2,40})/i,
+    // Arabic
+    /(?:الموقع|المدينة|مكان\s*العمل|موقع)\s*[:：]\s*([^\n,;|]{2,40})/i,
+    // Japanese
+    /(?:勤務地|所在地|場所|エリア)\s*[:：]\s*([^\n,;|]{2,40})/i,
+    // Korean
+    /(?:위치|근무지|지역)\s*[:：]\s*([^\n,;|]{2,40})/i,
+    // Thai
+    /(?:สถานที่|ที่ตั้ง|จังหวัด)\s*[:：]\s*([^\n,;|]{2,40})/i,
+    // Indonesian/Malay
+    /(?:lokasi|tempat\s*kerja|kota)\s*[:：]\s*([^\n,;|]{2,40})/i,
+    // Vietnamese
+    /(?:địa\s*điểm|nơi\s*làm\s*việc|thành\s*phố)\s*[:：]\s*([^\n,;|]{2,40})/i,
+    // Urdu
+    /(?:مقام|شہر|جگہ)\s*[:：]\s*([^\n,;|]{2,40})/i,
+  ];
+
+  // Also try: "Full-time permanent, Alexandria, NSW" pattern (first line with comma-separated location)
+  const firstLineMatch = desc.match(/^(?:Full[- ]time|Part[- ]time|Permanent|Contract|Temporary|Casual)[,\s]+([A-Z][a-zA-Z\s]+(?:,\s*[A-Z]{2,3})?)/);
+  if (firstLineMatch) {
+    const locParts = firstLineMatch[1].trim().split(/,\s*/);
+    if (locParts.length >= 2) {
+      return { city: locParts[0].trim(), state: locParts[1].trim() };
+    }
+    return { city: locParts[0].trim(), state: null };
+  }
+
+  for (const pattern of labelPatterns) {
+    const match = desc.match(pattern);
+    if (match) {
+      const value = match[1].trim();
+      // Skip if value looks like a URL or garbage
+      if (value.includes('http') || value.includes('www.') || value.length < 2) continue;
+      // Split "City, State" or "City - State"
+      const parts = value.split(/[,\/\-–—]\s*/);
+      if (parts.length >= 2) {
+        return { city: parts[0].trim(), state: parts[1].trim() };
+      }
+      return { city: value, state: null };
+    }
+  }
+
+  return null;
+}
+
+function parseLocation(text?: string, title?: string, sourceUrl?: string, description?: string): { city: string | null; state: string | null } | null {
   // First try explicit locationText
   if (text) {
     const cleaned = stripHtml(text).trim();
@@ -657,6 +732,12 @@ function parseLocation(text?: string, title?: string, sourceUrl?: string): { cit
   if (title) {
     const fromTitle = extractLocationFromTitle(title);
     if (fromTitle) return fromTitle;
+  }
+
+  // Fallback: try extracting from description (structured labels like "Location: City")
+  if (description) {
+    const fromDesc = extractLocationFromDescription(description);
+    if (fromDesc) return fromDesc;
   }
 
   // Fallback: try extracting from cvyolla URL

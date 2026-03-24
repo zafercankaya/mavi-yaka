@@ -2,10 +2,15 @@
  * One-time backfill: Extract location from cvyolla-style titles and URLs
  * for existing job listings that have NULL city/state.
  *
- * Usage: npx ts-node --transpile-only src/backfill-location.ts [--apply]
+ * Usage: npx ts-node --transpile-only src/backfill-location.ts [MARKET] [--apply]
+ * Examples:
+ *   npx ts-node --transpile-only src/backfill-location.ts          # dry-run all markets
+ *   npx ts-node --transpile-only src/backfill-location.ts TR       # dry-run TR only
+ *   npx ts-node --transpile-only src/backfill-location.ts --apply  # apply all markets
  */
 
 import { PrismaClient } from '@prisma/client';
+import { extractLocationFromDescription } from './pipeline/normalize';
 
 const prisma = new PrismaClient();
 
@@ -81,31 +86,38 @@ async function main() {
   const dryRun = !process.argv.includes('--apply');
   console.log(`\n=== Backfill Location from Title/URL (${dryRun ? 'DRY RUN' : 'APPLYING'}) ===\n`);
 
-  // Get all TR active jobs with no location
+  // Get all active jobs with no location (all markets)
+  const market = process.argv.find(a => a.length === 2 && a === a.toUpperCase()) || null;
   const jobs = await prisma.jobListing.findMany({
     where: {
-      country: 'TR',
+      ...(market ? { country: market as any } : {}),
       status: 'ACTIVE',
       city: null,
       state: null,
     },
-    select: { id: true, title: true, sourceUrl: true },
+    select: { id: true, title: true, sourceUrl: true, description: true, country: true },
   });
 
-  console.log(`Found ${jobs.length} TR active jobs with no location\n`);
+  console.log(`Found ${jobs.length} ${market || 'ALL'} active jobs with no location\n`);
 
   let extracted = 0;
-  const results: { title: string; state: string | null; city: string | null }[] = [];
+  const results: { title: string; state: string | null; city: string | null; source: string }[] = [];
 
   for (const job of jobs) {
     // Try title first
     let loc = extractLocationFromTitle(job.title);
+    let source = 'title';
+    // Then description
+    if (!loc && job.description) {
+      loc = extractLocationFromDescription(job.description);
+      source = 'description';
+    }
     // Then URL
-    if (!loc) loc = extractLocationFromUrl(job.sourceUrl);
+    if (!loc) { loc = extractLocationFromUrl(job.sourceUrl); source = 'url'; }
 
     if (loc) {
       extracted++;
-      results.push({ title: job.title.substring(0, 60), ...loc });
+      results.push({ title: job.title.substring(0, 60), ...loc, source });
 
       if (!dryRun) {
         await prisma.jobListing.update({
@@ -116,9 +128,9 @@ async function main() {
     }
   }
 
-  console.log(`\n--- Results ---`);
-  for (const r of results) {
-    console.log(`  ${r.state || '?'} / ${r.city || '?'} ← "${r.title}"`);
+  console.log(`\n--- Results (first 50) ---`);
+  for (const r of results.slice(0, 50)) {
+    console.log(`  [${r.source}] ${r.state || '?'} / ${r.city || '?'} ← "${r.title}"`);
   }
   console.log(`\nExtracted location for ${extracted}/${jobs.length} jobs`);
   if (dryRun) console.log(`\nRun with --apply to save changes`);
