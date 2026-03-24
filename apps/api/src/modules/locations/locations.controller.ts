@@ -150,12 +150,15 @@ export class LocationsController {
       take: limit * 3, // fetch more to dedupe
     });
 
+    // Normalize for dedup (handles Turkish İ/I ı/i)
+    const norm = (s: string) => s.toLocaleLowerCase('tr-TR');
+
     // Deduplicate by state (for state-only) or by state+city
     const seen = new Set<string>();
     const deduped = locations.filter((l) => {
       const key = stateOnly
-        ? (l.state || '').toLowerCase()
-        : `${(l.state || '').toLowerCase()}:${(l.city || '').toLowerCase()}`;
+        ? norm(l.state || '')
+        : `${norm(l.state || '')}:${norm(l.city || '')}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -175,8 +178,8 @@ export class LocationsController {
       });
 
       for (const j of jobStates) {
-        if (j.state && !seen.has(j.state.toLowerCase())) {
-          seen.add(j.state.toLowerCase());
+        if (j.state && !seen.has(norm(j.state))) {
+          seen.add(norm(j.state));
           deduped.push({
             id: `job-${j.state}`,
             state: j.state,
@@ -211,7 +214,7 @@ export class LocationsController {
     });
 
     for (const j of jobCities) {
-      const key = `${(j.state || '').toLowerCase()}:${(j.city || '').toLowerCase()}`;
+      const key = `${norm(j.state || '')}:${norm(j.city || '')}`;
       if (j.city && !seen.has(key)) {
         seen.add(key);
         deduped.push({
