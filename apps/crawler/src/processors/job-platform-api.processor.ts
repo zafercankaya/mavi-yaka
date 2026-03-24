@@ -148,9 +148,9 @@ const ADZUNA_COUNTRIES: Record<string, string> = {
   MX: 'mx',
 };
 
-const ADZUNA_DELAY_MS = 350; // stay under ~250 req/day if running 10 queries
+const ADZUNA_DELAY_MS = 350;
 const ADZUNA_RESULTS_PER_PAGE = 50;
-const ADZUNA_MAX_PAGES = 5; // 5 pages × 50 = 250 per query
+const ADZUNA_MAX_PAGES = 20; // 20 pages × 50 = 1000 per query
 
 async function fetchAdzunaJobs(market: Market): Promise<RawJobData[]> {
   const appId = process.env.ADZUNA_APP_ID;
@@ -166,9 +166,9 @@ async function fetchAdzunaJobs(market: Market): Promise<RawJobData[]> {
     return [];
   }
 
-  // Use localized queries for the market, fall back to English
+  // Use all localized queries for the market, fall back to English
   const localQueries = BLUE_COLLAR_QUERIES[market];
-  const queries = localQueries ? localQueries.slice(0, 10) : [
+  const queries = localQueries || [
     'warehouse worker', 'forklift operator', 'truck driver', 'cleaner', 'construction worker',
     'delivery driver', 'machine operator', 'welder', 'plumber', 'electrician',
   ];
@@ -267,7 +267,7 @@ const JOOBLE_LOCATIONS: Record<string, string> = {
 
 const JOOBLE_DELAY_MS = 500;
 const JOOBLE_RESULTS_PER_PAGE = 100;
-const JOOBLE_MAX_PAGES = 2;
+const JOOBLE_MAX_PAGES = 10; // 10 pages × 100 = 1000 per query
 
 // Jooble API only supports English queries — use these for all markets
 const JOOBLE_EN_QUERIES = [
@@ -290,9 +290,9 @@ async function fetchJoobleJobs(market: Market): Promise<RawJobData[]> {
     return [];
   }
 
-  // Use localized queries for the market, fall back to English
+  // Use all localized queries for the market, fall back to English
   const localQueries = BLUE_COLLAR_QUERIES[market] || JOOBLE_EN_QUERIES;
-  const queries = localQueries.slice(0, 10);
+  const queries = localQueries;
   const jobs: RawJobData[] = [];
   const seenIds = new Set<string>();
 
@@ -389,7 +389,7 @@ const CAREERJET_LOCALES: Record<string, string> = {
 
 const CAREERJET_DELAY_MS = 400;
 const CAREERJET_RESULTS_PER_PAGE = 99; // max 100
-const CAREERJET_MAX_PAGES = 2;
+const CAREERJET_MAX_PAGES = 10; // 10 pages × 99 = 990 per query
 
 async function fetchCareerJetJobs(market: Market): Promise<RawJobData[]> {
   const apiKey = process.env.CAREERJET_API_KEY;
@@ -404,7 +404,7 @@ async function fetchCareerJetJobs(market: Market): Promise<RawJobData[]> {
     return [];
   }
 
-  const queries = (BLUE_COLLAR_QUERIES[market] || BLUE_COLLAR_QUERIES.US).slice(0, 8);
+  const queries = BLUE_COLLAR_QUERIES[market] || BLUE_COLLAR_QUERIES.US;
   const jobs: RawJobData[] = [];
   const seenUrls = new Set<string>();
 
