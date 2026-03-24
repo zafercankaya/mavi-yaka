@@ -377,7 +377,7 @@ export function normalizeJobListing(raw: RawJobData, market: Market = 'TR'): Nor
   const workMode = detectWorkMode(raw.workModeText || allText, market);
   const experienceLevel = detectExperienceLevel(raw.experienceText || allText);
   const sector = detectSector(allText, market);
-  const location = parseLocation(raw.locationText);
+  const location = parseLocation(raw.locationText, raw.title, raw.sourceUrl);
 
   return {
     title,
@@ -547,19 +547,135 @@ function detectSector(text: string, _market: Market): Sector | null {
 
 // ─── Location Parsing ───────────────────────────────────────────────
 
-function parseLocation(text?: string): { city: string | null; state: string | null } | null {
-  if (!text) return null;
-  const cleaned = stripHtml(text).trim();
-  if (!cleaned || cleaned.length < 2) return null;
+// Turkish provinces (81 il) — lowercase for matching
+const TR_PROVINCES = new Set([
+  'adana', 'adıyaman', 'afyonkarahisar', 'ağrı', 'aksaray', 'amasya', 'ankara', 'antalya', 'ardahan',
+  'artvin', 'aydın', 'balıkesir', 'bartın', 'batman', 'bayburt', 'bilecik', 'bingöl', 'bitlis',
+  'bolu', 'burdur', 'bursa', 'çanakkale', 'çankırı', 'çorum', 'denizli', 'diyarbakır', 'düzce',
+  'edirne', 'elazığ', 'erzincan', 'erzurum', 'eskişehir', 'gaziantep', 'giresun', 'gümüşhane',
+  'hakkari', 'hatay', 'ığdır', 'isparta', 'istanbul', 'izmir', 'kahramanmaraş', 'karabük',
+  'karaman', 'kars', 'kastamonu', 'kayseri', 'kırıkkale', 'kırklareli', 'kırşehir', 'kilis',
+  'kocaeli', 'konya', 'kütahya', 'malatya', 'manisa', 'mardin', 'mersin', 'muğla', 'muş',
+  'nevşehir', 'niğde', 'ordu', 'osmaniye', 'rize', 'sakarya', 'samsun', 'şanlıurfa', 'siirt',
+  'sinop', 'sivas', 'şırnak', 'tekirdağ', 'tokat', 'trabzon', 'tunceli', 'uşak', 'van',
+  'yalova', 'yozgat', 'zonguldak',
+]);
 
-  // Common format: "City, State" or "City / State" or "City - State"
-  const parts = cleaned.split(/[,\/\-–—]\s*/);
-  if (parts.length >= 2) {
-    return { city: parts[0].trim() || null, state: parts[1].trim() || null };
+// ASCII-normalized version for URL matching
+const TR_PROVINCES_ASCII = new Map<string, string>();
+function toAscii(s: string): string {
+  return s.replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/ı/g, 'i').replace(/İ/g, 'i')
+    .replace(/ö/g, 'o').replace(/ş/g, 's').replace(/ü/g, 'u').replace(/â/g, 'a')
+    .replace(/Ç/g, 'c').replace(/Ğ/g, 'g').replace(/Ö/g, 'o').replace(/Ş/g, 's')
+    .replace(/Ü/g, 'u').replace(/Â/g, 'a').replace(/ê/g, 'e').toLowerCase();
+}
+for (const p of TR_PROVINCES) {
+  TR_PROVINCES_ASCII.set(toAscii(p), p);
+}
+
+/**
+ * Extract location from cvyolla-style title: "Firma - İl - İlçe - Pozisyon İş İlanı"
+ * Returns { state: İl, city: İlçe } if pattern matches
+ */
+function extractLocationFromTitle(title: string): { city: string | null; state: string | null } | null {
+  // Pattern: "... - İl - İlçe - Pozisyon ..."
+  const dashParts = title.split(/\s*-\s*/);
+  if (dashParts.length < 4) return null;
+
+  // Try each pair of consecutive parts as (İl, İlçe)
+  for (let i = 1; i < dashParts.length - 1; i++) {
+    const candidate = dashParts[i].trim().toLowerCase();
+    // Check against Turkish provinces
+    if (TR_PROVINCES.has(candidate)) {
+      const ilce = dashParts[i + 1]?.trim();
+      // Make sure ilçe is not "İş İlanı" or too long
+      if (ilce && ilce.length < 30 && !ilce.toLowerCase().includes('iş ilanı') && !ilce.toLowerCase().includes('is ilani')) {
+        return { state: dashParts[i].trim(), city: ilce };
+      }
+      return { state: dashParts[i].trim(), city: null };
+    }
+    // Also check İstanbul special case (title might have uppercase)
+    const candidateAscii = toAscii(candidate);
+    const matchedProvince = TR_PROVINCES_ASCII.get(candidateAscii);
+    if (matchedProvince) {
+      const properName = dashParts[i].trim();
+      const ilce = dashParts[i + 1]?.trim();
+      if (ilce && ilce.length < 30 && !ilce.toLowerCase().includes('iş ilanı') && !ilce.toLowerCase().includes('is ilani')) {
+        return { state: properName, city: ilce };
+      }
+      return { state: properName, city: null };
+    }
+  }
+  return null;
+}
+
+/**
+ * Extract location from cvyolla URL pattern:
+ * /29969-firma-adana-yuregir-pozisyon-is-ilani
+ */
+function extractLocationFromUrl(url: string): { city: string | null; state: string | null } | null {
+  if (!url.includes('cvyolla.com')) return null;
+
+  // Extract the slug part after the ID
+  const slugMatch = url.match(/cvyolla\.com\/\d+-(.+)/);
+  if (!slugMatch) return null;
+
+  const slug = slugMatch[1].replace(/-is-ilani$/, '');
+  const parts = slug.split('-');
+
+  // Look for a province name in the slug parts
+  for (let i = 0; i < parts.length - 1; i++) {
+    const candidate = parts[i];
+    const matchedProvince = TR_PROVINCES_ASCII.get(candidate);
+    if (matchedProvince) {
+      // Next part is likely ilçe
+      const ilceParts: string[] = [];
+      for (let j = i + 1; j < parts.length; j++) {
+        // Stop if we hit a known job-related word
+        if (TR_PROVINCES_ASCII.has(parts[j])) break;
+        ilceParts.push(parts[j]);
+        // Ilçe names are usually 1-3 words
+        if (ilceParts.length >= 3) break;
+      }
+      const ilce = ilceParts.length > 0 ? ilceParts.join(' ') : null;
+      // Capitalize first letter
+      const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+      return {
+        state: capitalize(matchedProvince),
+        city: ilce ? ilce.split(' ').map(capitalize).join(' ') : null,
+      };
+    }
+  }
+  return null;
+}
+
+function parseLocation(text?: string, title?: string, sourceUrl?: string): { city: string | null; state: string | null } | null {
+  // First try explicit locationText
+  if (text) {
+    const cleaned = stripHtml(text).trim();
+    if (cleaned && cleaned.length >= 2) {
+      // Common format: "City, State" or "City / State" or "City - State"
+      const parts = cleaned.split(/[,\/\-–—]\s*/);
+      if (parts.length >= 2) {
+        return { city: parts[0].trim() || null, state: parts[1].trim() || null };
+      }
+      return { city: cleaned, state: null };
+    }
   }
 
-  // Single location — assume city
-  return { city: cleaned, state: null };
+  // Fallback: try extracting from title (cvyolla pattern: "Firma - İl - İlçe - Pozisyon İş İlanı")
+  if (title) {
+    const fromTitle = extractLocationFromTitle(title);
+    if (fromTitle) return fromTitle;
+  }
+
+  // Fallback: try extracting from cvyolla URL
+  if (sourceUrl) {
+    const fromUrl = extractLocationFromUrl(sourceUrl);
+    if (fromUrl) return fromUrl;
+  }
+
+  return null;
 }
 
 // ─── Shared Utilities (kept from original) ──────────────────────────
