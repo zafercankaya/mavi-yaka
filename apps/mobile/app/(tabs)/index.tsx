@@ -95,16 +95,13 @@ export default function HomeScreen() {
 
   const { data: followsData } = useQuery({
     queryKey: ['follows'],
-    queryFn: async () => {
-      const r = await fetchFollows();
-      return Array.isArray(r?.data) ? r.data : [];
-    },
+    queryFn: fetchFollows,
     enabled: isAuthenticated,
   });
 
   const followedCompanyIds = useMemo(() => {
-    if (!followsData || !Array.isArray(followsData)) return new Set<string>();
-    return new Set(followsData.filter((f) => f.companyId).map((f) => f.companyId!));
+    if (!followsData?.companies) return new Set<string>();
+    return new Set(followsData.companies.map((f) => f.companyId));
   }, [followsData]);
 
   const filteredCompanies = useMemo(() => {
@@ -285,7 +282,7 @@ export default function HomeScreen() {
         <MapPin size={16} color={Colors.textTertiary} />
         <TextInput
           style={styles.locationInput}
-          placeholder={t('filter.city')}
+          placeholder={t('filter.state')}
           placeholderTextColor={Colors.textTertiary}
           value={locationText}
           onChangeText={(text) => {
@@ -296,6 +293,10 @@ export default function HomeScreen() {
             } else {
               setLocationSuggestions([]);
             }
+          }}
+          onBlur={() => {
+            // Delay to allow dropdown item press to register
+            setTimeout(() => setLocationSuggestions([]), 200);
           }}
           returnKeyType="done"
         />
@@ -444,6 +445,12 @@ export default function HomeScreen() {
       {/* Job Type Chips */}
       <View style={styles.jobTypeSection}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersList}>
+          <FilterChip
+            label={t('common.all')}
+            selected={!selectedJobType}
+            onPress={() => handleJobTypeSelect(selectedJobType || '')}
+            color={Colors.primary}
+          />
           {JOB_TYPE_KEYS.map((key) => (
             <FilterChip
               key={key}

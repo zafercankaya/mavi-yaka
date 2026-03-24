@@ -12,7 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useTranslation } from 'react-i18next';
 import { fetchCompanies, Company } from '../../src/api/companies';
-import { fetchFollows, createFollow, deleteFollow, Follow } from '../../src/api/follows';
+import { fetchFollows, followCompany, unfollowCompany, FollowedCompany, FollowsData } from '../../src/api/follows';
 import { fetchSavedJobs, toggleSavedJob } from '../../src/api/saved-jobs';
 import { useAuthStore } from '../../src/store/auth';
 import { useMarketStore } from '../../src/store/market';
@@ -51,9 +51,9 @@ export default function FollowsScreen() {
     queryFn: () => fetchCompanies().then((r) => r.data),
   });
 
-  const { data: followsData, isLoading: followsLoading } = useQuery({
+  const { data: followsData, isLoading: followsLoading } = useQuery<FollowsData>({
     queryKey: ['follows'],
-    queryFn: () => fetchFollows().then((r) => r.data),
+    queryFn: fetchFollows,
     enabled: isAuthenticated,
   });
 
@@ -73,7 +73,7 @@ export default function FollowsScreen() {
   });
 
   const followMutation = useMutation({
-    mutationFn: createFollow,
+    mutationFn: followCompany,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['follows'] });
       maybeRequestReview();
@@ -87,7 +87,7 @@ export default function FollowsScreen() {
   });
 
   const unfollowMutation = useMutation({
-    mutationFn: deleteFollow,
+    mutationFn: unfollowCompany,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['follows'] }),
     onError: (err: any) => {
       const msg = getApiErrorMessage(err, t, 'follows.unfollowError');
@@ -97,14 +97,14 @@ export default function FollowsScreen() {
 
   const followedCompanyIds = useMemo(() => {
     const set = new Set<string>();
-    (followsData ?? []).forEach((f: Follow) => {
-      if (f.companyId) set.add(f.companyId);
+    (followsData?.companies ?? []).forEach((f) => {
+      set.add(f.companyId);
     });
     return set;
   }, [followsData]);
 
-  const getFollowByCompanyId = useCallback((companyId: string): Follow | undefined => {
-    return (followsData ?? []).find((f: Follow) => f.companyId === companyId);
+  const getFollowByCompanyId = useCallback((companyId: string): FollowedCompany | undefined => {
+    return (followsData?.companies ?? []).find((f) => f.companyId === companyId);
   }, [followsData]);
 
   const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -155,7 +155,7 @@ export default function FollowsScreen() {
   });
 
   const frozenCount = useMemo(() => {
-    return (followsData ?? []).filter((f: Follow) => f.isFrozen).length;
+    return (followsData?.companies ?? []).filter((f) => f.isFrozen).length;
   }, [followsData]);
 
   const handleToggle = (company: Company) => {
@@ -177,10 +177,10 @@ export default function FollowsScreen() {
     }
     const isFollowed = followedCompanyIds.has(company.id);
     if (isFollowed) {
-      if (follow) unfollowMutation.mutate(follow.id);
+      unfollowMutation.mutate(company.id);
       trackEvent('company_unfollow', { company_id: company.id, company_name: company.name });
     } else {
-      followMutation.mutate({ companyId: company.id });
+      followMutation.mutate(company.id);
       trackEvent('company_follow', { company_id: company.id, company_name: company.name });
     }
   };
@@ -201,7 +201,7 @@ export default function FollowsScreen() {
           onPress={() => handleSegmentChange('savedJobs')}
         >
           <Heart size={15} color={segment === 'savedJobs' ? '#fff' : Colors.textSecondary} />
-          <Text style={[styles.segmentText, segment === 'savedJobs' && styles.segmentTextActive]}>{t('common.savedJobs')}</Text>
+          <Text style={[styles.segmentText, segment === 'savedJobs' && styles.segmentTextActive]}>{t('follows.savedJobs')}</Text>
         </Pressable>
       </View>
     </View>
@@ -233,7 +233,7 @@ export default function FollowsScreen() {
             )}
             {item.sector && !frozen && (
               <View style={[styles.miniTag, { backgroundColor: Colors.primaryLight + '20' }]}>
-                <Text style={[styles.miniTagText, { color: Colors.primary }]}>{item.sector}</Text>
+                <Text style={[styles.miniTagText, { color: Colors.primary }]}>{t(`sector.${item.sector}`)}</Text>
               </View>
             )}
           </View>
@@ -283,7 +283,7 @@ export default function FollowsScreen() {
             onLayout={(e) => { categoryPositions.current[sector] = e.nativeEvent.layout.x; }}
           >
             <Text style={[styles.categoryChipText, companiesSectorFilter === sector && styles.categoryChipTextActive]}>
-              {sector}
+              {t(`sector.${sector}`)}
             </Text>
           </Pressable>
         ))}
@@ -322,7 +322,7 @@ export default function FollowsScreen() {
       <View style={styles.companiesHeader}>
         <Text style={styles.sectionTitle}>
           {companiesSectorFilter
-            ? t('follows.companiesBySector', { name: companiesSectorFilter })
+            ? t('follows.companiesBySector', { name: t(`sector.${companiesSectorFilter}`) })
             : t('follows.allCompanies')}
         </Text>
         <Text style={styles.companiesCount}>{t('follows.companyCount', { count: filteredCompanies.length })}</Text>

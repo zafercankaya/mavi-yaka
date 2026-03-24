@@ -107,8 +107,8 @@
   },
   "sort": {
     "recommended": "Önerilen",
-    "newest": "En Yeni",
-    "deadline": "Son Başvuru",
+    "newest": "En Yeniden Eskiye",
+    "deadline": "Yakında Bitecek",
     "posted_today": "Bugün Eklenen",
     "salary_high": "Yüksek Maaş",
     "salary_low": "Düşük Maaş",

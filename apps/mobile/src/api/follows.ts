@@ -1,24 +1,52 @@
 import api from './client';
 
-export interface Follow {
+export interface FollowedCompany {
   id: string;
-  companyId: string | null;
-  sector: string | null;
+  companyId: string;
   isFrozen: boolean;
-  company: { name: string; logoUrl: string | null } | null;
+  createdAt: string;
+  company: {
+    id: string;
+    name: string;
+    slug: string;
+    logoUrl: string | null;
+    sector: string | null;
+    market: string;
+  };
+}
+
+export interface FollowedSector {
+  id: string;
+  sector: string;
+  market: string;
+  isFrozen: boolean;
   createdAt: string;
 }
 
-export async function fetchFollows(): Promise<{ data: Follow[] }> {
-  const { data } = await api.get<{ data: Follow[] }>('/follows');
-  return data;
+export interface FollowsData {
+  companies: FollowedCompany[];
+  sectors: FollowedSector[];
 }
 
-export async function createFollow(params: { companyId?: string; sector?: string }): Promise<{ data: Follow }> {
-  const { data } = await api.post<{ data: Follow }>('/follows', params);
-  return data;
+export async function fetchFollows(): Promise<FollowsData> {
+  const { data } = await api.get<{ data: FollowsData }>('/follows');
+  return data.data;
 }
 
-export async function deleteFollow(id: string): Promise<void> {
-  await api.delete(`/follows/${id}`);
+export async function followCompany(companyId: string): Promise<FollowedCompany> {
+  const { data } = await api.post<{ data: FollowedCompany }>(`/follows/company/${companyId}`);
+  return data.data;
+}
+
+export async function unfollowCompany(companyId: string): Promise<void> {
+  await api.delete(`/follows/company/${companyId}`);
+}
+
+export async function followSector(sector: string): Promise<FollowedSector> {
+  const { data } = await api.post<{ data: FollowedSector }>(`/follows/sector/${sector}`);
+  return data.data;
+}
+
+export async function unfollowSector(sector: string): Promise<void> {
+  await api.delete(`/follows/sector/${sector}`);
 }

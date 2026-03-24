@@ -1,13 +1,13 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
 import {
   View, TextInput, FlatList, ActivityIndicator, RefreshControl,
-  Text, StyleSheet, Pressable, Keyboard, ScrollView, Dimensions,
+  Text, StyleSheet, Pressable, Keyboard, ScrollView, Dimensions, Platform, KeyboardAvoidingView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useScrollToTop } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import {
-  Search, X, LayoutGrid, SlidersHorizontal, ChevronDown, ChevronUp,
+  Search, X, LayoutGrid, SlidersHorizontal, ChevronDown, ChevronUp, MapPin,
   Truck, Factory, ShoppingCart, HardHat, UtensilsCrossed,
   Car, Shirt, Pickaxe, Stethoscope, Hotel,
   Wheat, ShieldCheck, Building2, Wrench, FlaskConical,
@@ -15,7 +15,7 @@ import {
 } from 'lucide-react-native';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { fetchJobs, JobListing, JobFilters } from '../../src/api/jobs';
+import { fetchJobs, JobListing, JobFilters, searchLocations, LocationResult } from '../../src/api/jobs';
 import { fetchCompanies, Company } from '../../src/api/companies';
 import JobCard from '../../src/components/JobCard';
 import { AdBanner } from '../../src/components/AdBanner';
@@ -80,7 +80,9 @@ export default function SearchScreen() {
   const [salaryMinText, setSalaryMinText] = useState('');
   const [salaryMaxText, setSalaryMaxText] = useState('');
   const [stateText, setStateText] = useState('');
-  const [cityText, setCityText] = useState('');
+  const [selectedLocationState, setSelectedLocationState] = useState<string | undefined>();
+  const [locationSuggestions, setLocationSuggestions] = useState<LocationResult[]>([]);
+  const [locationSelected, setLocationSelected] = useState(false);
 
   const activeFilterCount = (categoryId ? 1 : 0) +
     (selectedCompanyIds.size > 0 ? 1 : 0) +
@@ -89,8 +91,7 @@ export default function SearchScreen() {
     (selectedExperiences.size > 0 ? 1 : 0) +
     (salaryMinText ? 1 : 0) +
     (salaryMaxText ? 1 : 0) +
-    (stateText ? 1 : 0) +
-    (cityText ? 1 : 0);
+    (selectedLocationState ? 1 : 0);
 
   const toggleFilters = () => {
     setFiltersVisible((v) => !v);
@@ -105,7 +106,9 @@ export default function SearchScreen() {
     setSalaryMinText('');
     setSalaryMaxText('');
     setStateText('');
-    setCityText('');
+    setSelectedLocationState(undefined);
+    setLocationSuggestions([]);
+    setLocationSelected(false);
   };
 
   const categoryScrollRef = useRef<ScrollView>(null);
@@ -204,14 +207,13 @@ export default function SearchScreen() {
     const salMax = parseInt(salaryMaxText, 10);
     if (salMin > 0) f.salaryMin = salMin;
     if (salMax > 0) f.salaryMax = salMax;
-    if (stateText.trim().length >= 2) f.state = stateText.trim();
-    if (cityText.trim().length >= 2) f.city = cityText.trim();
+    if (selectedLocationState) f.state = selectedLocationState;
     return f;
-  }, [companyIdsArray, categoryId, sort, debouncedQuery, jobTypesArray, workModesArray, experiencesArray, salaryMinText, salaryMaxText, stateText, cityText]);
+  }, [companyIdsArray, categoryId, sort, debouncedQuery, jobTypesArray, workModesArray, experiencesArray, salaryMinText, salaryMaxText, selectedLocationState]);
 
   const queryKey = useMemo(
-    () => ['search-jobs', market, companyIdsArray.join(','), categoryId ?? '', sort, debouncedQuery, jobTypesArray.join(','), workModesArray.join(','), experiencesArray.join(','), salaryMinText, salaryMaxText, stateText, cityText] as const,
-    [market, companyIdsArray, categoryId, sort, debouncedQuery, jobTypesArray, workModesArray, experiencesArray, salaryMinText, salaryMaxText, stateText, cityText],
+    () => ['search-jobs', market, companyIdsArray.join(','), categoryId ?? '', sort, debouncedQuery, jobTypesArray.join(','), workModesArray.join(','), experiencesArray.join(','), salaryMinText, salaryMaxText, selectedLocationState ?? ''] as const,
+    [market, companyIdsArray, categoryId, sort, debouncedQuery, jobTypesArray, workModesArray, experiencesArray, salaryMinText, salaryMaxText, selectedLocationState],
   );
 
   const {
@@ -359,10 +361,14 @@ export default function SearchScreen() {
 
           {/* Job Type (multi-select) */}
           <View style={styles.filterGroup}>
-            <Text style={styles.sectionLabel}>
-              {t('filter.jobType')}{selectedJobTypes.size > 0 ? ` (${selectedJobTypes.size})` : ''}
-            </Text>
+            <Text style={styles.sectionLabel}>{t('filter.jobType')}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersList}>
+              <FilterChip
+                label={t('common.all')}
+                selected={selectedJobTypes.size === 0}
+                onPress={() => setSelectedJobTypes(new Set())}
+                color={Colors.primary}
+              />
               {JOB_TYPE_KEYS.map((key) => (
                 <FilterChip
                   key={key}
@@ -381,10 +387,14 @@ export default function SearchScreen() {
 
           {/* Work Mode (multi-select) */}
           <View style={styles.filterGroup}>
-            <Text style={styles.sectionLabel}>
-              {t('filter.workMode')}{selectedWorkModes.size > 0 ? ` (${selectedWorkModes.size})` : ''}
-            </Text>
+            <Text style={styles.sectionLabel}>{t('filter.workMode')}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersList}>
+              <FilterChip
+                label={t('common.all')}
+                selected={selectedWorkModes.size === 0}
+                onPress={() => setSelectedWorkModes(new Set())}
+                color={Colors.primary}
+              />
               {WORK_MODE_KEYS.map((key) => (
                 <FilterChip
                   key={key}
@@ -403,10 +413,14 @@ export default function SearchScreen() {
 
           {/* Experience (multi-select) */}
           <View style={styles.filterGroup}>
-            <Text style={styles.sectionLabel}>
-              {t('filter.experience')}{selectedExperiences.size > 0 ? ` (${selectedExperiences.size})` : ''}
-            </Text>
+            <Text style={styles.sectionLabel}>{t('filter.experience')}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersList}>
+              <FilterChip
+                label={t('common.all')}
+                selected={selectedExperiences.size === 0}
+                onPress={() => setSelectedExperiences(new Set())}
+                color={Colors.primary}
+              />
               {EXPERIENCE_KEYS.map((key) => (
                 <FilterChip
                   key={key}
@@ -451,21 +465,59 @@ export default function SearchScreen() {
           <View style={styles.filterGroup}>
             <Text style={styles.sectionLabel}>{t('filter.location')}</Text>
             <View style={styles.locationInputRow}>
+              <MapPin size={16} color={Colors.textTertiary} />
               <TextInput
-                style={styles.locationInput}
+                style={[styles.locationInput, { flex: 1 }]}
                 placeholder={t('filter.state')}
                 placeholderTextColor={Colors.textTertiary}
                 value={stateText}
-                onChangeText={setStateText}
+                onChangeText={(text) => {
+                  setStateText(text);
+                  setLocationSelected(false);
+                  if (text.trim().length >= 2) {
+                    searchLocations(text.trim(), 15, 'state').then(setLocationSuggestions).catch(() => {});
+                  } else {
+                    setLocationSuggestions([]);
+                  }
+                }}
+                onBlur={() => {
+                  setTimeout(() => setLocationSuggestions([]), 200);
+                }}
+                returnKeyType="done"
               />
-              <TextInput
-                style={styles.locationInput}
-                placeholder={t('filter.city')}
-                placeholderTextColor={Colors.textTertiary}
-                value={cityText}
-                onChangeText={setCityText}
-              />
+              {stateText.length > 0 && (
+                <Pressable onPress={() => { setStateText(''); setLocationSuggestions([]); setLocationSelected(false); setSelectedLocationState(undefined); }} hitSlop={8}>
+                  <X size={14} color={Colors.textTertiary} />
+                </Pressable>
+              )}
             </View>
+            {locationSuggestions.length > 0 && !locationSelected && (
+              <View style={styles.locationDropdown}>
+                {locationSuggestions.map((loc, i) => (
+                  <Pressable
+                    key={`${loc.state}-${loc.city}-${i}`}
+                    style={styles.locationOption}
+                    onPress={() => {
+                      const display = loc.nameLocal || loc.state || '';
+                      setStateText(display);
+                      setSelectedLocationState(loc.state || undefined);
+                      setLocationSuggestions([]);
+                      setLocationSelected(true);
+                    }}
+                  >
+                    <MapPin size={12} color={Colors.textTertiary} />
+                    <Text style={styles.locationOptionText} numberOfLines={1}>
+                      {loc.nameLocal || loc.state}
+                    </Text>
+                    {loc.population ? (
+                      <Text style={styles.locationPopulation}>
+                        {loc.population > 1000000 ? `${(loc.population / 1000000).toFixed(1)}M` : loc.population > 1000 ? `${Math.round(loc.population / 1000)}K` : ''}
+                      </Text>
+                    ) : null}
+                  </Pressable>
+                ))}
+              </View>
+            )}
           </View>
         </View>
       )}
@@ -495,7 +547,11 @@ export default function SearchScreen() {
   );
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <KeyboardAvoidingView
+      style={[styles.container, { paddingTop: insets.top }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={0}
+    >
       <View style={styles.header}>
         <Text style={styles.headerTitle}>{t('tabs.explore')}</Text>
       </View>
@@ -574,7 +630,7 @@ export default function SearchScreen() {
           />
         }
       />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -773,19 +829,47 @@ const styles = StyleSheet.create({
   },
   locationInputRow: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
+    alignItems: 'center',
+    marginHorizontal: 16,
+    backgroundColor: Colors.surface,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    height: 40,
+    borderWidth: 1,
+    borderColor: Colors.border,
     gap: 8,
   },
   locationInput: {
-    flex: 1,
-    height: 40,
-    backgroundColor: Colors.surface,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    paddingHorizontal: 12,
     fontSize: 14,
     color: Colors.text,
+  },
+  locationDropdown: {
+    marginHorizontal: 16,
+    marginTop: 4,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 8,
+    maxHeight: 200,
+    overflow: 'hidden',
+  },
+  locationOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
+    gap: 8,
+  },
+  locationOptionText: {
+    flex: 1,
+    fontSize: 14,
+    color: Colors.text,
+  },
+  locationPopulation: {
+    fontSize: 11,
+    color: Colors.textTertiary,
   },
   sortSection: {
     marginBottom: 12,

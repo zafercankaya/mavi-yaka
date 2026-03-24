@@ -354,18 +354,11 @@ export default function JobDetailScreen() {
           </View>
         )}
 
-        {/* CTA Buttons */}
+        {/* CTA Button */}
         <View style={styles.ctaRow}>
           <TouchableOpacity style={styles.ctaButton} onPress={handleOpenLink}>
             <ExternalLink size={20} color={Colors.white} />
             <Text style={styles.ctaText}>{t('job.goToListing')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.saveButton, isSaved && styles.saveButtonActive]}
-            onPress={handleSave}
-            disabled={savedMutation.isPending}
-          >
-            <Bookmark size={20} color={isSaved ? Colors.white : Colors.primary} />
           </TouchableOpacity>
         </View>
       </ScrollView>
