@@ -646,48 +646,53 @@ function extractLocationFromUrl(url: string): { city: string | null; state: stri
 export function extractLocationFromDescription(desc: string): { city: string | null; state: string | null } | null {
   if (!desc || desc.length < 10) return null;
 
+  // Strip HTML tags first for cleaner matching
+  const text = desc.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
+
   // Multi-language location label patterns (label + colon + value)
+  // Labels require word boundary (\b or start-of-line) to avoid partial matches
+  // Short ambiguous labels (ort, il, lieu, local, sede, lugar, plaats, miasto, yer) removed — too many false positives
   const labelPatterns = [
-    // English
-    /(?:location|work\s*location|job\s*location|city|region|area|based\s*in)\s*[:：]\s*([^\n,;|]{2,40})/i,
+    // English — require multi-word labels or unambiguous single words
+    /\b(?:work\s*location|job\s*location|location|based\s*in)\s*[:：]\s*([^\n,;|]{2,40})/i,
     // Turkish
-    /(?:lokasyon|şehir|il|çalışma\s*yeri|konum|yer)\s*[:：]\s*([^\n,;|]{2,40})/i,
-    // German
-    /(?:standort|arbeitsort|einsatzort|ort|stadt|region)\s*[:：]\s*([^\n,;|]{2,40})/i,
+    /\b(?:lokasyon|şehir|çalışma\s*yeri|konum)\s*[:：]\s*([^\n,;|]{2,40})/i,
+    // German — "ort" removed (matches "Standort:", "Einsatzort:" etc. but alone is too short/ambiguous)
+    /\b(?:standort|arbeitsort|einsatzort|stadt)\s*[:：]\s*([^\n,;|]{2,40})/i,
     // French
-    /(?:localisation|lieu|ville|emplacement)\s*[:：]\s*([^\n,;|]{2,40})/i,
+    /\b(?:localisation|emplacement|ville)\s*[:：]\s*([^\n,;|]{2,40})/i,
     // Spanish
-    /(?:ubicación|localización|ciudad|lugar)\s*[:：]\s*([^\n,;|]{2,40})/i,
+    /\b(?:ubicación|localización|ciudad)\s*[:：]\s*([^\n,;|]{2,40})/i,
     // Portuguese
-    /(?:localização|cidade|local)\s*[:：]\s*([^\n,;|]{2,40})/i,
+    /\b(?:localização|cidade)\s*[:：]\s*([^\n,;|]{2,40})/i,
     // Italian
-    /(?:sede|luogo|località|città)\s*[:：]\s*([^\n,;|]{2,40})/i,
+    /\b(?:luogo\s*di\s*lavoro|località|città)\s*[:：]\s*([^\n,;|]{2,40})/i,
     // Dutch
-    /(?:locatie|standplaats|werklocatie|plaats)\s*[:：]\s*([^\n,;|]{2,40})/i,
-    // Swedish
-    /(?:plats|arbetsplats|ort|arbetsort)\s*[:：]\s*([^\n,;|]{2,40})/i,
+    /\b(?:locatie|standplaats|werklocatie)\s*[:：]\s*([^\n,;|]{2,40})/i,
+    // Swedish — "ort" removed
+    /\b(?:arbetsplats|arbetsort|plats)\s*[:：]\s*([^\n,;|]{2,40})/i,
     // Polish
-    /(?:lokalizacja|miejsce|miasto)\s*[:：]\s*([^\n,;|]{2,40})/i,
+    /\b(?:lokalizacja|miejsce\s*pracy)\s*[:：]\s*([^\n,;|]{2,40})/i,
     // Russian
-    /(?:местоположение|город|место\s*работы|регион)\s*[:：]\s*([^\n,;|]{2,40})/i,
+    /\b(?:местоположение|город|место\s*работы)\s*[:：]\s*([^\n,;|]{2,40})/i,
     // Arabic
-    /(?:الموقع|المدينة|مكان\s*العمل|موقع)\s*[:：]\s*([^\n,;|]{2,40})/i,
+    /(?:الموقع|المدينة|مكان\s*العمل)\s*[:：]\s*([^\n,;|]{2,40})/i,
     // Japanese
-    /(?:勤務地|所在地|場所|エリア)\s*[:：]\s*([^\n,;|]{2,40})/i,
+    /(?:勤務地|所在地)\s*[:：]\s*([^\n,;|]{2,40})/i,
     // Korean
-    /(?:위치|근무지|지역)\s*[:：]\s*([^\n,;|]{2,40})/i,
+    /(?:근무지|위치)\s*[:：]\s*([^\n,;|]{2,40})/i,
     // Thai
-    /(?:สถานที่|ที่ตั้ง|จังหวัด)\s*[:：]\s*([^\n,;|]{2,40})/i,
+    /(?:สถานที่ทำงาน|สถานที่|ที่ตั้ง)\s*[:：]\s*([^\n,;|]{2,40})/i,
     // Indonesian/Malay
-    /(?:lokasi|tempat\s*kerja|kota)\s*[:：]\s*([^\n,;|]{2,40})/i,
+    /\b(?:lokasi|tempat\s*kerja)\s*[:：]\s*([^\n,;|]{2,40})/i,
     // Vietnamese
     /(?:địa\s*điểm|nơi\s*làm\s*việc|thành\s*phố)\s*[:：]\s*([^\n,;|]{2,40})/i,
     // Urdu
-    /(?:مقام|شہر|جگہ)\s*[:：]\s*([^\n,;|]{2,40})/i,
+    /(?:مقام|جگہ)\s*[:：]\s*([^\n,;|]{2,40})/i,
   ];
 
   // Also try: "Full-time permanent, Alexandria, NSW" pattern (first line with comma-separated location)
-  const firstLineMatch = desc.match(/^(?:Full[- ]time|Part[- ]time|Permanent|Contract|Temporary|Casual)[,\s]+([A-Z][a-zA-Z\s]+(?:,\s*[A-Z]{2,3})?)/);
+  const firstLineMatch = text.match(/^(?:Full[- ]time|Part[- ]time|Permanent|Contract|Temporary|Casual)[,\s]+([A-Z][a-zA-Z\s]{2,25}(?:,\s*[A-Z]{2,3})?)/);
   if (firstLineMatch) {
     const locParts = firstLineMatch[1].trim().split(/,\s*/);
     if (locParts.length >= 2) {
@@ -697,21 +702,43 @@ export function extractLocationFromDescription(desc: string): { city: string | n
   }
 
   for (const pattern of labelPatterns) {
-    const match = desc.match(pattern);
+    const match = text.match(pattern);
     if (match) {
       const value = match[1].trim();
-      // Skip if value looks like a URL or garbage
-      if (value.includes('http') || value.includes('www.') || value.length < 2) continue;
+      if (!isValidLocationValue(value)) continue;
       // Split "City, State" or "City - State"
       const parts = value.split(/[,\/\-–—]\s*/);
       if (parts.length >= 2) {
-        return { city: parts[0].trim(), state: parts[1].trim() };
+        const city = parts[0].trim();
+        const state = parts[1].trim();
+        if (city && state && city.length <= 30 && state.length <= 30) {
+          return { city, state };
+        }
       }
       return { city: value, state: null };
     }
   }
 
   return null;
+}
+
+/** Validate extracted location value — reject garbage, emails, sentences, URLs */
+function isValidLocationValue(value: string): boolean {
+  if (!value || value.length < 2 || value.length > 35) return false;
+  // Reject URLs and emails
+  if (value.includes('http') || value.includes('www.') || value.includes('@') || value.includes('.com')) return false;
+  // Reject if it contains too many words (location names rarely have 5+ words)
+  const wordCount = value.split(/\s+/).length;
+  if (wordCount > 5) return false;
+  // Reject if it looks like a sentence (contains common non-location words)
+  if (/\b(?:includes|all|jobs|the|this|that|with|from|your|our|and|for|are|was|has|have|will|can|may|must|should|group|family|team|department|company|role)\b/i.test(value)) return false;
+  // Reject if it starts with lowercase (location names typically start uppercase, except in non-Latin scripts)
+  const isLatinScript = /^[a-zA-Z]/.test(value);
+  if (isLatinScript && /^[a-z]/.test(value)) return false;
+  // Reject digit-heavy values (postal codes, IDs)
+  const digitRatio = (value.match(/\d/g) || []).length / value.length;
+  if (digitRatio > 0.3) return false;
+  return true;
 }
 
 function parseLocation(text?: string, title?: string, sourceUrl?: string, description?: string): { city: string | null; state: string | null } | null {
