@@ -178,15 +178,15 @@ export class LocationsController {
         if (j.state && !seen.has(j.state.toLowerCase())) {
           seen.add(j.state.toLowerCase());
           deduped.push({
-            id: null as any,
+            id: `job-${j.state}`,
             state: j.state,
             city: null,
             nameLocal: j.state,
             nameEn: j.state,
-            latitude: null,
-            longitude: null,
+            latitude: 0,
+            longitude: 0,
             population: null,
-          });
+          } as any);
         }
       }
 
@@ -215,15 +215,15 @@ export class LocationsController {
       if (j.city && !seen.has(key)) {
         seen.add(key);
         deduped.push({
-          id: null as any,
+          id: `job-${j.state}-${j.city}`,
           state: j.state,
           city: j.city,
           nameLocal: j.city,
           nameEn: j.city,
-          latitude: null,
-          longitude: null,
+          latitude: 0,
+          longitude: 0,
           population: null,
-        });
+        } as any);
       }
     }
 
