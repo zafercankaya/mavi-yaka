@@ -282,6 +282,7 @@ model JobListing {
   description     String?          @db.Text
   requirements    String?          @db.Text
   benefits        String?          @db.Text
+  summary         String?          @db.Text
   deadline        DateTime?
   postedDate      DateTime?        @map("posted_date")
   imageUrl        String?          @map("image_url")

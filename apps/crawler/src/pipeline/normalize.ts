@@ -38,6 +38,7 @@ export interface NormalizedJobListing {
   description: string | null;
   requirements: string | null;
   benefits: string | null;
+  summary: string | null;
   sourceUrl: string;
   canonicalUrl: string;
   imageUrls: string[];
@@ -383,6 +384,7 @@ export function normalizeJobListing(raw: RawJobData, market: Market = 'TR'): Nor
     description,
     requirements,
     benefits,
+    summary: null, // Generated later by AI or from metadata
     sourceUrl,
     canonicalUrl: canonicalizeUrl(sourceUrl),
     imageUrls: optimizeImageUrls((raw.imageUrls ?? []).filter(Boolean)),

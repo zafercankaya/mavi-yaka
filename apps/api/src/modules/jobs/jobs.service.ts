@@ -27,6 +27,7 @@ const jobListingSelect = {
   description: true,
   requirements: true,
   benefits: true,
+  summary: true,
   deadline: true,
   postedDate: true,
   imageUrl: true,

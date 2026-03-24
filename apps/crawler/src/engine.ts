@@ -12,6 +12,7 @@ import { fetchAllPlatformJobs } from './processors/job-platform-api.processor';
 import { normalizeJobListing, RawJobData } from './pipeline/normalize';
 import { filterJobListings, filterJobListingsWithAI } from './pipeline/quality-filter';
 import { checkAndUpsert, deduplicateBatch } from './pipeline/deduplicate';
+import { generateJobSummary } from './pipeline/generate-summary';
 import { runAging } from './pipeline/aging';
 import { notifyNewJobListings } from './notify';
 
@@ -296,6 +297,18 @@ async function crawlSourceInternal(
     const { passed } = process.env.GROQ_API_KEY
       ? await filterJobListingsWithAI(normalized, companyName, source.market)
       : filterJobListings(normalized, companyName, source.market);
+
+    // Step 2.5: Generate summaries for all passed listings
+    for (const listing of passed) {
+      if (!listing.summary) {
+        listing.summary = generateJobSummary(
+          listing,
+          source.company?.name ?? null,
+          source.company?.sector ?? null,
+          source.market,
+        );
+      }
+    }
 
     // Step 3: In-batch deduplication (remove duplicates within this crawl)
     const unique = deduplicateBatch(passed);

@@ -184,6 +184,24 @@ export default function JobDetailScreen() {
   const benefits = parseBulletList(job.benefits);
   const descriptionLong = (job.description?.length ?? 0) > 300;
 
+  // Summary: use DB summary if available, otherwise generate client-side
+  const hasRealDescription = (job.description?.length ?? 0) > 50;
+  const summaryLines: string[] = job.summary
+    ? job.summary.split('\n').filter((l: string) => l.trim().length > 0)
+    : (() => {
+        const lines: string[] = [];
+        if (job.company?.name) lines.push(`${t('common.company')}: ${job.company.name}`);
+        if (job.company?.sector) lines.push(`${t('common.sector')}: ${t(`sector.${job.company.sector}`, job.company.sector)}`);
+        if (job.jobType) lines.push(`${t('filter.jobType')}: ${t(`jobType.${job.jobType}`, job.jobType)}`);
+        if (job.workMode) lines.push(`${t('filter.workMode')}: ${t(`workMode.${job.workMode}`, job.workMode)}`);
+        if (job.experienceLevel) lines.push(`${t('filter.experience')}: ${t(`experience.${job.experienceLevel}`, job.experienceLevel)}`);
+        if (location) lines.push(`${t('filter.location')}: ${location}`);
+        if (salaryText) lines.push(`${t('job.salary')}: ${salaryText}`);
+        if (job.deadline) lines.push(`${t('job.deadline')}: ${formatDate(job.deadline)}`);
+        if (job.postedDate) lines.push(`${t('job.postedDate')}: ${formatDate(job.postedDate)}`);
+        return lines;
+      })();
+
   // Info cards data
   const infoCards: { icon: React.ComponentType<any>; label: string; value: string; color: string }[] = [];
   if (job.jobType) {
@@ -304,7 +322,7 @@ export default function JobDetailScreen() {
         )}
 
         {/* Description */}
-        {job.description && (
+        {hasRealDescription && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{t('job.description')}</Text>
             <Text
@@ -325,6 +343,19 @@ export default function JobDetailScreen() {
                 </Text>
               </Pressable>
             )}
+          </View>
+        )}
+
+        {/* Auto-generated summary — always shown */}
+        {summaryLines.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>{t('job.summary')}</Text>
+            {summaryLines.map((line, i) => (
+              <View key={i} style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>{line.split(': ')[0]}</Text>
+                <Text style={styles.summaryValue}>{line.split(': ').slice(1).join(': ')}</Text>
+              </View>
+            ))}
           </View>
         )}
 
@@ -510,6 +541,29 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     color: Colors.primary,
     fontWeight: '600',
+  },
+
+  // Summary
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.borderLight,
+  },
+  summaryLabel: {
+    fontSize: FontSize.sm,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    flex: 1,
+  },
+  summaryValue: {
+    fontSize: FontSize.sm,
+    fontWeight: '700',
+    color: Colors.text,
+    flex: 1.5,
+    textAlign: 'right',
   },
 
   // Bullet list

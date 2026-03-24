@@ -24,6 +24,7 @@ export interface JobListing {
   salaryPeriod: string | null;
   requirements: string | null;
   benefits: string | null;
+  summary: string | null;
   postedDate: string | null;
   createdAt: string;
 }
