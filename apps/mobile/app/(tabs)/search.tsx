@@ -73,10 +73,10 @@ export default function SearchScreen() {
   const [selectedCompanyIds, setSelectedCompanyIds] = useState<Set<string>>(new Set());
   const [filtersVisible, setFiltersVisible] = useState(false);
 
-  // Advanced filters
-  const [selectedJobType, setSelectedJobType] = useState<string | undefined>();
-  const [selectedWorkMode, setSelectedWorkMode] = useState<string | undefined>();
-  const [selectedExperience, setSelectedExperience] = useState<string | undefined>();
+  // Advanced filters (multi-select)
+  const [selectedJobTypes, setSelectedJobTypes] = useState<Set<string>>(new Set());
+  const [selectedWorkModes, setSelectedWorkModes] = useState<Set<string>>(new Set());
+  const [selectedExperiences, setSelectedExperiences] = useState<Set<string>>(new Set());
   const [salaryMinText, setSalaryMinText] = useState('');
   const [salaryMaxText, setSalaryMaxText] = useState('');
   const [stateText, setStateText] = useState('');
@@ -84,9 +84,9 @@ export default function SearchScreen() {
 
   const activeFilterCount = (categoryId ? 1 : 0) +
     (selectedCompanyIds.size > 0 ? 1 : 0) +
-    (selectedJobType ? 1 : 0) +
-    (selectedWorkMode ? 1 : 0) +
-    (selectedExperience ? 1 : 0) +
+    (selectedJobTypes.size > 0 ? 1 : 0) +
+    (selectedWorkModes.size > 0 ? 1 : 0) +
+    (selectedExperiences.size > 0 ? 1 : 0) +
     (salaryMinText ? 1 : 0) +
     (salaryMaxText ? 1 : 0) +
     (stateText ? 1 : 0) +
@@ -99,9 +99,9 @@ export default function SearchScreen() {
   const clearAllFilters = () => {
     setCategoryId(undefined);
     setSelectedCompanyIds(new Set());
-    setSelectedJobType(undefined);
-    setSelectedWorkMode(undefined);
-    setSelectedExperience(undefined);
+    setSelectedJobTypes(new Set());
+    setSelectedWorkModes(new Set());
+    setSelectedExperiences(new Set());
     setSalaryMinText('');
     setSalaryMaxText('');
     setStateText('');
@@ -182,6 +182,9 @@ export default function SearchScreen() {
   };
 
   const companyIdsArray = useMemo(() => Array.from(selectedCompanyIds), [selectedCompanyIds]);
+  const jobTypesArray = useMemo(() => Array.from(selectedJobTypes), [selectedJobTypes]);
+  const workModesArray = useMemo(() => Array.from(selectedWorkModes), [selectedWorkModes]);
+  const experiencesArray = useMemo(() => Array.from(selectedExperiences), [selectedExperiences]);
 
   const filters = useMemo<JobFilters>(() => {
     const f: JobFilters = {
@@ -194,9 +197,9 @@ export default function SearchScreen() {
     } else if (categoryId) {
       f.sector = categoryId;
     }
-    if (selectedJobType) f.jobType = selectedJobType;
-    if (selectedWorkMode) f.workMode = selectedWorkMode;
-    if (selectedExperience) f.experienceLevel = selectedExperience;
+    if (jobTypesArray.length > 0) f.jobType = jobTypesArray;
+    if (workModesArray.length > 0) f.workMode = workModesArray;
+    if (experiencesArray.length > 0) f.experienceLevel = experiencesArray;
     const salMin = parseInt(salaryMinText, 10);
     const salMax = parseInt(salaryMaxText, 10);
     if (salMin > 0) f.salaryMin = salMin;
@@ -204,11 +207,11 @@ export default function SearchScreen() {
     if (stateText.trim().length >= 2) f.state = stateText.trim();
     if (cityText.trim().length >= 2) f.city = cityText.trim();
     return f;
-  }, [companyIdsArray, categoryId, sort, debouncedQuery, selectedJobType, selectedWorkMode, selectedExperience, salaryMinText, salaryMaxText, stateText, cityText]);
+  }, [companyIdsArray, categoryId, sort, debouncedQuery, jobTypesArray, workModesArray, experiencesArray, salaryMinText, salaryMaxText, stateText, cityText]);
 
   const queryKey = useMemo(
-    () => ['search-jobs', market, companyIdsArray.join(','), categoryId ?? '', sort, debouncedQuery, selectedJobType ?? '', selectedWorkMode ?? '', selectedExperience ?? '', salaryMinText, salaryMaxText, stateText, cityText] as const,
-    [market, companyIdsArray, categoryId, sort, debouncedQuery, selectedJobType, selectedWorkMode, selectedExperience, salaryMinText, salaryMaxText, stateText, cityText],
+    () => ['search-jobs', market, companyIdsArray.join(','), categoryId ?? '', sort, debouncedQuery, jobTypesArray.join(','), workModesArray.join(','), experiencesArray.join(','), salaryMinText, salaryMaxText, stateText, cityText] as const,
+    [market, companyIdsArray, categoryId, sort, debouncedQuery, jobTypesArray, workModesArray, experiencesArray, salaryMinText, salaryMaxText, stateText, cityText],
   );
 
   const {
@@ -354,48 +357,66 @@ export default function SearchScreen() {
             </ScrollView>
           </View>
 
-          {/* Job Type */}
+          {/* Job Type (multi-select) */}
           <View style={styles.filterGroup}>
-            <Text style={styles.sectionLabel}>{t('filter.jobType')}</Text>
+            <Text style={styles.sectionLabel}>
+              {t('filter.jobType')}{selectedJobTypes.size > 0 ? ` (${selectedJobTypes.size})` : ''}
+            </Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersList}>
               {JOB_TYPE_KEYS.map((key) => (
                 <FilterChip
                   key={key}
                   label={t(`jobType.${key}`)}
-                  selected={selectedJobType === key}
-                  onPress={() => setSelectedJobType(selectedJobType === key ? undefined : key)}
+                  selected={selectedJobTypes.has(key)}
+                  onPress={() => setSelectedJobTypes((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(key)) next.delete(key); else next.add(key);
+                    return next;
+                  })}
                   color={Colors.primary}
                 />
               ))}
             </ScrollView>
           </View>
 
-          {/* Work Mode */}
+          {/* Work Mode (multi-select) */}
           <View style={styles.filterGroup}>
-            <Text style={styles.sectionLabel}>{t('filter.workMode')}</Text>
+            <Text style={styles.sectionLabel}>
+              {t('filter.workMode')}{selectedWorkModes.size > 0 ? ` (${selectedWorkModes.size})` : ''}
+            </Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersList}>
               {WORK_MODE_KEYS.map((key) => (
                 <FilterChip
                   key={key}
                   label={t(`workMode.${key}`)}
-                  selected={selectedWorkMode === key}
-                  onPress={() => setSelectedWorkMode(selectedWorkMode === key ? undefined : key)}
+                  selected={selectedWorkModes.has(key)}
+                  onPress={() => setSelectedWorkModes((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(key)) next.delete(key); else next.add(key);
+                    return next;
+                  })}
                   color={Colors.primary}
                 />
               ))}
             </ScrollView>
           </View>
 
-          {/* Experience */}
+          {/* Experience (multi-select) */}
           <View style={styles.filterGroup}>
-            <Text style={styles.sectionLabel}>{t('filter.experience')}</Text>
+            <Text style={styles.sectionLabel}>
+              {t('filter.experience')}{selectedExperiences.size > 0 ? ` (${selectedExperiences.size})` : ''}
+            </Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersList}>
               {EXPERIENCE_KEYS.map((key) => (
                 <FilterChip
                   key={key}
                   label={t(`experience.${key}`)}
-                  selected={selectedExperience === key}
-                  onPress={() => setSelectedExperience(selectedExperience === key ? undefined : key)}
+                  selected={selectedExperiences.has(key)}
+                  onPress={() => setSelectedExperiences((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(key)) next.delete(key); else next.add(key);
+                    return next;
+                  })}
                   color={Colors.primary}
                 />
               ))}

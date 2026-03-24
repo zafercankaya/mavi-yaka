@@ -107,15 +107,38 @@ export class JobsService {
       ? query.companyIds.split(',').map((id) => id.trim()).filter(Boolean)
       : undefined;
 
+    // Parse comma-separated multi-select filters
+    const parsedJobTypes = query.jobType
+      ? query.jobType.split(',').map((v) => v.trim()).filter(Boolean)
+      : undefined;
+    const parsedWorkModes = query.workMode
+      ? query.workMode.split(',').map((v) => v.trim()).filter(Boolean)
+      : undefined;
+    const parsedExperienceLevels = query.experienceLevel
+      ? query.experienceLevel.split(',').map((v) => v.trim()).filter(Boolean)
+      : undefined;
+
     const where: Prisma.JobListingWhereInput = {
       status: query.status ?? JobStatus.ACTIVE,
       ...(query.country && { country: query.country }),
       ...(query.state && { state: { equals: query.state, mode: 'insensitive' as const } }),
       ...(query.city && { city: { equals: query.city, mode: 'insensitive' as const } }),
       ...(query.sector && { sector: query.sector }),
-      ...(query.jobType && { jobType: query.jobType }),
-      ...(query.workMode && { workMode: query.workMode }),
-      ...(query.experienceLevel && { experienceLevel: query.experienceLevel }),
+      ...(parsedJobTypes && parsedJobTypes.length === 1
+        ? { jobType: parsedJobTypes[0] as any }
+        : parsedJobTypes && parsedJobTypes.length > 1
+          ? { jobType: { in: parsedJobTypes as any[] } }
+          : {}),
+      ...(parsedWorkModes && parsedWorkModes.length === 1
+        ? { workMode: parsedWorkModes[0] as any }
+        : parsedWorkModes && parsedWorkModes.length > 1
+          ? { workMode: { in: parsedWorkModes as any[] } }
+          : {}),
+      ...(parsedExperienceLevels && parsedExperienceLevels.length === 1
+        ? { experienceLevel: parsedExperienceLevels[0] as any }
+        : parsedExperienceLevels && parsedExperienceLevels.length > 1
+          ? { experienceLevel: { in: parsedExperienceLevels as any[] } }
+          : {}),
       ...(parsedCompanyIds && parsedCompanyIds.length > 0
         ? { companyId: { in: parsedCompanyIds } }
         : query.companyId ? { companyId: query.companyId } : {}),

@@ -105,16 +105,19 @@ export class LocationsController {
   @ApiQuery({ name: 'country', enum: Market, required: true })
   @ApiQuery({ name: 'q', required: true, description: 'Arama terimi (min 2 karakter)' })
   @ApiQuery({ name: 'limit', required: false, description: 'Max sonuç (default 15)' })
+  @ApiQuery({ name: 'level', required: false, description: 'state = sadece il/eyalet, city = şehir/ilçe dahil (default: tümü)' })
   async search(
     @Query('country') country: Market,
     @Query('q') q: string,
     @Query('limit') limitStr?: string,
+    @Query('level') level?: string,
   ) {
     const query = (q || '').trim();
     if (query.length < 2) return { data: [] };
 
     const limit = Math.min(parseInt(limitStr || '15', 10) || 15, 50);
-    const cacheKey = `loc-search:${country}:${query.toLowerCase()}:${limit}`;
+    const stateOnly = level === 'state';
+    const cacheKey = `loc-search:${country}:${query.toLowerCase()}:${limit}:${level || 'all'}`;
     const cached = this.cache.get(cacheKey);
     if (cached) return cached;
 
@@ -122,11 +125,13 @@ export class LocationsController {
     const locations = await this.prisma.location.findMany({
       where: {
         country,
+        // state-only mode: only return state-level entries (city is null)
+        ...(stateOnly && { city: null }),
         OR: [
           { nameLocal: { contains: query, mode: 'insensitive' } },
           { nameEn: { contains: query, mode: 'insensitive' } },
           { state: { contains: query, mode: 'insensitive' } },
-          { city: { contains: query, mode: 'insensitive' } },
+          ...(!stateOnly ? [{ city: { contains: query, mode: 'insensitive' } }] : []),
         ],
       },
       select: {
@@ -142,10 +147,55 @@ export class LocationsController {
       orderBy: [
         { population: { sort: 'desc', nulls: 'last' } },
       ],
-      take: limit,
+      take: limit * 3, // fetch more to dedupe
     });
 
-    // Also search job listings for cities not in Location table
+    // Deduplicate by state (for state-only) or by state+city
+    const seen = new Set<string>();
+    const deduped = locations.filter((l) => {
+      const key = stateOnly
+        ? (l.state || '').toLowerCase()
+        : `${(l.state || '').toLowerCase()}:${(l.city || '').toLowerCase()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    if (stateOnly) {
+      // For state-only, also search distinct states from job listings
+      const jobStates = await this.prisma.jobListing.findMany({
+        where: {
+          country,
+          status: 'ACTIVE',
+          state: { contains: query, mode: 'insensitive' },
+        },
+        distinct: ['state'],
+        select: { state: true },
+        take: 20,
+      });
+
+      for (const j of jobStates) {
+        if (j.state && !seen.has(j.state.toLowerCase())) {
+          seen.add(j.state.toLowerCase());
+          deduped.push({
+            id: null as any,
+            state: j.state,
+            city: null,
+            nameLocal: j.state,
+            nameEn: j.state,
+            latitude: null,
+            longitude: null,
+            population: null,
+          });
+        }
+      }
+
+      const result = { data: deduped.slice(0, limit) };
+      this.cache.set(cacheKey, result, 1800);
+      return result;
+    }
+
+    // Full mode: also search job listings for cities not in Location table
     const jobCities = await this.prisma.jobListing.findMany({
       where: {
         country,
@@ -160,24 +210,24 @@ export class LocationsController {
       take: 20,
     });
 
-    // Merge: Location table results first, then job listing cities
-    const seen = new Set(locations.map(l => `${l.state}:${l.city || ''}`));
-    const extraFromJobs = jobCities
-      .filter(j => j.city && !seen.has(`${j.state || ''}:${j.city}`))
-      .map(j => ({
-        id: null,
-        state: j.state,
-        city: j.city,
-        nameLocal: j.city,
-        nameEn: j.city,
-        latitude: null,
-        longitude: null,
-        population: null,
-      }));
+    for (const j of jobCities) {
+      const key = `${(j.state || '').toLowerCase()}:${(j.city || '').toLowerCase()}`;
+      if (j.city && !seen.has(key)) {
+        seen.add(key);
+        deduped.push({
+          id: null as any,
+          state: j.state,
+          city: j.city,
+          nameLocal: j.city,
+          nameEn: j.city,
+          latitude: null,
+          longitude: null,
+          population: null,
+        });
+      }
+    }
 
-    const merged = [...locations, ...extraFromJobs].slice(0, limit);
-
-    const result = { data: merged };
+    const result = { data: deduped.slice(0, limit) };
     this.cache.set(cacheKey, result, 1800); // 30 min
     return result;
   }

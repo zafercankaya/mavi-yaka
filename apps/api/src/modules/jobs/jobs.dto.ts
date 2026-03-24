@@ -5,7 +5,7 @@ import {
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import {
-  JobStatus, Market, Sector, JobType, WorkMode, ExperienceLevel,
+  JobStatus, Market, Sector,
 } from '@prisma/client';
 
 export enum JobSort {
@@ -51,20 +51,20 @@ export class JobQueryDto {
   @IsOptional()
   sector?: Sector;
 
-  @ApiPropertyOptional({ enum: JobType, description: 'Job type filter' })
-  @IsEnum(JobType)
+  @ApiPropertyOptional({ description: 'Job type filter (single value or comma-separated)' })
+  @IsString()
   @IsOptional()
-  jobType?: JobType;
+  jobType?: string;
 
-  @ApiPropertyOptional({ enum: WorkMode, description: 'Work mode filter' })
-  @IsEnum(WorkMode)
+  @ApiPropertyOptional({ description: 'Work mode filter (single value or comma-separated)' })
+  @IsString()
   @IsOptional()
-  workMode?: WorkMode;
+  workMode?: string;
 
-  @ApiPropertyOptional({ enum: ExperienceLevel, description: 'Experience level filter' })
-  @IsEnum(ExperienceLevel)
+  @ApiPropertyOptional({ description: 'Experience level filter (single value or comma-separated)' })
+  @IsString()
   @IsOptional()
-  experienceLevel?: ExperienceLevel;
+  experienceLevel?: string;
 
   @ApiPropertyOptional({ description: 'Company ID filter' })
   @IsUUID()

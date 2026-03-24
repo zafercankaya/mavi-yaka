@@ -41,9 +41,9 @@ export interface JobFilters {
   companyId?: string;
   companyIds?: string[];
   sector?: string;
-  jobType?: string;
-  workMode?: string;
-  experienceLevel?: string;
+  jobType?: string | string[];
+  workMode?: string | string[];
+  experienceLevel?: string | string[];
   salaryMin?: number;
   salaryMax?: number;
   state?: string;
@@ -64,9 +64,9 @@ export async function fetchJobs(filters: JobFilters = {}): Promise<JobListRespon
     params.companyId = filters.companyId;
   }
   if (filters.sector) params.sector = filters.sector;
-  if (filters.jobType) params.jobType = filters.jobType;
-  if (filters.workMode) params.workMode = filters.workMode;
-  if (filters.experienceLevel) params.experienceLevel = filters.experienceLevel;
+  if (filters.jobType) params.jobType = Array.isArray(filters.jobType) ? filters.jobType.join(',') : filters.jobType;
+  if (filters.workMode) params.workMode = Array.isArray(filters.workMode) ? filters.workMode.join(',') : filters.workMode;
+  if (filters.experienceLevel) params.experienceLevel = Array.isArray(filters.experienceLevel) ? filters.experienceLevel.join(',') : filters.experienceLevel;
   if (filters.salaryMin) params.salaryMin = String(filters.salaryMin);
   if (filters.salaryMax) params.salaryMax = String(filters.salaryMax);
   if (filters.state) params.state = filters.state;
@@ -97,11 +97,11 @@ export interface LocationResult {
   population: number | null;
 }
 
-export async function searchLocations(query: string, limit = 15): Promise<LocationResult[]> {
+export async function searchLocations(query: string, limit = 15, level?: 'state' | 'city'): Promise<LocationResult[]> {
   if (query.trim().length < 2) return [];
   const country = useMarketStore.getState().market;
-  const { data } = await api.get<{ data: LocationResult[] }>('/locations/search', {
-    params: { country, q: query, limit: String(limit) },
-  });
+  const params: Record<string, string> = { country, q: query, limit: String(limit) };
+  if (level) params.level = level;
+  const { data } = await api.get<{ data: LocationResult[] }>('/locations/search', { params });
   return data.data;
 }

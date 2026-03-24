@@ -76,6 +76,7 @@ export default function HomeScreen() {
   const [locationText, setLocationText] = useState('');
   const [locationSuggestions, setLocationSuggestions] = useState<LocationResult[]>([]);
   const [locationSelected, setLocationSelected] = useState(false);
+  const [selectedLocationState, setSelectedLocationState] = useState<string | undefined>();
 
   // FlatList ref — useScrollToTop scrolls to top when active tab is tapped again
   const listRef = useRef<FlatList>(null);
@@ -94,12 +95,15 @@ export default function HomeScreen() {
 
   const { data: followsData } = useQuery({
     queryKey: ['follows'],
-    queryFn: () => fetchFollows().then((r) => r.data),
+    queryFn: async () => {
+      const r = await fetchFollows();
+      return Array.isArray(r?.data) ? r.data : [];
+    },
     enabled: isAuthenticated,
   });
 
   const followedCompanyIds = useMemo(() => {
-    if (!followsData) return new Set<string>();
+    if (!followsData || !Array.isArray(followsData)) return new Set<string>();
     return new Set(followsData.filter((f) => f.companyId).map((f) => f.companyId!));
   }, [followsData]);
 
@@ -180,15 +184,15 @@ export default function HomeScreen() {
       f.sector = categoryId;
     }
     if (selectedJobType) f.jobType = selectedJobType;
-    if (locationText.trim().length >= 2) f.city = locationText.trim();
+    if (selectedLocationState) f.state = selectedLocationState;
     if (feedMode === 'following') f.followingOnly = true;
     return f;
-  }, [companyIdsArray, categoryId, sort, feedMode, selectedJobType, locationText]);
+  }, [companyIdsArray, categoryId, sort, feedMode, selectedJobType, selectedLocationState]);
 
   // Flat queryKey ensures React Query reliably detects filter changes
   const queryKey = useMemo(
-    () => ['jobs', market, companyIdsArray.join(','), categoryId ?? '', sort, feedMode, selectedJobType ?? '', locationText.trim()] as const,
-    [market, companyIdsArray, categoryId, sort, feedMode, selectedJobType, locationText],
+    () => ['jobs', market, companyIdsArray.join(','), categoryId ?? '', sort, feedMode, selectedJobType ?? '', selectedLocationState ?? ''] as const,
+    [market, companyIdsArray, categoryId, sort, feedMode, selectedJobType, selectedLocationState],
   );
 
   const {
@@ -288,7 +292,7 @@ export default function HomeScreen() {
             setLocationText(text);
             setLocationSelected(false);
             if (text.trim().length >= 2) {
-              searchLocations(text.trim()).then(setLocationSuggestions).catch(() => {});
+              searchLocations(text.trim(), 15, 'state').then(setLocationSuggestions).catch(() => {});
             } else {
               setLocationSuggestions([]);
             }
@@ -296,7 +300,7 @@ export default function HomeScreen() {
           returnKeyType="done"
         />
         {locationText.length > 0 && (
-          <Pressable onPress={() => { setLocationText(''); setLocationSuggestions([]); setLocationSelected(false); }} hitSlop={8}>
+          <Pressable onPress={() => { setLocationText(''); setLocationSuggestions([]); setLocationSelected(false); setSelectedLocationState(undefined); }} hitSlop={8}>
             <X size={14} color={Colors.textTertiary} />
           </Pressable>
         )}
@@ -308,18 +312,16 @@ export default function HomeScreen() {
               key={`${loc.state}-${loc.city}-${i}`}
               style={styles.locationOption}
               onPress={() => {
-                const display = loc.city
-                  ? `${loc.city}${loc.state ? ', ' + loc.state : ''}`
-                  : loc.state || loc.nameLocal;
+                const display = loc.nameLocal || loc.state || '';
                 setLocationText(display);
+                setSelectedLocationState(loc.state || undefined);
                 setLocationSuggestions([]);
                 setLocationSelected(true);
               }}
             >
               <MapPin size={12} color={Colors.textTertiary} />
               <Text style={styles.locationOptionText} numberOfLines={1}>
-                {loc.city ? `${loc.nameLocal || loc.city}` : loc.nameLocal || loc.state}
-                {loc.city && loc.state ? `, ${loc.state}` : ''}
+                {loc.nameLocal || loc.state}
               </Text>
               {loc.population ? (
                 <Text style={styles.locationPopulation}>
