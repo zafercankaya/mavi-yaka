@@ -18,7 +18,8 @@ const prisma = new PrismaClient();
 const API_BASE = 'https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs';
 const API_KEY = 'jobboerse-jobsuche';
 const RESULTS_PER_PAGE = 100;
-const MAX_PAGES = 100; // API returns HTTP 400 after page 100
+const MAX_PAGES = 10; // Limit to 10 pages per keyword to prevent DB inflation (was 100)
+const MAX_TOTAL_LISTINGS = 15_000; // Hard cap on total listings per import run
 const REQUEST_DELAY_MS = 300;
 const REQUEST_TIMEOUT_MS = 20_000;
 
@@ -192,10 +193,18 @@ async function main() {
 
   const stats: ImportStats = { fetched: 0, inserted: 0, skipped: 0, errors: 0 };
   const source = await getOrCreateSource();
-  const seen = new Set<string>();
+  const seen = new Set<string>(); // refnr dedup
+  const seenTitles = new Map<string, number>(); // base title dedup (max 2 per title)
+  const MAX_PER_TITLE = 2;
   let batch: any[] = [];
+  let totalAccepted = 0;
 
   for (const query of SEARCH_QUERIES) {
+    if (totalAccepted >= MAX_TOTAL_LISTINGS) {
+      console.log(`  Hard cap reached (${MAX_TOTAL_LISTINGS.toLocaleString()}), stopping.`);
+      break;
+    }
+
     let page = 1;
     let hasMore = true;
 
@@ -235,6 +244,21 @@ async function main() {
           if (!isBlueCollar(searchText, null)) {
             stats.skipped++;
             continue;
+          }
+
+          // Title dedup: max N per base title (without employer)
+          const baseTitle = title.toLowerCase().replace(/\s*\(m\/w\/d\)\s*/g, '').trim();
+          const titleCount = seenTitles.get(baseTitle) || 0;
+          if (titleCount >= MAX_PER_TITLE) {
+            stats.skipped++;
+            continue;
+          }
+          seenTitles.set(baseTitle, titleCount + 1);
+          totalAccepted++;
+
+          // Hard cap check
+          if (totalAccepted >= MAX_TOTAL_LISTINGS) {
+            hasMore = false;
           }
 
           // Posted date

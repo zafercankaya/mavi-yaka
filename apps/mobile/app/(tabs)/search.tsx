@@ -31,7 +31,7 @@ type ListItem = JobListing | AdItem;
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
-const SORT_KEYS = ['recommended', 'newest', 'deadline', 'posted_today', 'salary_high', 'salary_low'] as const;
+const SORT_KEYS = ['recommended', 'newest', 'deadline', 'posted_today', 'salary_high'] as const;
 
 const JOB_TYPE_KEYS = ['FULL_TIME', 'PART_TIME', 'DAILY', 'SEASONAL', 'INTERNSHIP', 'CONTRACT'] as const;
 const WORK_MODE_KEYS = ['ON_SITE', 'REMOTE', 'HYBRID'] as const;
@@ -449,6 +449,8 @@ export default function SearchScreen() {
                 value={salaryMinText}
                 onChangeText={setSalaryMinText}
                 keyboardType="numeric"
+                returnKeyType="done"
+                onSubmitEditing={() => Keyboard.dismiss()}
               />
               <Text style={styles.salaryDash}>-</Text>
               <TextInput
@@ -458,6 +460,8 @@ export default function SearchScreen() {
                 value={salaryMaxText}
                 onChangeText={setSalaryMaxText}
                 keyboardType="numeric"
+                returnKeyType="done"
+                onSubmitEditing={() => Keyboard.dismiss()}
               />
             </View>
           </View>
