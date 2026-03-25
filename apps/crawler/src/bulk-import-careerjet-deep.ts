@@ -5,6 +5,10 @@
  * Usage: npx ts-node --transpile-only src/bulk-import-careerjet-deep.ts [market|ALL]
  */
 
+import { config } from 'dotenv';
+import { resolve } from 'path';
+config({ path: resolve(__dirname, '../.env') });
+
 import { PrismaClient, Market, JobStatus, Sector } from '@prisma/client';
 import { createHash } from 'crypto';
 import { isBlueCollar } from './utils/blue-collar-filter';
