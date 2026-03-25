@@ -240,7 +240,7 @@
     "goToListing": "Przejdź do oferty",
     "lastDay": "Ostatni dzień!",
     "daysLeft": "Pozostało {{days}} dni",
-    "goToSource": "Przejdź do źródła",
+    "goToSource": "Zobacz szczegóły",
     "saveError": "Nie udało się zapisać oferty",
     "similar": "Podobne oferty",
     "companyJobs": "Oferty {{name}}"

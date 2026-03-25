@@ -240,7 +240,7 @@
     "goToListing": "Lihat Lowongan",
     "lastDay": "Hari Terakhir!",
     "daysLeft": "{{days}} hari lagi",
-    "goToSource": "Ke Sumber",
+    "goToSource": "Lihat Detail",
     "saveError": "Gagal menyimpan lowongan",
     "similar": "Lowongan Serupa",
     "companyJobs": "Lowongan {{name}}"

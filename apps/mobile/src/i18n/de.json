@@ -240,7 +240,7 @@
     "goToListing": "Zur Anzeige",
     "lastDay": "Letzter Tag!",
     "daysLeft": "Noch {{days}} Tage",
-    "goToSource": "Zur Quelle",
+    "goToSource": "Details anzeigen",
     "saveError": "Job konnte nicht gespeichert werden",
     "similar": "Ähnliche Jobs",
     "companyJobs": "{{name}} Jobs"

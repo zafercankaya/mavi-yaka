@@ -269,6 +269,41 @@ const JOOBLE_DELAY_MS = 500;
 const JOOBLE_RESULTS_PER_PAGE = 100;
 const JOOBLE_MAX_PAGES = 10; // 10 pages × 100 = 1000 per query
 
+// Jooble API location param is a soft filter — validate job.location against market patterns
+const JOOBLE_LOCATION_PATTERNS: Record<string, RegExp> = {
+  TR: /turkey|türkiye|istanbul|ankara|izmir|antalya|bursa|adana|konya|gaziantep|mersin|kayseri|diyarbakır|trabzon|samsun|eskişehir|denizli/i,
+  US: /united states|usa|new york|los angeles|chicago|houston|phoenix|philadelphia|dallas|austin|san francisco|seattle|washington|boston|miami|atlanta|denver|portland|tampa|orlando|texas|california|florida|ohio|illinois|georgia|michigan/i,
+  DE: /germany|deutschland|berlin|hamburg|münchen|köln|frankfurt|stuttgart|düsseldorf|dortmund|essen|leipzig|bremen|dresden|hannover|nürnberg/i,
+  UK: /united kingdom|england|scotland|wales|london|manchester|birmingham|leeds|glasgow|liverpool|edinburgh|bristol|sheffield|newcastle|nottingham/i,
+  IN: /india|mumbai|delhi|bangalore|bengaluru|hyderabad|chennai|kolkata|ahmedabad|pune|jaipur|lucknow|noida|gurgaon/i,
+  BR: /brazil|brasil|são paulo|rio de janeiro|brasília|salvador|fortaleza|belo horizonte|curitiba|recife|porto alegre/i,
+  FR: /france|paris|marseille|lyon|toulouse|nice|nantes|strasbourg|montpellier|bordeaux|lille/i,
+  JP: /japan|tokyo|osaka|yokohama|nagoya|sapporo|fukuoka|kobe|kyoto|hiroshima|sendai/i,
+  RU: /russia|россия|moscow|москва|saint petersburg|санкт-петербург|novosibirsk|yekaterinburg/i,
+  MX: /mexico|méxico|ciudad de méxico|guadalajara|monterrey|puebla|tijuana|cancún/i,
+  AU: /australia|sydney|melbourne|brisbane|perth|adelaide|canberra/i,
+  CA: /canada|toronto|montreal|vancouver|calgary|edmonton|ottawa|winnipeg/i,
+  IT: /italy|italia|rome|roma|milan|milano|naples|napoli|turin|torino|bologna|firenze/i,
+  ES: /spain|españa|madrid|barcelona|valencia|seville|sevilla|zaragoza|málaga/i,
+  PH: /philippines|pilipinas|manila|quezon|davao|cebu|makati/i,
+  TH: /thailand|bangkok|chiang mai|pattaya|phuket/i,
+  ID: /indonesia|jakarta|surabaya|bandung|medan|semarang/i,
+  EG: /egypt|مصر|cairo|القاهرة|alexandria|giza/i,
+  SA: /saudi|المملكة|riyadh|الرياض|jeddah|جدة|mecca|medina|dammam/i,
+  KR: /korea|한국|seoul|서울|busan|부산|incheon|daegu/i,
+  AR: /argentina|buenos aires|córdoba|rosario|mendoza/i,
+  AE: /emirates|uae|الإمارات|dubai|دبي|abu dhabi|sharjah/i,
+  VN: /vietnam|việt nam|ho chi minh|hanoi|hà nội|da nang/i,
+  PL: /poland|polska|warsaw|warszawa|kraków|łódź|wrocław|poznań|gdańsk/i,
+  MY: /malaysia|kuala lumpur|johor|penang|ipoh/i,
+  CO: /colombia|bogotá|medellín|cali|barranquilla|cartagena/i,
+  ZA: /south africa|johannesburg|cape town|durban|pretoria/i,
+  PT: /portugal|lisbon|lisboa|porto|braga|coimbra/i,
+  NL: /netherlands|nederland|amsterdam|rotterdam|den haag|utrecht|eindhoven/i,
+  PK: /pakistan|karachi|lahore|islamabad|faisalabad/i,
+  SE: /sweden|sverige|stockholm|göteborg|malmö|uppsala/i,
+};
+
 // Jooble API only supports English queries — use these for all markets
 const JOOBLE_EN_QUERIES = [
   'warehouse worker', 'driver', 'cleaner', 'construction worker', 'security guard',
@@ -345,9 +380,13 @@ async function fetchJoobleJobs(market: Market): Promise<RawJobData[]> {
 
         if (!data.jobs?.length) break;
 
+        const locPattern = JOOBLE_LOCATION_PATTERNS[market];
         for (const r of data.jobs) {
           if (seenIds.has(r.id)) continue;
           seenIds.add(r.id);
+
+          // Skip jobs from wrong country — Jooble location filter is not strict
+          if (locPattern && r.location && !locPattern.test(r.location)) continue;
 
           jobs.push({
             title: r.title,

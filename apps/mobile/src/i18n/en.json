@@ -262,7 +262,7 @@
     "apply": "Apply",
     "lastDay": "Last Day!",
     "daysLeft": "{{days}} days left",
-    "goToSource": "Go to Source",
+    "goToSource": "View Details",
     "saveError": "Failed to save job",
     "similar": "Similar Jobs",
     "companyJobs": "{{name}} Jobs"

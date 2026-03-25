@@ -264,7 +264,7 @@
     "apply": "Başvur",
     "lastDay": "Son Gün!",
     "daysLeft": "{{days}} gün kaldı",
-    "goToSource": "Kaynağa Git",
+    "goToSource": "Detaya Git",
     "saveError": "İlan kaydedilemedi",
     "similar": "Benzer İlanlar",
     "companyJobs": "{{name}} İlanları"

@@ -240,7 +240,7 @@
     "goToListing": "Voir l'offre",
     "lastDay": "Dernier jour !",
     "daysLeft": "{{days}} jours restants",
-    "goToSource": "Voir la source",
+    "goToSource": "Voir les détails",
     "saveError": "Échec de l'enregistrement",
     "similar": "Offres similaires",
     "companyJobs": "Offres {{name}}"

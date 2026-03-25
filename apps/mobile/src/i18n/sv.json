@@ -240,7 +240,7 @@
     "goToListing": "Gå till annonsen",
     "lastDay": "Sista dagen!",
     "daysLeft": "{{days}} dagar kvar",
-    "goToSource": "Gå till källa",
+    "goToSource": "Visa detaljer",
     "saveError": "Kunde inte spara jobbet",
     "similar": "Liknande jobb",
     "companyJobs": "Jobb hos {{name}}"

@@ -240,7 +240,7 @@
     "goToListing": "Vai all'annuncio",
     "lastDay": "Ultimo giorno!",
     "daysLeft": "{{days}} giorni rimasti",
-    "goToSource": "Vai alla fonte",
+    "goToSource": "Vedi dettagli",
     "saveError": "Impossibile salvare il lavoro",
     "similar": "Lavori simili",
     "companyJobs": "Lavori di {{name}}"

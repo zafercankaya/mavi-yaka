@@ -240,7 +240,7 @@
     "goToListing": "الانتقال إلى الإعلان",
     "lastDay": "اليوم الأخير!",
     "daysLeft": "{{days}} يوم متبقي",
-    "goToSource": "الذهاب إلى المصدر",
+    "goToSource": "عرض التفاصيل",
     "saveError": "تعذر حفظ الوظيفة",
     "similar": "وظائف مشابهة",
     "companyJobs": "وظائف {{name}}"

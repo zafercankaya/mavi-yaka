@@ -240,7 +240,7 @@
     "goToListing": "공고 바로가기",
     "lastDay": "오늘 마감!",
     "daysLeft": "{{days}}일 남음",
-    "goToSource": "원본 보기",
+    "goToSource": "상세 보기",
     "saveError": "저장에 실패했습니다",
     "similar": "비슷한 공고",
     "companyJobs": "{{name}} 채용공고"

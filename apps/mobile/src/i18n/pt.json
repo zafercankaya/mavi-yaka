@@ -240,7 +240,7 @@
     "goToListing": "Ir para a Vaga",
     "lastDay": "Último Dia!",
     "daysLeft": "{{days}} dias restantes",
-    "goToSource": "Ir para a Fonte",
+    "goToSource": "Ver detalhes",
     "saveError": "Não foi possível salvar a vaga",
     "similar": "Vagas Semelhantes",
     "companyJobs": "Vagas da {{name}}"

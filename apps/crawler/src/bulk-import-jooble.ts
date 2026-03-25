@@ -67,6 +67,50 @@ interface MarketConfig {
   keywords: string[];
 }
 
+// ─── Location validation — reject jobs from wrong countries ─────────
+// Jooble API location param is not a strict filter: it returns global results.
+// We validate job.location against known patterns for the target market.
+const MARKET_LOCATION_PATTERNS: Record<string, RegExp> = {
+  TR: /turkey|türkiye|istanbul|ankara|izmir|antalya|bursa|adana|konya|gaziantep|mersin|kayseri|diyarbakır|trabzon|samsun|eskişehir|denizli|malatya|erzurum|van|şanlıurfa|sakarya|manisa|muğla|hatay|tekirdağ|kocaeli|edirne|bolu|aydın/i,
+  US: /united states|usa|new york|los angeles|chicago|houston|phoenix|philadelphia|san antonio|san diego|dallas|austin|jacksonville|san francisco|columbus|charlotte|denver|seattle|washington|boston|nashville|baltimore|portland|las vegas|milwaukee|albuquerque|tucson|sacramento|atlanta|miami|tampa|orlando|minneapolis|cleveland|raleigh|kansas city|virginia|texas|california|florida|ohio|illinois|pennsylvania|georgia|michigan|north carolina/i,
+  DE: /germany|deutschland|berlin|hamburg|münchen|köln|frankfurt|stuttgart|düsseldorf|dortmund|essen|leipzig|bremen|dresden|hannover|nürnberg|duisburg|bochum|wuppertal|bielefeld|bonn|münster|mannheim|augsburg|wiesbaden|mönchengladbach|braunschweig|chemnitz/i,
+  UK: /united kingdom|england|scotland|wales|london|manchester|birmingham|leeds|glasgow|liverpool|edinburgh|bristol|sheffield|newcastle|nottingham|southampton|cardiff|leicester|brighton|coventry|belfast|oxford|cambridge|york/i,
+  IN: /india|mumbai|delhi|bangalore|bengaluru|hyderabad|chennai|kolkata|ahmedabad|pune|surat|jaipur|lucknow|kanpur|nagpur|indore|thane|bhopal|visakhapatnam|patna|vadodara|ghaziabad|ludhiana|coimbatore|madurai|noida|gurgaon/i,
+  BR: /brazil|brasil|são paulo|rio de janeiro|brasília|salvador|fortaleza|belo horizonte|manaus|curitiba|recife|porto alegre|belém|goiânia|guarulhos|campinas|vitória/i,
+  FR: /france|paris|marseille|lyon|toulouse|nice|nantes|strasbourg|montpellier|bordeaux|lille|rennes|reims|toulon|grenoble|dijon|angers|villeurbanne/i,
+  JP: /japan|tokyo|osaka|yokohama|nagoya|sapporo|fukuoka|kobe|kyoto|kawasaki|saitama|hiroshima|sendai|chiba|kitakyushu|堺|新潟|浜松|熊本|相模原/i,
+  RU: /russia|россия|moscow|москва|saint petersburg|санкт-петербург|novosibirsk|yekaterinburg|казань|nizhny novgorod|chelyabinsk|samara|omsk|rostov|ufa|krasnoyarsk|voronezh|perm|volgograd/i,
+  MX: /mexico|méxico|ciudad de méxico|guadalajara|monterrey|puebla|tijuana|león|juárez|zapopan|mérida|cancún|chihuahua|saltillo|querétaro|culiacán|hermosillo|morelia|aguascalientes/i,
+  AU: /australia|sydney|melbourne|brisbane|perth|adelaide|gold coast|canberra|newcastle|wollongong|hobart|geelong|townsville|cairns|darwin|toowoomba/i,
+  CA: /canada|toronto|montreal|vancouver|calgary|edmonton|ottawa|winnipeg|quebec|hamilton|kitchener|london|victoria|halifax|oshawa|windsor|saskatoon|regina/i,
+  IT: /italy|italia|rome|roma|milan|milano|naples|napoli|turin|torino|palermo|genova|bologna|firenze|florence|bari|catania|venezia|verona|padova/i,
+  ES: /spain|españa|madrid|barcelona|valencia|seville|sevilla|zaragoza|málaga|murcia|palma|bilbao|alicante|córdoba|valladolid|vigo|gijón|vitoria/i,
+  PH: /philippines|pilipinas|manila|quezon|davao|cebu|zamboanga|taguig|antipolo|pasig|cagayan|parañaque|makati|caloocan|general santos|bacolod/i,
+  TH: /thailand|ไทย|bangkok|กรุงเทพ|chiang mai|pattaya|phuket|nonthaburi|nakhon ratchasima|hat yai|udon thani|khon kaen|pak kret|chon buri/i,
+  ID: /indonesia|jakarta|surabaya|bandung|medan|semarang|makassar|palembang|tangerang|depok|bekasi|bogor|malang|yogyakarta|solo|batam/i,
+  EG: /egypt|مصر|cairo|القاهرة|alexandria|الإسكندرية|giza|الجيزة|sharm|luxor|aswan|port said|suez|mansoura|tanta|ismailia/i,
+  SA: /saudi arabia|المملكة العربية السعودية|riyadh|الرياض|jeddah|جدة|mecca|مكة|medina|المدينة|dammam|الدمام|khobar|dhahran|tabuk|abha|jizan/i,
+  KR: /south korea|korea|한국|seoul|서울|busan|부산|incheon|인천|daegu|대구|daejeon|대전|gwangju|광주|ulsan|울산|suwon|수원|changwon|goyang/i,
+  AR: /argentina|buenos aires|córdoba|rosario|mendoza|tucumán|la plata|mar del plata|salta|santa fe|san juan|neuquén|posadas|bahía blanca/i,
+  AE: /united arab emirates|uae|الإمارات|dubai|دبي|abu dhabi|أبو ظبي|sharjah|الشارقة|ajman|ras al khaimah|fujairah|al ain/i,
+  VN: /vietnam|việt nam|ho chi minh|hồ chí minh|hanoi|hà nội|da nang|đà nẵng|hai phong|hải phòng|can tho|biên hòa|huế|nha trang|buôn ma thuột/i,
+  PL: /poland|polska|warsaw|warszawa|kraków|łódź|wrocław|poznań|gdańsk|szczecin|bydgoszcz|lublin|białystok|katowice|gdynia|częstochowa|radom|sosnowiec|toruń/i,
+  MY: /malaysia|kuala lumpur|johor bahru|george town|ipoh|shah alam|petaling jaya|kuching|kota kinabalu|melaka|seremban|subang jaya|penang|klang|miri/i,
+  CO: /colombia|bogotá|medellín|cali|barranquilla|cartagena|cúcuta|bucaramanga|pereira|santa marta|ibagué|manizales|villavicencio|pasto/i,
+  ZA: /south africa|johannesburg|cape town|durban|pretoria|port elizabeth|bloemfontein|nelspruit|polokwane|kimberley|east london|pietermaritzburg|rustenburg/i,
+  PT: /portugal|lisbon|lisboa|porto|braga|coimbra|funchal|setúbal|aveiro|évora|faro|viseu|leiria|guimarães|almada/i,
+  NL: /netherlands|nederland|amsterdam|rotterdam|den haag|the hague|utrecht|eindhoven|tilburg|groningen|almere|breda|nijmegen|haarlem|arnhem|enschede/i,
+  PK: /pakistan|karachi|lahore|islamabad|rawalpindi|faisalabad|multan|peshawar|quetta|hyderabad|gujranwala|sialkot|bahawalpur|sargodha/i,
+  SE: /sweden|sverige|stockholm|göteborg|gothenburg|malmö|uppsala|västerås|örebro|linköping|helsingborg|jönköping|norrköping|lund|umeå|gävle/i,
+};
+
+function isValidLocationForMarket(jobLocation: string | null, market: string): boolean {
+  if (!jobLocation || jobLocation.trim() === '') return true; // No location = assume valid
+  const pattern = MARKET_LOCATION_PATTERNS[market];
+  if (!pattern) return true; // No pattern defined = accept all
+  return pattern.test(jobLocation);
+}
+
 // ─── Market configs with localized blue-collar keywords ─────────────
 
 // English keywords work best with Jooble API across all markets.
@@ -473,6 +517,12 @@ async function importMarket(config: MarketConfig, stats: ImportStats): Promise<n
           const location = job.location || null;
 
           if (!isBlueCollar(title, desc)) {
+            stats.skipped++;
+            continue;
+          }
+
+          // Validate location — reject jobs from wrong country
+          if (!isValidLocationForMarket(location, config.market)) {
             stats.skipped++;
             continue;
           }

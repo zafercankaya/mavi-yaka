@@ -240,7 +240,7 @@
     "goToListing": "求人を見る",
     "lastDay": "本日締切！",
     "daysLeft": "残り{{days}}日",
-    "goToSource": "元サイトへ",
+    "goToSource": "詳細を見る",
     "saveError": "求人の保存に失敗しました",
     "similar": "似ている求人",
     "companyJobs": "{{name}}の求人"
