@@ -89,7 +89,8 @@
         "expo-build-properties",
         {
           "ios": {
-            "deploymentTarget": "15.1"
+            "deploymentTarget": "15.1",
+            "useFrameworks": "static"
           },
           "android": {
             "enableProguardInReleaseBuilds": false,
@@ -114,8 +115,7 @@
           "androidAppId": "ca-app-pub-4200780317005480~1885920241",
           "iosAppId": "ca-app-pub-4200780317005480~1889789676"
         }
-      ],
-      "./plugins/fix-podfile-linkage"
+      ]
     ],
     "extra": {
       "router": {

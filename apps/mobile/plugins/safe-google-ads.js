@@ -294,7 +294,7 @@ function withSafeGoogleAds(config, props = {}) {
     const podfile = cfg.modResults;
     // Check if already added
     if (!podfile.contents.includes('Google-Mobile-Ads-SDK')) {
-      // Add pod after target line (safe position that won't be mangled by other plugins)
+      // Add pod after target line
       podfile.contents = podfile.contents.replace(
         /(target\s+['"].*?['"]\s+do)/,
         `$1\n  pod 'Google-Mobile-Ads-SDK'`
