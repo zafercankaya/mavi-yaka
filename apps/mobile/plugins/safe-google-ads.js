@@ -294,20 +294,11 @@ function withSafeGoogleAds(config, props = {}) {
     const podfile = cfg.modResults;
     // Check if already added
     if (!podfile.contents.includes('Google-Mobile-Ads-SDK')) {
-      // Add pod right after use_frameworks (handles both property-based and literal :static)
-      const replaced = podfile.contents.replace(
-        /use_frameworks!\s*:linkage\s*=>\s*(?:podfile_properties\['ios\.useFrameworks'\](?:\.to_sym)?|:static)/,
-        `$&\n  pod 'Google-Mobile-Ads-SDK'`
+      // Add pod after target line (safe position that won't be mangled by other plugins)
+      podfile.contents = podfile.contents.replace(
+        /(target\s+['"].*?['"]\s+do)/,
+        `$1\n  pod 'Google-Mobile-Ads-SDK'`
       );
-      if (replaced !== podfile.contents) {
-        podfile.contents = replaced;
-      } else {
-        // Fallback: add pod after target line
-        podfile.contents = podfile.contents.replace(
-          /(target\s+['"].*?['"]\s+do)/,
-          `$1\n  pod 'Google-Mobile-Ads-SDK'`
-        );
-      }
     }
     return cfg;
   });
