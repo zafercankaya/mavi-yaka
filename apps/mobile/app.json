@@ -103,6 +103,7 @@
       ],
       "expo-localization",
       "./plugins/disable-lint",
+      "./plugins/fix-podfile-linkage",
       [
         "./plugins/safe-google-ads",
         {
