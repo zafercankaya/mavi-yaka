@@ -821,29 +821,9 @@ async function importMarket(config: MarketConfig, stats: ImportStats): Promise<n
 }
 
 async function flushBatch(batch: any[]): Promise<number> {
-  try {
-    const result = await prisma.jobListing.createMany({
-      data: batch,
-      skipDuplicates: true,
-    });
-    return result.count;
-  } catch (e: any) {
-    if (batch.length > 50) {
-      let inserted = 0;
-      for (let i = 0; i < batch.length; i += 50) {
-        const chunk = batch.slice(i, i + 50);
-        try {
-          const r = await prisma.jobListing.createMany({ data: chunk, skipDuplicates: true });
-          inserted += r.count;
-        } catch (e2: any) {
-          console.warn(`  [DB] Chunk error: ${e2.message?.substring(0, 150)}`);
-        }
-      }
-      return inserted;
-    }
-    console.warn(`  [DB] Batch error: ${e.message?.substring(0, 150)}`);
-    return 0;
-  }
+  const { flushBatchUpsert } = await import('./utils/flush-batch-upsert');
+  const result = await flushBatchUpsert(prisma, batch);
+  return result.inserted;
 }
 
 // ─── Main ────────────────────────────────────────────────────────────

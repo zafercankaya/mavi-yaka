@@ -310,31 +310,8 @@ async function importSE(stats: ImportStats): Promise<void> {
 // ─── Batch upsert logic ──────────────────────────────────────────────
 
 async function flushBatch(batch: any[]): Promise<{ inserted: number; updated: number }> {
-  try {
-    const result = await prisma.jobListing.createMany({
-      data: batch,
-      skipDuplicates: true,
-    });
-    return { inserted: result.count, updated: batch.length - result.count };
-  } catch (e: any) {
-    // If batch fails, try smaller chunks
-    if (batch.length > 50) {
-      let inserted = 0, updated = 0;
-      for (let i = 0; i < batch.length; i += 50) {
-        const chunk = batch.slice(i, i + 50);
-        try {
-          const r = await prisma.jobListing.createMany({ data: chunk, skipDuplicates: true });
-          inserted += r.count;
-          updated += chunk.length - r.count;
-        } catch (e2: any) {
-          console.warn(`[DB] Chunk error: ${e2.message?.substring(0, 200)}`);
-        }
-      }
-      return { inserted, updated };
-    }
-    console.warn(`[DB] Batch error: ${e.message?.substring(0, 200)}`);
-    return { inserted: 0, updated: 0 };
-  }
+  const { flushBatchUpsert } = await import('./utils/flush-batch-upsert');
+  return flushBatchUpsert(prisma, batch);
 }
 
 // ─── Main ────────────────────────────────────────────────────────────

@@ -303,6 +303,7 @@ model JobListing {
   createdAt       DateTime         @default(now()) @map("created_at")
   updatedAt       DateTime         @updatedAt @map("updated_at")
 
+  @@unique([fingerprint])
   @@index([country, status, createdAt(sort: Desc)])
   @@index([country, sector, status])
   @@index([country, state, city, status])
