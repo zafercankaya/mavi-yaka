@@ -103,7 +103,6 @@
       ],
       "expo-localization",
       "./plugins/disable-lint",
-      "./plugins/fix-podfile-linkage",
       [
         "./plugins/safe-google-ads",
         {
@@ -116,7 +115,8 @@
           "androidAppId": "ca-app-pub-4200780317005480~1885920241",
           "iosAppId": "ca-app-pub-4200780317005480~1889789676"
         }
-      ]
+      ],
+      "./plugins/fix-podfile-linkage"
     ],
     "extra": {
       "router": {
