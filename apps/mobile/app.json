@@ -104,6 +104,12 @@
       "expo-localization",
       "./plugins/disable-lint",
       [
+        "./plugins/safe-google-ads",
+        {
+          "iosAppId": "ca-app-pub-4200780317005480~1889789676"
+        }
+      ],
+      [
         "react-native-google-mobile-ads",
         {
           "androidAppId": "ca-app-pub-4200780317005480~1885920241",

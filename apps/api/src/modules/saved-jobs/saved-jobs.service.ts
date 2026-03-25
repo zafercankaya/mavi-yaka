@@ -16,7 +16,7 @@ export class SavedJobsService {
     const jobConditions: any = {};
 
     if (market) {
-      jobConditions.market = market;
+      jobConditions.country = market;
     }
 
     if (filter === 'active') {
@@ -40,7 +40,24 @@ export class SavedJobsService {
         jobListingId: true,
         createdAt: true,
         jobListing: {
-          include: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            sourceUrl: true,
+            country: true,
+            state: true,
+            city: true,
+            sector: true,
+            jobType: true,
+            workMode: true,
+            salaryMin: true,
+            salaryMax: true,
+            salaryCurrency: true,
+            salaryPeriod: true,
+            status: true,
+            postedDate: true,
+            lastSeenAt: true,
             company: { select: { id: true, name: true, slug: true, logoUrl: true } },
           },
         },

@@ -47,6 +47,26 @@ export function resetTitleCounts(): void {
   _titleCountsByCountry.clear();
 }
 
+// ─── Location mismatch detection ────────────────────────────────────
+const US_STATE_CODES = new Set([
+  'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA',
+  'KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ',
+  'NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT',
+  'VA','WA','WV','WI','WY','DC',
+]);
+
+/** Detect US listings that ended up in non-US markets (e.g., Jooble returning US jobs for Turkey) */
+function isMisplacedUSListing(city?: string | null, state?: string | null): boolean {
+  // Check state field is a US state code
+  if (state && US_STATE_CODES.has(state.trim().toUpperCase())) return true;
+  // Check city contains ", XX" suffix where XX is US state code
+  if (city) {
+    const match = city.match(/,\s*([A-Z]{2})$/);
+    if (match && US_STATE_CODES.has(match[1])) return true;
+  }
+  return false;
+}
+
 /**
  * Upsert a batch of job listings using fingerprint-based dedup.
  * - Pre-filter: blue-collar check + title dedup
@@ -63,11 +83,16 @@ export async function flushBatchUpsert(
   let updated = 0;
   let filtered = 0;
 
-  // Pre-filter: blue-collar check + title dedup
+  // Pre-filter: blue-collar check + title dedup + location validation
   const filteredBatch: any[] = [];
   for (const item of batch) {
     // Blue-collar filter
     if (!isBlueCollar(item.title, item.description)) {
+      filtered++;
+      continue;
+    }
+    // Location mismatch filter: reject US state codes in non-US markets
+    if (item.country !== 'US' && isMisplacedUSListing(item.city, item.state)) {
       filtered++;
       continue;
     }

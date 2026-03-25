@@ -35,7 +35,6 @@ const SORT_KEYS = ['recommended', 'newest', 'deadline', 'posted_today', 'salary_
 
 const JOB_TYPE_KEYS = ['FULL_TIME', 'PART_TIME', 'DAILY', 'SEASONAL', 'INTERNSHIP', 'CONTRACT'] as const;
 const WORK_MODE_KEYS = ['ON_SITE', 'REMOTE', 'HYBRID'] as const;
-const EXPERIENCE_KEYS = ['NONE', 'ENTRY', 'MID', 'SENIOR'] as const;
 
 const SECTOR_META: Record<string, { icon: React.ComponentType<any>; color: string }> = {
   'LOGISTICS_TRANSPORTATION': { icon: Truck,             color: '#4A90D9' },
@@ -77,7 +76,6 @@ export default function SearchScreen() {
   // Advanced filters (multi-select)
   const [selectedJobTypes, setSelectedJobTypes] = useState<Set<string>>(new Set());
   const [selectedWorkModes, setSelectedWorkModes] = useState<Set<string>>(new Set());
-  const [selectedExperiences, setSelectedExperiences] = useState<Set<string>>(new Set());
   const [salaryMinText, setSalaryMinText] = useState('');
   const [salaryMaxText, setSalaryMaxText] = useState('');
   const [stateText, setStateText] = useState('');
@@ -89,7 +87,6 @@ export default function SearchScreen() {
     (selectedCompanyIds.size > 0 ? 1 : 0) +
     (selectedJobTypes.size > 0 ? 1 : 0) +
     (selectedWorkModes.size > 0 ? 1 : 0) +
-    (selectedExperiences.size > 0 ? 1 : 0) +
     (salaryMinText ? 1 : 0) +
     (salaryMaxText ? 1 : 0) +
     (selectedLocationState ? 1 : 0);
@@ -103,7 +100,6 @@ export default function SearchScreen() {
     setSelectedCompanyIds(new Set());
     setSelectedJobTypes(new Set());
     setSelectedWorkModes(new Set());
-    setSelectedExperiences(new Set());
     setSalaryMinText('');
     setSalaryMaxText('');
     setStateText('');
@@ -188,7 +184,6 @@ export default function SearchScreen() {
   const companyIdsArray = useMemo(() => Array.from(selectedCompanyIds), [selectedCompanyIds]);
   const jobTypesArray = useMemo(() => Array.from(selectedJobTypes), [selectedJobTypes]);
   const workModesArray = useMemo(() => Array.from(selectedWorkModes), [selectedWorkModes]);
-  const experiencesArray = useMemo(() => Array.from(selectedExperiences), [selectedExperiences]);
 
   const filters = useMemo<JobFilters>(() => {
     const f: JobFilters = {
@@ -203,18 +198,17 @@ export default function SearchScreen() {
     }
     if (jobTypesArray.length > 0) f.jobType = jobTypesArray;
     if (workModesArray.length > 0) f.workMode = workModesArray;
-    if (experiencesArray.length > 0) f.experienceLevel = experiencesArray;
     const salMin = parseInt(salaryMinText, 10);
     const salMax = parseInt(salaryMaxText, 10);
     if (salMin > 0) f.salaryMin = salMin;
     if (salMax > 0) f.salaryMax = salMax;
     if (selectedLocationState) f.state = selectedLocationState;
     return f;
-  }, [companyIdsArray, categoryId, sort, debouncedQuery, jobTypesArray, workModesArray, experiencesArray, salaryMinText, salaryMaxText, selectedLocationState]);
+  }, [companyIdsArray, categoryId, sort, debouncedQuery, jobTypesArray, workModesArray, salaryMinText, salaryMaxText, selectedLocationState]);
 
   const queryKey = useMemo(
-    () => ['search-jobs', market, companyIdsArray.join(','), categoryId ?? '', sort, debouncedQuery, jobTypesArray.join(','), workModesArray.join(','), experiencesArray.join(','), salaryMinText, salaryMaxText, selectedLocationState ?? ''] as const,
-    [market, companyIdsArray, categoryId, sort, debouncedQuery, jobTypesArray, workModesArray, experiencesArray, salaryMinText, salaryMaxText, selectedLocationState],
+    () => ['search-jobs', market, companyIdsArray.join(','), categoryId ?? '', sort, debouncedQuery, jobTypesArray.join(','), workModesArray.join(','), salaryMinText, salaryMaxText, selectedLocationState ?? ''] as const,
+    [market, companyIdsArray, categoryId, sort, debouncedQuery, jobTypesArray, workModesArray, salaryMinText, salaryMaxText, selectedLocationState],
   );
 
   const {
@@ -412,31 +406,6 @@ export default function SearchScreen() {
             </ScrollView>
           </View>
 
-          {/* Experience (multi-select) */}
-          <View style={styles.filterGroup}>
-            <Text style={styles.sectionLabel}>{t('filter.experience')}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersList}>
-              <FilterChip
-                label={t('common.all')}
-                selected={selectedExperiences.size === 0}
-                onPress={() => setSelectedExperiences(new Set())}
-                color={Colors.primary}
-              />
-              {EXPERIENCE_KEYS.map((key) => (
-                <FilterChip
-                  key={key}
-                  label={t(`experience.${key}`)}
-                  selected={selectedExperiences.has(key)}
-                  onPress={() => setSelectedExperiences((prev) => {
-                    const next = new Set(prev);
-                    if (next.has(key)) next.delete(key); else next.add(key);
-                    return next;
-                  })}
-                  color={Colors.primary}
-                />
-              ))}
-            </ScrollView>
-          </View>
 
           {/* Salary Range */}
           <View style={styles.filterGroup}>

@@ -37,7 +37,6 @@ const SCREEN_WIDTH = Dimensions.get('window').width;
 
 const SORT_KEYS = ['recommended', 'newest', 'deadline', 'posted_today'] as const;
 
-const JOB_TYPE_KEYS = ['FULL_TIME', 'PART_TIME', 'DAILY', 'SEASONAL', 'INTERNSHIP', 'CONTRACT'] as const;
 
 // Sector icon & color mapping — matches Prisma Sector enum
 const SECTOR_META: Record<string, { icon: React.ComponentType<any>; color: string }> = {
@@ -73,7 +72,6 @@ export default function HomeScreen() {
   const [categoryId, setCategoryId] = useState<string | undefined>();
   const [selectedCompanyIds, setSelectedCompanyIds] = useState<Set<string>>(new Set());
   const [sort, setSort] = useState('recommended');
-  const [selectedJobType, setSelectedJobType] = useState<string | undefined>();
   const [locationText, setLocationText] = useState('');
   const [locationSuggestions, setLocationSuggestions] = useState<LocationResult[]>([]);
   const [locationSelected, setLocationSelected] = useState(false);
@@ -165,9 +163,6 @@ export default function HomeScreen() {
     }
   };
 
-  const handleJobTypeSelect = (jt: string) => {
-    setSelectedJobType(selectedJobType === jt ? undefined : jt);
-  };
 
   const companyIdsArray = useMemo(() => Array.from(selectedCompanyIds), [selectedCompanyIds]);
 
@@ -181,16 +176,15 @@ export default function HomeScreen() {
     } else if (categoryId) {
       f.sector = categoryId;
     }
-    if (selectedJobType) f.jobType = selectedJobType;
     if (selectedLocationState) f.state = selectedLocationState;
     if (feedMode === 'following') f.followingOnly = true;
     return f;
-  }, [companyIdsArray, categoryId, sort, feedMode, selectedJobType, selectedLocationState]);
+  }, [companyIdsArray, categoryId, sort, feedMode, selectedLocationState]);
 
   // Flat queryKey ensures React Query reliably detects filter changes
   const queryKey = useMemo(
-    () => ['jobs', market, companyIdsArray.join(','), categoryId ?? '', sort, feedMode, selectedJobType ?? '', selectedLocationState ?? ''] as const,
-    [market, companyIdsArray, categoryId, sort, feedMode, selectedJobType, selectedLocationState],
+    () => ['jobs', market, companyIdsArray.join(','), categoryId ?? '', sort, feedMode, selectedLocationState ?? ''] as const,
+    [market, companyIdsArray, categoryId, sort, feedMode, selectedLocationState],
   );
 
   const {
@@ -442,26 +436,6 @@ export default function HomeScreen() {
         </ScrollView>
       </View>
 
-      {/* Job Type Chips */}
-      <View style={styles.jobTypeSection}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filtersList}>
-          <FilterChip
-            label={t('common.all')}
-            selected={!selectedJobType}
-            onPress={() => handleJobTypeSelect(selectedJobType || '')}
-            color={Colors.primary}
-          />
-          {JOB_TYPE_KEYS.map((key) => (
-            <FilterChip
-              key={key}
-              label={t(`jobType.${key}`)}
-              selected={selectedJobType === key}
-              onPress={() => handleJobTypeSelect(key)}
-              color={Colors.primary}
-            />
-          ))}
-        </ScrollView>
-      </View>
 
       {/* Results Count — only when we have data */}
       {!isLoading && (
@@ -770,11 +744,6 @@ const styles = StyleSheet.create({
   },
   filtersList: {
     paddingHorizontal: 16,
-  },
-
-  // Job Type
-  jobTypeSection: {
-    marginBottom: 12,
   },
 
   // Results
