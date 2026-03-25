@@ -21,7 +21,7 @@ const prisma = new PrismaClient();
 const CAREERJET_API_KEY = process.env.CAREERJET_API_KEY || '';
 const API_BASE = 'https://search.api.careerjet.net/v4/query';
 const PAGE_SIZE = 100; // CareerJet V4 max
-const MAX_PAGES = 10; // 10 × 100 = 1000 per keyword
+const MAX_PAGES = 20; // 20 × 100 = 2000 per keyword (increased from 10)
 const REQUEST_DELAY_MS = 500; // Be respectful
 const REQUEST_TIMEOUT_MS = 20_000;
 const REFERER = 'https://mavi-yaka-api.onrender.com/find-jobs/';

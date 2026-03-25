@@ -141,8 +141,6 @@ export async function startScheduler(prisma: PrismaClient): Promise<void> {
   const agingTask = cron.schedule('0 23 * * *', async () => {
     console.log('[Scheduler] Running aging...');
     try {
-      // Ping DB first to wake Neon from auto-suspend before heavy aging queries
-      await prisma.$queryRaw`SELECT 1`;
       const count = await runAging(prisma);
       console.log(`[Scheduler] Aging complete: ${count} expired`);
     } catch (err) {
@@ -225,19 +223,6 @@ export async function startScheduler(prisma: PrismaClient): Promise<void> {
   scheduledJobs.push({ name: 'Weekly Summary (TZ-aware)', task: weeklyNotifTask });
   console.log('  - 0 * * * 0 → Weekly summary (Sundays, TZ-aware)');
 
-  // ─── Neon Keep-Alive ──────────────────────────────────
-  // Neon free tier auto-suspends compute after 5min inactivity.
-  // Ping every 4 min to keep it awake during crawl windows.
-  const keepAliveTask = cron.schedule('*/4 * * * *', async () => {
-    try {
-      await prisma.$queryRaw`SELECT 1`;
-    } catch (err) {
-      console.error(`[KeepAlive] DB ping failed: ${(err as Error).message}`);
-    }
-  });
-  scheduledJobs.push({ name: 'Neon Keep-Alive', task: keepAliveTask });
-  console.log('  - */4 * * * * → Neon DB keep-alive ping');
-
   // ─── Supabase Keep-Alive ──────────────────────────────
   // Supabase free tier pauses projects after 7 days of inactivity.
   // Ping every 6 hours to prevent auto-pause.
@@ -260,8 +245,8 @@ export async function startScheduler(prisma: PrismaClient): Promise<void> {
   // ─── Bulk Import Jobs (API aggregators & Gov APIs) ─────
   // These run independently from the crawl schedule
 
-  // Daily Adzuna import at 06:00 UTC
-  const adzunaTask = cron.schedule('0 6 * * *', async () => {
+  // Adzuna import 2x/day at 06:00 and 18:00 UTC
+  const adzunaTask = cron.schedule('0 6,18 * * *', async () => {
     console.log('[Scheduler] Running Adzuna bulk import...');
     try {
       const { execSync } = require('child_process');
@@ -279,8 +264,8 @@ export async function startScheduler(prisma: PrismaClient): Promise<void> {
       console.error(`[Scheduler] Adzuna error: ${(err as Error).message?.substring(0, 200)}`);
     }
   });
-  scheduledJobs.push({ name: 'Adzuna Daily Import', task: adzunaTask });
-  console.log('  - 0 6 * * * → Adzuna bulk import (daily, 18 countries)');
+  scheduledJobs.push({ name: 'Adzuna 2x Daily Import', task: adzunaTask });
+  console.log('  - 0 6,18 * * * → Adzuna bulk import (2x/day, 18 countries)');
 
   // Weekly Sweden Arbetsförmedlingen at Tuesday 03:30 UTC
   const swedenTask = cron.schedule('30 3 * * 2', async () => {
@@ -348,8 +333,8 @@ export async function startScheduler(prisma: PrismaClient): Promise<void> {
   scheduledJobs.push({ name: 'Canada Monthly Import', task: canadaTask });
   console.log('  - 30 1 1 * * → Canada Job Bank CSV (monthly 1st)');
 
-  // Weekly CareerJet at Sunday 05:30 UTC
-  const careerjetTask = cron.schedule('30 5 * * 0', async () => {
+  // CareerJet 2x/week at Sunday 05:30 and Wednesday 05:30 UTC
+  const careerjetTask = cron.schedule('30 5 * * 0,3', async () => {
     console.log('[Scheduler] Running CareerJet bulk import...');
     try {
       const { execSync } = require('child_process');
@@ -367,8 +352,8 @@ export async function startScheduler(prisma: PrismaClient): Promise<void> {
       console.error(`[Scheduler] CareerJet error: ${(err as Error).message?.substring(0, 200)}`);
     }
   });
-  scheduledJobs.push({ name: 'CareerJet Weekly Import', task: careerjetTask });
-  console.log('  - 30 5 * * 0 → CareerJet bulk import (weekly Sun)');
+  scheduledJobs.push({ name: 'CareerJet 2x Weekly Import', task: careerjetTask });
+  console.log('  - 30 5 * * 0,3 → CareerJet bulk import (2x/week Sun+Wed)');
 
   // Weekly USAJobs at Wednesday 07:30 UTC
   const usajobsTask = cron.schedule('30 7 * * 3', async () => {
@@ -436,13 +421,8 @@ export async function startScheduler(prisma: PrismaClient): Promise<void> {
   scheduledJobs.push({ name: 'Turkey İŞKUR Weekly Import', task: iskurTask });
   console.log('  - 30 8 * * 6 → Turkey İŞKUR (weekly Sat)');
 
-  // ─── CareerJet Deep (weak markets, expanded keywords) ─── bi-weekly Monday
+  // ─── CareerJet Deep (weak markets, expanded keywords) ─── weekly Monday
   const cjDeepTask = cron.schedule('0 9 * * 1', async () => {
-    // Only run on 1st and 3rd Monday of the month
-    const dayOfMonth = new Date().getDate();
-    if (dayOfMonth > 14 && dayOfMonth <= 21) return; // skip 3rd week actually run 1st & 3rd
-    if (dayOfMonth > 7 && dayOfMonth <= 14) return; // skip 2nd week
-
     console.log('[Scheduler] Starting CareerJet Deep import (weak markets)...');
     try {
       const { execSync } = require('child_process');
@@ -460,16 +440,11 @@ export async function startScheduler(prisma: PrismaClient): Promise<void> {
       console.error(`[Scheduler] CareerJet Deep error: ${(err as Error).message?.substring(0, 200)}`);
     }
   });
-  scheduledJobs.push({ name: 'CareerJet Deep Bi-Weekly Import', task: cjDeepTask });
-  console.log('  - 0 9 * * 1 → CareerJet Deep (bi-weekly Mon, weak markets)');
+  scheduledJobs.push({ name: 'CareerJet Deep Weekly Import', task: cjDeepTask });
+  console.log('  - 0 9 * * 1 → CareerJet Deep (weekly Mon, weak markets)');
 
-  // ─── Adzuna Deep (mid-tier markets, expanded keywords) ─── bi-weekly Thursday
+  // ─── Adzuna Deep (mid-tier markets, expanded keywords) ─── weekly Thursday
   const adzunaDeepTask = cron.schedule('0 10 * * 4', async () => {
-    // Run on 1st and 3rd Thursday only
-    const dayOfMonth = new Date().getDate();
-    if (dayOfMonth > 7 && dayOfMonth <= 14) return;
-    if (dayOfMonth > 21) return;
-
     console.log('[Scheduler] Starting Adzuna Deep import...');
     try {
       const { execSync } = require('child_process');
@@ -487,8 +462,8 @@ export async function startScheduler(prisma: PrismaClient): Promise<void> {
       console.error(`[Scheduler] Adzuna Deep error: ${(err as Error).message?.substring(0, 200)}`);
     }
   });
-  scheduledJobs.push({ name: 'Adzuna Deep Bi-Weekly Import', task: adzunaDeepTask });
-  console.log('  - 0 10 * * 4 → Adzuna Deep (bi-weekly Thu, mid-tier markets)');
+  scheduledJobs.push({ name: 'Adzuna Deep Weekly Import', task: adzunaDeepTask });
+  console.log('  - 0 10 * * 4 → Adzuna Deep (weekly Thu, mid-tier markets)');
 
   // ─── Jooble (31 countries) ─── weekly Wednesday evening
   const joobleTask = cron.schedule('0 20 * * 3', async () => {
