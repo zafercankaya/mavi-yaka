@@ -34,8 +34,7 @@
       },
       "ios": {
         "image": "latest",
-        "credentialsSource": "local",
-        "prebuildCommand": "node scripts/prebuild-ios.js"
+        "credentialsSource": "local"
       },
       "android": {
         "buildType": "app-bundle"
