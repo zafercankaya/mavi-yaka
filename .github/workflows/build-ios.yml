@@ -30,22 +30,18 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Setup iOS signing credentials
-        env:
-          IOS_DIST_CERT_P12_BASE64: ${{ secrets.IOS_DIST_CERT_P12_BASE64 }}
-          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
-          IOS_DIST_CERT_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+      - name: Write ASC API Key
         run: |
-          cd apps/mobile
-          echo "$IOS_DIST_CERT_P12_BASE64" | base64 -d > dist_cert.p12
-          echo "$IOS_PROVISIONING_PROFILE_BASE64" | base64 -d > dist_profile.mobileprovision
-          echo "{\"ios\":{\"provisioningProfilePath\":\"./dist_profile.mobileprovision\",\"distributionCertificate\":{\"path\":\"./dist_cert.p12\",\"password\":\"$IOS_DIST_CERT_PASSWORD\"}}}" > credentials.json
-          echo "Local credentials configured"
+          echo "${{ secrets.ASC_API_KEY_P8 }}" | base64 -d > apps/mobile/AuthKey_FP7HKC7HG4.p8
+          echo "ASC API Key written"
 
       - name: Build iOS IPA (local)
         run: cd apps/mobile && eas build --platform ios --profile production --local --non-interactive --output ./build.ipa
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_APPLE_APP_STORE_CONNECT_API_KEY_KEY_ID: FP7HKC7HG4
+          EXPO_APPLE_APP_STORE_CONNECT_API_KEY_ISSUER_ID: 47170daa-a9bc-41f4-9653-b6f6859347a6
+          EXPO_APPLE_APP_STORE_CONNECT_API_KEY_PATH: ./AuthKey_FP7HKC7HG4.p8
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
@@ -53,9 +49,6 @@ jobs:
           name: mavi-yaka-ios
           path: apps/mobile/build.ipa
           retention-days: 30
-
-      - name: Write ASC API Key
-        run: echo "${{ secrets.ASC_API_KEY_P8 }}" | base64 -d > apps/mobile/AuthKey_FP7HKC7HG4.p8
 
       - name: Submit to App Store
         run: cd apps/mobile && eas submit --platform ios --profile production --path ./build.ipa --non-interactive

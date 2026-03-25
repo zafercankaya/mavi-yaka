@@ -34,7 +34,10 @@
       },
       "ios": {
         "image": "latest",
-        "credentialsSource": "local"
+        "cache": {
+          "disabled": true
+        },
+        "credentialsSource": "remote"
       },
       "android": {
         "buildType": "app-bundle"
