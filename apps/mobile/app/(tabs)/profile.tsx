@@ -82,10 +82,6 @@ export default function ProfileScreen() {
     );
   };
 
-  const handleCountryChange = () => {
-    router.push('/select-country');
-  };
-
   const requireAuth = (action: () => void) => {
     if (!isAuthenticated) {
       Alert.alert(
@@ -179,12 +175,14 @@ export default function ProfileScreen() {
           subtitle={!isAuthenticated ? t('profile.guestUser') : entitlement?.isPremium ? 'Premium' : t('profile.freePlan')}
           onPress={() => router.push('/subscription')}
         />
-        <MenuItem
-          icon="globe-outline"
-          label={t('profile.country')}
-          subtitle={marketSubtitle}
-          onPress={handleCountryChange}
-        />
+        <View style={menuStyles.item}>
+          <Ionicons name="globe-outline" size={22} color={Colors.text} />
+          <View style={menuStyles.textContainer}>
+            <Text style={menuStyles.label}>{t('profile.country')}</Text>
+            <Text style={menuStyles.subtitle}>{marketSubtitle}</Text>
+          </View>
+          <Ionicons name="lock-closed-outline" size={16} color={Colors.textLight} />
+        </View>
         <MenuItem
           icon="people-outline"
           label={t('profile.referral')}

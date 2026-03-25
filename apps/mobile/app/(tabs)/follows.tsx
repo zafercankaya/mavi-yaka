@@ -350,7 +350,7 @@ export default function FollowsScreen() {
     if (item._type === 'ad') {
       return <AdBanner />;
     }
-    return <JobCard job={item.job} />;
+    return <JobCard job={item.jobListing} />;
   };
 
   // Saved jobs header (inside FlatList — without segment control)
@@ -415,9 +415,9 @@ export default function FollowsScreen() {
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Heart size={48} color={Colors.textTertiary} />
-              <Text style={styles.emptyTitle}>{t('follows.noSavedJobs')}</Text>
+              <Text style={styles.emptyTitle}>{t('follows.noSaved')}</Text>
               <Text style={styles.emptyText}>
-                {t('follows.noSavedJobsHint')}
+                {t('follows.noSavedHint')}
               </Text>
             </View>
           }

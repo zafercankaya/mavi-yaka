@@ -251,6 +251,77 @@ const KR_KEYWORDS = [
   '농업', '조경',
 ];
 
+const VN_KEYWORDS = [
+  ...ENGLISH_KEYWORDS,
+  'công nhân kho', 'nhân viên kho', 'lái xe tải', 'tài xế', 'shipper', 'giao hàng', 'bốc xếp',
+  'công nhân sản xuất', 'công nhân nhà máy', 'thợ máy', 'vận hành máy', 'đóng gói',
+  'thợ điện', 'thợ hàn', 'thợ ống nước', 'thợ mộc', 'thợ xây', 'thợ sơn',
+  'đầu bếp', 'phụ bếp', 'phục vụ', 'thợ làm bánh', 'nhân viên bếp',
+  'tạp vụ', 'vệ sinh', 'lao công', 'dọn phòng',
+  'bảo vệ', 'nhân viên an ninh',
+  'thợ cơ khí', 'kỹ thuật viên', 'thợ sửa chữa',
+  'thu ngân', 'nhân viên bán hàng', 'nhân viên siêu thị',
+  'nông nghiệp', 'làm vườn', 'chăn nuôi',
+  'may mặc', 'thợ may', 'công nhân may',
+  'xe ôm', 'grab', 'xe máy',
+];
+
+const TH_KEYWORDS = [
+  ...ENGLISH_KEYWORDS,
+  'พนักงานคลังสินค้า', 'พนักงานขับรถ', 'พนักงานขับรถบรรทุก', 'คนส่งของ', 'ไรเดอร์',
+  'พนักงานโรงงาน', 'ช่างเครื่อง', 'พนักงานผลิต', 'พนักงานบรรจุ', 'พนักงานประกอบ',
+  'ช่างไฟฟ้า', 'ช่างเชื่อม', 'ช่างประปา', 'ช่างไม้', 'ช่างก่อสร้าง', 'ช่างทาสี',
+  'พ่อครัว', 'แม่ครัว', 'ผู้ช่วยครัว', 'พนักงานเสิร์ฟ', 'คนทำขนมปัง',
+  'แม่บ้าน', 'พนักงานทำความสะอาด',
+  'รปภ', 'พนักงานรักษาความปลอดภัย',
+  'ช่างยนต์', 'ช่างซ่อม', 'ช่างแอร์',
+  'พนักงานแคชเชียร์', 'พนักงานขาย', 'พนักงานร้านค้า',
+  'เกษตรกร', 'คนสวน',
+  'ช่างตัดผม', 'พนักงานนวด',
+];
+
+const ID_KEYWORDS = [
+  ...ENGLISH_KEYWORDS,
+  'pekerja gudang', 'sopir truk', 'supir', 'kurir', 'pengantar barang',
+  'operator mesin', 'pekerja pabrik', 'buruh pabrik', 'operator produksi', 'packing',
+  'tukang listrik', 'tukang las', 'tukang ledeng', 'tukang kayu', 'tukang batu', 'tukang cat',
+  'koki', 'juru masak', 'pramusaji', 'tukang roti',
+  'cleaning service', 'office boy', 'satpam', 'security',
+  'montir', 'mekanik', 'teknisi',
+  'kasir', 'pramuniaga', 'SPG',
+  'petani', 'tukang kebun', 'nelayan',
+  'penjahit', 'buruh', 'kuli bangunan',
+  'ojol', 'grab driver', 'gojek',
+];
+
+const SE_KEYWORDS = [
+  ...ENGLISH_KEYWORDS,
+  'lagerarbetare', 'truckförare', 'godshanterare', 'plocka order', 'paketerare',
+  'lastbilschaufför', 'chaufför', 'budbil', 'brevbärare',
+  'elektriker', 'svetsare', 'rörmokare', 'snickare', 'murare', 'målare',
+  'kock', 'köksbiträde', 'servitör', 'servitris', 'bagare', 'slaktare',
+  'städare', 'lokalvårdare', 'fastighetsskötare', 'vaktmästare',
+  'väktare', 'ordningsvakt',
+  'maskinoperatör', 'montör', 'mekaniker', 'bilmekaniker',
+  'byggnadsarbetare', 'anläggningsarbetare', 'betongarbetare',
+  'kassör', 'butikssäljare', 'lagermedarbetare',
+  'undersköterska', 'vårdbiträde', 'hemtjänst',
+  'trädgårdsmästare', 'lantarbetare',
+];
+
+const AR_KEYWORDS = [
+  ...ENGLISH_KEYWORDS,
+  // Arabic keywords for SA, AE, EG
+  'عامل مستودع', 'سائق شاحنة', 'سائق توصيل', 'مندوب توصيل',
+  'كهربائي', 'لحام', 'سباك', 'نجار', 'بناء', 'دهان',
+  'طباخ', 'شيف', 'مساعد مطبخ', 'نادل', 'خباز', 'جزار',
+  'عامل نظافة', 'حارس أمن', 'عامل صيانة',
+  'عامل مصنع', 'مشغل آلات', 'فني', 'ميكانيكي',
+  'عامل بناء', 'عامل',
+  'بائع', 'كاشير', 'مندوب',
+  'مزارع', 'بستاني', 'سائق',
+];
+
 const MARKET_CONFIGS: MarketConfig[] = [
   // ─── Markets with localized keywords ───
   { market: 'DE', location: 'Germany', keywords: DE_KEYWORDS },
@@ -268,6 +339,13 @@ const MARKET_CONFIGS: MarketConfig[] = [
   { market: 'PL', location: 'Poland', keywords: PL_KEYWORDS },
   { market: 'JP', location: 'Japan', keywords: JP_KEYWORDS },
   { market: 'KR', location: 'South Korea', keywords: KR_KEYWORDS },
+  { market: 'VN', location: 'Vietnam', keywords: VN_KEYWORDS },
+  { market: 'TH', location: 'Thailand', keywords: TH_KEYWORDS },
+  { market: 'ID', location: 'Indonesia', keywords: ID_KEYWORDS },
+  { market: 'SE', location: 'Sweden', keywords: SE_KEYWORDS },
+  { market: 'SA', location: 'Saudi Arabia', keywords: AR_KEYWORDS },
+  { market: 'AE', location: 'United Arab Emirates', keywords: AR_KEYWORDS },
+  { market: 'EG', location: 'Egypt', keywords: AR_KEYWORDS },
   // ─── Markets where English keywords work well ───
   { market: 'US', location: 'United States', keywords: ENGLISH_KEYWORDS },
   { market: 'UK', location: 'United Kingdom', keywords: ENGLISH_KEYWORDS },
@@ -278,13 +356,6 @@ const MARKET_CONFIGS: MarketConfig[] = [
   { market: 'MY', location: 'Malaysia', keywords: ENGLISH_KEYWORDS },
   { market: 'ZA', location: 'South Africa', keywords: ENGLISH_KEYWORDS },
   { market: 'PK', location: 'Pakistan', keywords: ENGLISH_KEYWORDS },
-  { market: 'AE', location: 'United Arab Emirates', keywords: ENGLISH_KEYWORDS },
-  { market: 'SA', location: 'Saudi Arabia', keywords: ENGLISH_KEYWORDS },
-  { market: 'EG', location: 'Egypt', keywords: ENGLISH_KEYWORDS },
-  { market: 'SE', location: 'Sweden', keywords: ENGLISH_KEYWORDS },
-  { market: 'ID', location: 'Indonesia', keywords: ENGLISH_KEYWORDS },
-  { market: 'TH', location: 'Thailand', keywords: ENGLISH_KEYWORDS },
-  { market: 'VN', location: 'Vietnam', keywords: ENGLISH_KEYWORDS },
 ];
 
 // ─── Source management ───────────────────────────────────────────────

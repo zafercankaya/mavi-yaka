@@ -53,6 +53,9 @@ export interface AIJobResult {
   salaryMin?: number | null;
   salaryMax?: number | null;
   salaryCurrency?: string | null;
+  salaryPeriod?: string | null;
+  city?: string | null;
+  state?: string | null;
 }
 
 const FALLBACK_RESULT: AIJobResult = {
@@ -86,6 +89,8 @@ GÖREVLER:
 1. Bu gerçek bir iş ilanı mı? (şirket sayfası, blog, hakkımızda, iletişim gibi içerikler İŞ İLANI DEĞİL)
 2. Bu bir MAVİ YAKA iş ilanı mı? (fiziksel/manuel iş, hizmet sektörü, lojistik, üretim vb.)
 3. İlan bilgilerini çıkar: iş tipi, çalışma şekli, deneyim seviyesi, sektör, son başvuru tarihi
+4. Lokasyon: şehir ve il/eyalet (metinde geçiyorsa)
+5. Ücret: maaş aralığı, para birimi ve periyod (metinde geçiyorsa)
 
 MAVİ YAKA ÖRNEKLER: şoför, kurye, teknisyen, güvenlik, temizlik, garson, kasiyer, depocu, forklift operatörü, kaynak, inşaat işçisi, fabrika işçisi, bakıcı, aşçı, montajcı, elektrikçi, tesisatçı
 
@@ -94,7 +99,7 @@ BEYAZ YAKA (RET): CEO, CTO, direktör, genel müdür, yazılım geliştirici, ve
 SINIRDA (kararını kullan): vardiya amiri, takım lideri, depo müdürü, şantiye şefi, mağaza müdürü
 
 SADECE JSON cevap ver:
-{"isJobListing":true,"isBlueCollar":true,"confidence":0.95,"reason":"kısa açıklama","endDate":"YYYY-MM-DD veya null","jobType":"FULL_TIME veya null","workMode":"ON_SITE veya null","experienceLevel":"ENTRY veya null","sector":"MANUFACTURING veya null"}`;
+{"isJobListing":true,"isBlueCollar":true,"confidence":0.95,"reason":"kısa açıklama","endDate":"YYYY-MM-DD veya null","jobType":"FULL_TIME veya null","workMode":"ON_SITE veya null","experienceLevel":"ENTRY veya null","sector":"MANUFACTURING veya null","city":"İstanbul veya null","state":"İstanbul veya null","salaryMin":10000,"salaryMax":15000,"salaryCurrency":"TRY","salaryPeriod":"MONTHLY"}`;
   }
 
   // Default: English prompt for all other markets
@@ -109,6 +114,8 @@ TASKS:
 1. Is this a real job listing? (NOT company about page, blog, login, contact, etc.)
 2. Is this a BLUE-COLLAR job? (manual labor, trades, service industry, logistics, manufacturing)
 3. Extract: job type, work mode, experience level, sector, application deadline
+4. Location: city and state/province (if mentioned in text)
+5. Salary: pay range, currency and period (if mentioned in text)
 
 BLUE-COLLAR EXAMPLES: warehouse worker, driver, courier, technician, security guard, cleaner, factory worker, construction, mechanic, welder, electrician, plumber, cook, waiter, cashier, delivery, forklift operator, maintenance
 
@@ -123,7 +130,7 @@ NOT A JOB:
 - General homepages, contact pages
 
 Reply with ONLY JSON, nothing else:
-{"isJobListing":true,"isBlueCollar":true,"confidence":0.95,"reason":"short explanation","endDate":"YYYY-MM-DD or null","jobType":"FULL_TIME or null","workMode":"ON_SITE or null","experienceLevel":"ENTRY or null","sector":"MANUFACTURING or null"}`;
+{"isJobListing":true,"isBlueCollar":true,"confidence":0.95,"reason":"short explanation","endDate":"YYYY-MM-DD or null","jobType":"FULL_TIME or null","workMode":"ON_SITE or null","experienceLevel":"ENTRY or null","sector":"MANUFACTURING or null","city":"Chicago or null","state":"Illinois or null","salaryMin":15,"salaryMax":22,"salaryCurrency":"USD","salaryPeriod":"HOURLY"}`;
 }
 
 // ─── Rate Limiters ──────────────────────────────────────────────
@@ -210,6 +217,29 @@ function parseAIResponse(text: string): AIJobResult | null {
     ];
     if (typeof parsed.sector === 'string' && validSectors.includes(parsed.sector)) {
       result.sector = parsed.sector;
+    }
+
+    // Extract salary fields
+    if (typeof parsed.salaryMin === 'number' && parsed.salaryMin > 0 && parsed.salaryMin < 10_000_000) {
+      result.salaryMin = parsed.salaryMin;
+    }
+    if (typeof parsed.salaryMax === 'number' && parsed.salaryMax > 0 && parsed.salaryMax < 10_000_000) {
+      result.salaryMax = parsed.salaryMax;
+    }
+    if (typeof parsed.salaryCurrency === 'string' && /^[A-Z]{3}$/.test(parsed.salaryCurrency)) {
+      result.salaryCurrency = parsed.salaryCurrency;
+    }
+    const validPeriods = ['HOURLY', 'DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'];
+    if (typeof parsed.salaryPeriod === 'string' && validPeriods.includes(parsed.salaryPeriod)) {
+      result.salaryPeriod = parsed.salaryPeriod;
+    }
+
+    // Extract location fields
+    if (typeof parsed.city === 'string' && parsed.city.length >= 2 && parsed.city.length <= 50 && parsed.city !== 'null') {
+      result.city = parsed.city;
+    }
+    if (typeof parsed.state === 'string' && parsed.state.length >= 2 && parsed.state.length <= 50 && parsed.state !== 'null') {
+      result.state = parsed.state;
     }
 
     return result;
