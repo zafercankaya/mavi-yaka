@@ -24,7 +24,7 @@ import { isBlueCollar } from './utils/blue-collar-filter';
 const prisma = new PrismaClient();
 
 const API_BASE = 'https://api.francetravail.io/partenaire/offresdemploi/v2/offres/search';
-const TOKEN_URL = 'https://entreprise.francetravail.io/connexion/oauth2/access_token?realm=/partenaire';
+const TOKEN_URL = 'https://entreprise.pole-emploi.fr/connexion/oauth2/access_token?realm=/partenaire';
 const RESULTS_PER_PAGE = 150; // API max is 150
 const MAX_OFFSET = 3000; // API hard limit
 const REQUEST_DELAY_MS = 350; // ~3 req/sec
