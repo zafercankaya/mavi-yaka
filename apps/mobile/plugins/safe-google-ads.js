@@ -72,7 +72,7 @@ RCT_EXPORT_METHOD(initialize:(RCTPromiseResolveBlock)resolve
             GADAdapterStatus *adapterStatus = adapters[className];
             result[className] = @{
               @"state": @(adapterStatus.state),
-              @"description": adapterStatus.statusDescription ?: @""
+              @"description": adapterStatus.description ?: @""
             };
           }
           resolve(result);
