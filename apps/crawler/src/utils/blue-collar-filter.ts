@@ -341,9 +341,35 @@ const _blueCollarLower = BLUE_COLLAR_KEYWORDS.map(k => k.toLowerCase());
  * Returns true if the job should be ACCEPTED (blue-collar).
  * Returns false if the job should be REJECTED (white-collar or unknown).
  */
+// Non-job content patterns — legal, cookie, privacy, corporate info pages
+const NON_JOB_PATTERNS: RegExp[] = [
+  /ticari elektronik ileti/i, /aydınlatma metni/i, /açık rıza/i,
+  /kişisel veri/i, /kvkk\b/i, /çerez politika/i, /gizlilik politika/i,
+  /onay metni/i, /kullanım koşulları/i, /mesafeli satış/i, /üyelik sözleşme/i,
+  /privacy policy/i, /cookie policy/i, /cookie notice/i,
+  /terms of service/i, /terms and conditions/i, /terms of use/i,
+  /this website uses.*cookies/i, /strictly necessary cookies/i, /we use cookies/i,
+  /datenschutzerkl/i, /nutzungsbedingungen/i, /impressum/i,
+  /politique de confidentialit/i, /mentions l[ée]gales/i, /à propos des cookies/i,
+  /pol[ií]tica de privacidad/i, /pol[ií]tica de cookies/i, /aviso legal/i,
+  /informativa sulla privacy/i, /informativa cookie/i,
+  /pol[ií]tica de privacidade/i, /termos de uso/i,
+  /privacybeleid/i, /cookiebeleid/i, /algemene voorwaarden/i,
+  /سياسة الخصوصية/i, /個人情報保護/i, /プライバシーポリシー/i,
+  /개인정보\s*처리/i, /이용약관/i,
+  /\bour (story|history|mission|vision|values|culture|team)\b/i,
+  /\b(company|corporate) (overview|profile|information)\b/i,
+  /korumas[ıi] alt[ıi]nda/i,
+];
+
 export function isBlueCollar(title: string, description?: string | null): boolean {
   const titleLower = title.toLowerCase();
   const fullText = description ? `${titleLower} ${description.toLowerCase()}` : titleLower;
+
+  // Step 0: Non-job content detection (legal pages, cookie notices, etc.)
+  for (const p of NON_JOB_PATTERNS) {
+    if (p.test(title)) return false;
+  }
 
   // Step 1: Check white-collar keywords in title — REJECT
   for (const wc of _whiteCollarSet) {

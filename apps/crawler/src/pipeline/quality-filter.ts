@@ -93,6 +93,16 @@ const SHARED_BLACKLISTED_TITLES = [
   'our story', 'our team', 'leadership', 'mission', 'values',
   'error', 'page not found', '404', 'not found', 'forbidden', '403',
   'access denied', 'under construction', 'coming soon',
+  // Corporate / employer branding pages (not job listings)
+  'why work', 'why join', 'why choose', 'why us',
+  'working at', 'life at', 'careers at', 'career at',
+  'our culture', 'our values', 'our mission', 'our vision',
+  'company overview', 'company profile',
+  'employee benefits', 'benefits and perks', 'perks and benefits',
+  'sustainability', 'sustainability policy', 'sustainability report',
+  'corporate responsibility', 'csr', 'esg',
+  'diversity', 'diversity and inclusion', 'inclusion',
+  'commitment to', 'join our team',
 ];
 
 const SHARED_JOB_URL_PATTERNS: RegExp[] = [
@@ -109,6 +119,13 @@ const SHARED_NON_JOB_URL_PATTERNS: RegExp[] = [
   /\/account\b/i, /\/dashboard\b/i, /\/profile\b/i,
   /\/warranty\b/i, /\/recall\b/i, /\/corporate\b/i,
   /\/sitemap/i, /\/accessibility/i, /\/cookie/i,
+  // Employer branding & corporate pages
+  /\/sustainability\b/i, /\/surdurulebilirlik/i,
+  /\/why-work/i, /\/why-join/i, /\/why-choose/i,
+  /\/our-culture/i, /\/our-values/i, /\/our-mission/i,
+  /\/employee-benefits/i, /\/benefits\/?$/i,
+  /\/diversity/i, /\/inclusion/i, /\/csr\b/i, /\/esg\b/i,
+  /javascript:void/i,
 ];
 
 // ─── TR Keywords ────────────────────────────────────────────────
@@ -929,6 +946,80 @@ const MARKET_LOCALES: Record<string, RegExp[]> = {
   RU: [/\/(en|tr|de|fr|it|es|pt|ja|ko|zh|ar|nl|sv|pl|vi|th|id|ms)\//i],
 };
 
+// ====== NON-JOB CONTENT PATTERNS (multi-language) ======
+// These match anywhere in the title (includes-based) — catches legal pages,
+// cookie notices, privacy policies, corporate info pages scraped as "job listings"
+
+const NON_JOB_CONTENT_PATTERNS: RegExp[] = [
+  // Legal / Privacy / KVKK (Turkish)
+  /ticari elektronik ileti/i,
+  /aydınlatma metni/i,
+  /açık rıza metni/i,
+  /kişisel veri(lerin)?/i,
+  /kvkk\b/i,
+  /çerez politika/i,
+  /gizlilik politika/i,
+  /gizlilik sözleşme/i,
+  /kullanım koşulları/i,
+  /üyelik sözleşme/i,
+  /mesafeli satış sözleşme/i,
+  /onay metni/i,
+  // Legal / Privacy (English)
+  /privacy policy/i,
+  /cookie policy/i,
+  /cookie notice/i,
+  /terms of service/i,
+  /terms and conditions/i,
+  /terms of use/i,
+  /this website uses.*cookies/i,
+  /strictly necessary cookies/i,
+  /we use cookies/i,
+  // Legal / Privacy (German)
+  /datenschutzerkl[äa]rung/i,
+  /datenschutzhinweis/i,
+  /nutzungsbedingungen/i,
+  /cookie.?richtlinie/i,
+  /impressum/i,
+  // Legal / Privacy (French)
+  /politique de confidentialit[ée]/i,
+  /mentions l[ée]gales/i,
+  /à propos des cookies/i,
+  /conditions g[ée]n[ée]rales/i,
+  // Legal / Privacy (Spanish)
+  /pol[ií]tica de privacidad/i,
+  /pol[ií]tica de cookies/i,
+  /aviso legal/i,
+  /términos y condiciones/i,
+  // Legal / Privacy (Italian)
+  /informativa sulla privacy/i,
+  /informativa cookie/i,
+  /termini e condizioni/i,
+  // Legal / Privacy (Portuguese)
+  /pol[ií]tica de privacidade/i,
+  /pol[ií]tica de cookies/i,
+  /termos de uso/i,
+  // Legal / Privacy (Dutch)
+  /privacybeleid/i,
+  /cookiebeleid/i,
+  /algemene voorwaarden/i,
+  // Legal / Privacy (Arabic)
+  /سياسة الخصوصية/i,
+  /سياسة ملفات/i,
+  // Legal / Privacy (Japanese)
+  /個人情報保護/i,
+  /プライバシーポリシー/i,
+  // Legal / Privacy (Korean)
+  /개인정보\s*처리/i,
+  /이용약관/i,
+  // Corporate info pages (not jobs)
+  /\bour (story|history|mission|vision|values|culture|team)\b/i,
+  /\b(company|corporate) (overview|profile|information)\b/i,
+  /\bkorumas[ıi] alt[ıi]nda\b/i,
+  // Nav/menu garbage scraped as titles
+  /über uns.*verantwortung.*regionalität/i,
+  /karriere.*presse.*presse/i,
+];
+
 // ====== SCORING FUNCTIONS ======
 
 interface ScoreResult {
@@ -944,6 +1035,11 @@ function hardReject(
   const titleLower = listing.title.toLowerCase();
   const urlLower = listing.sourceUrl.toLowerCase();
 
+  // 0. Non-job content detection (legal pages, cookie notices, corporate info)
+  for (const p of NON_JOB_CONTENT_PATTERNS) {
+    if (p.test(listing.title)) return 'non_job_content';
+  }
+
   // 1. WAF/bot detection
   for (const p of WAF_TITLE_PATTERNS) {
     if (p.test(listing.title)) return 'waf_bot';
@@ -957,9 +1053,17 @@ function hardReject(
   // 3. Too short title
   if (listing.title.length < 5) return 'title_too_short';
 
-  // 4. Blacklisted titles (exact match)
+  // 4. Blacklisted titles (exact match or starts-with)
   for (const bl of keywords.blacklistedTitles) {
-    if (titleLower === bl.toLowerCase() || titleLower === bl.toLowerCase().replace(/\s+/g, '')) {
+    const blLower = bl.toLowerCase();
+    if (titleLower === blLower || titleLower === blLower.replace(/\s+/g, '')) {
+      return 'blacklisted_title';
+    }
+    // Also match titles that START with blacklisted phrase (e.g., "Why work for Mondi? | Mondi")
+    if (titleLower.startsWith(blLower + ' ') || titleLower.startsWith(blLower + ':') ||
+        titleLower.startsWith(blLower + '|') || titleLower.startsWith(blLower + '?') ||
+        titleLower.startsWith(blLower + ',') || titleLower.startsWith(blLower + ' |') ||
+        titleLower.startsWith(blLower + ' -')) {
       return 'blacklisted_title';
     }
   }
@@ -1273,6 +1377,16 @@ export async function filterJobListingsWithAI(
           if (aiResult.endDate && !listing.deadline) {
             listing.deadline = new Date(aiResult.endDate);
           }
+          if (aiResult.jobType && !listing.jobType) listing.jobType = aiResult.jobType as any;
+          if (aiResult.workMode && !listing.workMode) listing.workMode = aiResult.workMode as any;
+          if (aiResult.experienceLevel && !listing.experienceLevel) listing.experienceLevel = aiResult.experienceLevel as any;
+          if (aiResult.sector && !listing.sector) listing.sector = aiResult.sector as any;
+          if (aiResult.city && !listing.city) listing.city = aiResult.city;
+          if (aiResult.state && !listing.state) listing.state = aiResult.state;
+          if (aiResult.salaryMin && !listing.salaryMin) listing.salaryMin = aiResult.salaryMin;
+          if (aiResult.salaryMax && !listing.salaryMax) listing.salaryMax = aiResult.salaryMax;
+          if (aiResult.salaryCurrency && !listing.salaryCurrency) listing.salaryCurrency = aiResult.salaryCurrency;
+          if (aiResult.salaryPeriod && !listing.salaryPeriod) listing.salaryPeriod = aiResult.salaryPeriod as any;
 
           console.log(
             `  [AI] ACCEPTED (${aiResult.confidence.toFixed(2)}): "${listing.title.substring(0, 50)}" → ${aiResult.reason}`,

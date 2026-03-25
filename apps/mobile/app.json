@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "MaviYaka.iş",
+    "name": "MaviYaka.işler",
     "slug": "mavi-yaka",
     "scheme": "maviyaka",
     "version": "1.0.0",
@@ -41,6 +41,9 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
+      "associatedDomains": [
+        "applinks:maviyaka-api.duckdns.org"
+      ],
       "privacyManifests": {
         "NSPrivacyAccessedAPITypes": [
           {
@@ -116,6 +119,12 @@
         "projectId": "d6a4eb2f-439a-4d98-bbf3-74c98120780c"
       }
     },
-    "owner": "kampanyasepeti2"
+    "owner": "kampanyasepeti2",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/d6a4eb2f-439a-4d98-bbf3-74c98120780c"
+    }
   }
 }
