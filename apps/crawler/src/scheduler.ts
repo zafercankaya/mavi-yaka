@@ -563,6 +563,32 @@ export async function startScheduler(prisma: PrismaClient): Promise<void> {
   scheduledJobs.push({ name: 'CBOP Poland Weekly Import', task: cbopTask });
   console.log('  - 30 12 * * 3 → CBOP Poland (weekly Wed)');
 
+  // ─── France Travail (government) ─── 2x weekly Tue/Fri
+  const franceTravailTask = cron.schedule('0 8 * * 2,5', async () => {
+    if (!process.env.FRANCE_TRAVAIL_CLIENT_ID || !process.env.FRANCE_TRAVAIL_CLIENT_SECRET) {
+      console.log('[Scheduler] FRANCE_TRAVAIL credentials not set, skipping');
+      return;
+    }
+    console.log('[Scheduler] Starting France Travail import...');
+    try {
+      const { execSync } = require('child_process');
+      execSync(
+        'npx ts-node --transpile-only src/bulk-import-france-travail.ts',
+        {
+          cwd: __dirname.replace(/\/dist$/, '').replace(/\\dist$/, ''),
+          env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
+          timeout: 3600_000,
+          stdio: 'inherit',
+        },
+      );
+      console.log('[Scheduler] France Travail import complete');
+    } catch (err) {
+      console.error(`[Scheduler] France Travail error: ${(err as Error).message?.substring(0, 200)}`);
+    }
+  });
+  scheduledJobs.push({ name: 'France Travail 2x Weekly Import', task: franceTravailTask });
+  console.log('  - 0 8 * * 2,5 → France Travail (2x week Tue/Fri)');
+
   console.log('[Scheduler] All jobs registered\n');
 }
 

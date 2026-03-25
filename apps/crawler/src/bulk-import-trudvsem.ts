@@ -18,7 +18,7 @@ const prisma = new PrismaClient();
 
 const API_BASE = 'https://opendata.trudvsem.ru/api/v1/vacancies';
 const RESULTS_PER_PAGE = 100; // API max
-const MAX_OFFSET = 5000; // 50 pages per keyword
+const MAX_OFFSET = 15000; // 150 pages per keyword
 const REQUEST_DELAY_MS = 500; // Respectful crawling
 const REQUEST_TIMEOUT_MS = 30_000;
 

@@ -18,7 +18,7 @@ const prisma = new PrismaClient();
 const API_BASE = 'https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs';
 const API_KEY = 'jobboerse-jobsuche';
 const RESULTS_PER_PAGE = 100;
-const MAX_PAGES = 50; // 50 pages × 100 = 5,000 per keyword
+const MAX_PAGES = 200; // 200 pages × 100 = 20,000 per keyword
 const REQUEST_DELAY_MS = 300;
 const REQUEST_TIMEOUT_MS = 20_000;
 
