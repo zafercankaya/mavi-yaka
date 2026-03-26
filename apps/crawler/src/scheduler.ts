@@ -265,7 +265,7 @@ export async function startScheduler(prisma: PrismaClient): Promise<void> {
     }
   });
   scheduledJobs.push({ name: 'Adzuna 2x Daily Import', task: adzunaTask });
-  console.log('  - 0 6,18 * * * → Adzuna bulk import (2x/day, 18 countries)');
+  console.log('  - 0 6,18 * * * → Adzuna bulk import (2x/day, 35 countries)');
 
   // Weekly Sweden Arbetsförmedlingen at Tuesday 03:30 UTC
   const swedenTask = cron.schedule('30 3 * * 2', async () => {

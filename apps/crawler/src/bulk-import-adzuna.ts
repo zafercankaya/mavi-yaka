@@ -16,7 +16,7 @@ const ADZUNA_APP_ID = '0c703aa9';
 const ADZUNA_APP_KEY = '101c85d3d6493adf7544e427be6c9118';
 const RESULTS_PER_PAGE = 50; // Adzuna max
 const MAX_PAGES = 50; // 50 pages × 50 = 2,500 per keyword
-const REQUEST_DELAY_MS = 250;
+const REQUEST_DELAY_MS = 1500; // 40 req/min — prevent Adzuna rate limiting
 const REQUEST_TIMEOUT_MS = 20_000;
 
 function delay(ms: number): Promise<void> {
