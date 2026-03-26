@@ -245,8 +245,8 @@ export async function startScheduler(prisma: PrismaClient): Promise<void> {
   // ─── Bulk Import Jobs (API aggregators & Gov APIs) ─────
   // These run independently from the crawl schedule
 
-  // Adzuna import 2x/day at 06:00 and 18:00 UTC
-  const adzunaTask = cron.schedule('0 6,18 * * *', async () => {
+  // Adzuna import 4x/day at 00:00, 06:00, 12:00, 18:00 UTC
+  const adzunaTask = cron.schedule('0 0,6,12,18 * * *', async () => {
     console.log('[Scheduler] Running Adzuna bulk import...');
     try {
       const { execSync } = require('child_process');
@@ -265,7 +265,7 @@ export async function startScheduler(prisma: PrismaClient): Promise<void> {
     }
   });
   scheduledJobs.push({ name: 'Adzuna 2x Daily Import', task: adzunaTask });
-  console.log('  - 0 6,18 * * * → Adzuna bulk import (2x/day, 35 countries)');
+  console.log('  - 0 0,6,12,18 * * * → Adzuna bulk import (4x/day, 35 countries)');
 
   // Weekly Sweden Arbetsförmedlingen at Tuesday 03:30 UTC
   const swedenTask = cron.schedule('30 3 * * 2', async () => {
@@ -333,8 +333,8 @@ export async function startScheduler(prisma: PrismaClient): Promise<void> {
   scheduledJobs.push({ name: 'Canada Monthly Import', task: canadaTask });
   console.log('  - 30 1 1 * * → Canada Job Bank CSV (monthly 1st)');
 
-  // CareerJet 2x/week at Sunday 05:30 and Wednesday 05:30 UTC
-  const careerjetTask = cron.schedule('30 5 * * 0,3', async () => {
+  // CareerJet daily at 05:30 UTC
+  const careerjetTask = cron.schedule('30 5 * * *', async () => {
     console.log('[Scheduler] Running CareerJet bulk import...');
     try {
       const { execSync } = require('child_process');
@@ -352,8 +352,8 @@ export async function startScheduler(prisma: PrismaClient): Promise<void> {
       console.error(`[Scheduler] CareerJet error: ${(err as Error).message?.substring(0, 200)}`);
     }
   });
-  scheduledJobs.push({ name: 'CareerJet 2x Weekly Import', task: careerjetTask });
-  console.log('  - 30 5 * * 0,3 → CareerJet bulk import (2x/week Sun+Wed)');
+  scheduledJobs.push({ name: 'CareerJet Daily Import', task: careerjetTask });
+  console.log('  - 30 5 * * * → CareerJet bulk import (daily)');
 
   // Weekly USAJobs at Wednesday 07:30 UTC
   const usajobsTask = cron.schedule('30 7 * * 3', async () => {
@@ -465,8 +465,8 @@ export async function startScheduler(prisma: PrismaClient): Promise<void> {
   scheduledJobs.push({ name: 'Adzuna Deep Weekly Import', task: adzunaDeepTask });
   console.log('  - 0 10 * * 4 → Adzuna Deep (weekly Thu, mid-tier markets)');
 
-  // ─── Jooble (31 countries) ─── weekly Wednesday evening
-  const joobleTask = cron.schedule('0 20 * * 3', async () => {
+  // ─── Jooble (31 countries) ─── 3x/week Mon, Wed, Fri evening
+  const joobleTask = cron.schedule('0 20 * * 1,3,5', async () => {
     if (!process.env.JOOBLE_API_KEY) {
       console.log('[Scheduler] JOOBLE_API_KEY not set, skipping');
       return;
@@ -488,8 +488,8 @@ export async function startScheduler(prisma: PrismaClient): Promise<void> {
       console.error(`[Scheduler] Jooble error: ${(err as Error).message?.substring(0, 200)}`);
     }
   });
-  scheduledJobs.push({ name: 'Jooble Weekly Import', task: joobleTask });
-  console.log('  - 0 20 * * 3 → Jooble (weekly Wed evening, 31 countries)');
+  scheduledJobs.push({ name: 'Jooble 3x Weekly Import', task: joobleTask });
+  console.log('  - 0 20 * * 1,3,5 → Jooble (3x/week Mon+Wed+Fri, 31 countries)');
 
   // ─── Reed.co.uk (UK jobs) ─── weekly Tuesday
   const reedTask = cron.schedule('0 11 * * 2', async () => {
