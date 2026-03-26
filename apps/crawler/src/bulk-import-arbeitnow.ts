@@ -12,113 +12,112 @@
  * Usage: npx ts-node --transpile-only src/bulk-import-arbeitnow.ts
  */
 
-import { PrismaClient, JobStatus, Sector } from '@prisma/client';
+import { PrismaClient, Market, Sector } from '@prisma/client';
 import { createHash } from 'crypto';
 
 const prisma = new PrismaClient();
 
 const API_BASE = 'https://www.arbeitnow.com/api/job-board-api';
-const MAX_PAGES = 30; // safety cap
+const MAX_PAGES = 30;
 const REQUEST_DELAY_MS = 2000;
 
-// Map location keywords to our Market enum
+// ─── Location → Market mapping ──────────────────────────────────────
+
 const LOCATION_ENTRIES: [string, string][] = [
-  ['germany', 'DE'], ['deutschland', 'DE'], ['berlin', 'DE'], ['munich', 'DE'], ['münchen', 'DE'],
-  ['hamburg', 'DE'], ['frankfurt', 'DE'], ['cologne', 'DE'], ['köln', 'DE'], ['düsseldorf', 'DE'],
-  ['stuttgart', 'DE'], ['dortmund', 'DE'], ['essen', 'DE'], ['leipzig', 'DE'], ['bremen', 'DE'],
-  ['dresden', 'DE'], ['hannover', 'DE'], ['nürnberg', 'DE'], ['duisburg', 'DE'], ['bochum', 'DE'],
+  ['germany', 'DE'], ['deutschland', 'DE'], ['berlin', 'DE'], ['munich', 'DE'],
+  ['hamburg', 'DE'], ['frankfurt', 'DE'], ['cologne', 'DE'],
+  ['stuttgart', 'DE'], ['dortmund', 'DE'], ['essen', 'DE'], ['leipzig', 'DE'],
+  ['dresden', 'DE'], ['hannover', 'DE'], ['duisburg', 'DE'], ['bochum', 'DE'],
   ['austria', 'DE'], ['wien', 'DE'], ['vienna', 'DE'],
-  ['switzerland', 'DE'], ['zürich', 'DE'], ['zurich', 'DE'],
+  ['switzerland', 'DE'], ['zurich', 'DE'],
   ['netherlands', 'NL'], ['amsterdam', 'NL'], ['rotterdam', 'NL'], ['utrecht', 'NL'],
-  ['the hague', 'NL'], ['eindhoven', 'NL'], ['den haag', 'NL'],
+  ['eindhoven', 'NL'],
   ['france', 'FR'], ['paris', 'FR'], ['lyon', 'FR'], ['marseille', 'FR'],
   ['spain', 'ES'], ['madrid', 'ES'], ['barcelona', 'ES'],
-  ['italy', 'IT'], ['milan', 'IT'], ['rome', 'IT'], ['roma', 'IT'], ['milano', 'IT'],
-  ['portugal', 'PT'], ['lisbon', 'PT'], ['lisboa', 'PT'], ['porto', 'PT'],
-  ['poland', 'PL'], ['warsaw', 'PL'], ['warszawa', 'PL'], ['krakow', 'PL'], ['kraków', 'PL'],
-  ['sweden', 'SE'], ['stockholm', 'SE'], ['gothenburg', 'SE'], ['malmö', 'SE'],
-  ['uk', 'UK'], ['london', 'UK'], ['manchester', 'UK'], ['birmingham', 'UK'],
-  ['united kingdom', 'UK'], ['england', 'UK'],
-  ['us', 'US'], ['united states', 'US'], ['new york', 'US'], ['california', 'US'],
-  ['canada', 'CA'], ['toronto', 'CA'], ['vancouver', 'CA'],
+  ['italy', 'IT'], ['milan', 'IT'], ['rome', 'IT'], ['milano', 'IT'],
+  ['portugal', 'PT'], ['lisbon', 'PT'], ['porto', 'PT'],
+  ['poland', 'PL'], ['warsaw', 'PL'], ['krakow', 'PL'],
+  ['sweden', 'SE'], ['stockholm', 'SE'], ['gothenburg', 'SE'],
+  ['united kingdom', 'UK'], ['london', 'UK'], ['manchester', 'UK'], ['england', 'UK'],
+  ['united states', 'US'], ['california', 'US'],
+  ['canada', 'CA'], ['toronto', 'CA'],
   ['australia', 'AU'], ['sydney', 'AU'], ['melbourne', 'AU'],
   ['india', 'IN'], ['bangalore', 'IN'], ['mumbai', 'IN'],
-  ['brazil', 'BR'], ['sao paulo', 'BR'],
-  ['mexico', 'MX'], ['mexico city', 'MX'],
-  ['japan', 'JP'], ['tokyo', 'JP'],
-  ['turkey', 'TR'], ['istanbul', 'TR'], ['ankara', 'TR'],
+  ['brazil', 'BR'], ['japan', 'JP'], ['tokyo', 'JP'],
+  ['turkey', 'TR'], ['istanbul', 'TR'],
   ['russia', 'RU'], ['moscow', 'RU'],
-  ['south korea', 'KR'], ['korea', 'KR'], ['seoul', 'KR'],
+  ['korea', 'KR'], ['seoul', 'KR'],
   ['indonesia', 'ID'], ['jakarta', 'ID'],
   ['philippines', 'PH'], ['manila', 'PH'],
   ['thailand', 'TH'], ['bangkok', 'TH'],
-  ['vietnam', 'VN'], ['ho chi minh', 'VN'], ['hanoi', 'VN'],
-  ['malaysia', 'MY'], ['kuala lumpur', 'MY'],
-  ['pakistan', 'PK'], ['karachi', 'PK'], ['lahore', 'PK'],
+  ['vietnam', 'VN'], ['hanoi', 'VN'],
+  ['malaysia', 'MY'],
+  ['pakistan', 'PK'], ['karachi', 'PK'],
   ['egypt', 'EG'], ['cairo', 'EG'],
-  ['saudi arabia', 'SA'], ['riyadh', 'SA'], ['jeddah', 'SA'],
-  ['uae', 'AE'], ['dubai', 'AE'], ['abu dhabi', 'AE'],
-  ['south africa', 'ZA'], ['johannesburg', 'ZA'], ['cape town', 'ZA'],
+  ['saudi', 'SA'], ['riyadh', 'SA'],
+  ['dubai', 'AE'], ['uae', 'AE'],
+  ['south africa', 'ZA'], ['johannesburg', 'ZA'],
   ['colombia', 'CO'], ['bogota', 'CO'],
-  ['argentina', 'AR'], ['buenos aires', 'AR'],
+  ['argentina', 'AR'],
+  ['mexico', 'MX'],
 ];
 
-function detectMarket(location: string): string | null {
+function detectMarket(location: string): Market | null {
   const loc = (location || '').toLowerCase().trim();
   if (!loc) return null;
 
-  // Direct match
   for (const [key, market] of LOCATION_ENTRIES) {
-    if (loc.includes(key)) return market;
+    if (loc.includes(key)) return market as Market;
   }
 
-  // Try last part (often "City, Country" format)
   const parts = loc.split(',').map(p => p.trim());
   for (const part of parts.reverse()) {
     for (const [key, market] of LOCATION_ENTRIES) {
-      if (part.includes(key)) return market;
+      if (part.toLowerCase().includes(key)) return market as Market;
     }
   }
 
   return null;
 }
 
+// ─── Sector detection ──────────────────────────────────────────────
+
 function detectSector(title: string, tags: string[]): Sector {
   const text = `${title} ${tags.join(' ')}`.toLowerCase();
 
-  if (/logist|warehouse|lager|driver|fahrer|transport|delivery|versand|shipping|postal/i.test(text))
+  if (/logist|warehouse|lager|driver|fahrer|transport|delivery|versand|shipping|postal/.test(text))
     return 'LOGISTICS_TRANSPORTATION';
-  if (/manufactur|produktion|factory|fabrik|assembly|fertigung|machine operator/i.test(text))
+  if (/manufactur|produktion|factory|fabrik|assembly|fertigung|machine operator/.test(text))
     return 'MANUFACTURING';
-  if (/retail|verkauf|store|shop|kassier|cashier|filiall/i.test(text))
+  if (/retail|verkauf|store|shop|kassier|cashier|filiall/.test(text))
     return 'RETAIL';
-  if (/construct|bau|carpenter|zimmerer|plumber|electrician|elektrik|maler|painter/i.test(text))
+  if (/construct|bau|carpenter|plumber|electrician|elektrik|maler|painter/.test(text))
     return 'CONSTRUCTION';
-  if (/food|beverage|cook|koch|küche|kitchen|restaurant|gastro|café|baker|bäcker/i.test(text))
+  if (/food|beverage|cook|koch|kitchen|restaurant|gastro|baker/.test(text))
     return 'FOOD_BEVERAGE';
-  if (/hotel|hospitality|housekeep|rezeption|front desk|concierge/i.test(text))
+  if (/hotel|hospitality|housekeep|rezeption|front desk|concierge/.test(text))
     return 'HOSPITALITY';
-  if (/clean|reinigung|facility|hausmeis|janitor|maintenance|instandhalt/i.test(text))
+  if (/clean|reinigung|facility|hausmeis|janitor|maintenance|instandhalt/.test(text))
     return 'FACILITY_MANAGEMENT';
-  if (/secur|sicherheit|wach|guard|schutz/i.test(text))
+  if (/secur|sicherheit|wach|guard|schutz/.test(text))
     return 'SECURITY';
-  if (/health|pflege|nurse|kranken|hospital|clinic|klinik|altenpflege|care/i.test(text))
+  if (/health|pflege|nurse|kranken|hospital|clinic|klinik|altenpflege|care/.test(text))
     return 'HEALTHCARE';
-  if (/auto|kfz|mechanic|werkstatt|vehicle|fahrzeug/i.test(text))
+  if (/auto|kfz|mechanic|werkstatt|vehicle|fahrzeug/.test(text))
     return 'AUTOMOTIVE';
-  if (/agri|farm|landwirt|gärtner|garden/i.test(text))
+  if (/agri|farm|landwirt|garden/.test(text))
     return 'AGRICULTURE';
-  if (/metal|steel|stahl|schwei[ßs]|weld|schlosser/i.test(text))
+  if (/metal|steel|stahl|weld|schlosser/.test(text))
     return 'METAL_STEEL';
-  if (/chemi|pharma|labor|lab /i.test(text))
+  if (/chemi|pharma|labor/.test(text))
     return 'CHEMICALS';
-  if (/textile|näh|sewing|fashion|schneider/i.test(text))
+  if (/textile|sewing|fashion|schneider/.test(text))
     return 'TEXTILE';
-  if (/mining|bergbau|energy|energie|solar|wind/i.test(text))
+  if (/mining|bergbau|energy|energie|solar|wind/.test(text))
     return 'MINING_ENERGY';
-  if (/ecommerce|e-commerce|versand|fulfilment|packing|verpack/i.test(text))
+  if (/ecommerce|e-commerce|versand|fulfilment|packing|verpack/.test(text))
     return 'ECOMMERCE_CARGO';
-  if (/telecom|telko|netzwerk|network|cable|kabel/i.test(text))
+  if (/telecom|netzwerk|network|cable|kabel/.test(text))
     return 'TELECOM';
 
   return 'OTHER';
@@ -132,6 +131,65 @@ function delay(ms: number): Promise<void> {
   return new Promise(r => setTimeout(r, ms));
 }
 
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .substring(0, 200);
+}
+
+// ─── Source cache (one per market) ─────────────────────────────────
+
+const sourceCache = new Map<string, { id: string; companyId: string }>();
+
+async function getOrCreateSource(market: Market): Promise<{ id: string; companyId: string }> {
+  const key = `arbeitnow-${market}`;
+  if (sourceCache.has(key)) return sourceCache.get(key)!;
+
+  let source = await prisma.crawlSource.findFirst({
+    where: { market, name: { contains: 'ArbeitNow' }, isActive: true },
+    select: { id: true, companyId: true },
+  });
+
+  if (!source) {
+    let company = await prisma.company.findFirst({
+      where: { name: 'ArbeitNow', market },
+      select: { id: true },
+    });
+
+    if (!company) {
+      company = await prisma.company.create({
+        data: {
+          name: 'ArbeitNow',
+          slug: `arbeitnow-${market.toLowerCase()}`,
+          market,
+          sector: 'OTHER',
+          websiteUrl: 'https://www.arbeitnow.com',
+        },
+      });
+    }
+
+    const created = await prisma.crawlSource.create({
+      data: {
+        name: `ArbeitNow ${market} Job Listings`,
+        type: 'JOB_PLATFORM',
+        crawlMethod: 'API',
+        market,
+        companyId: company.id,
+        seedUrls: ['https://www.arbeitnow.com/api/job-board-api'],
+        isActive: true,
+      },
+    });
+    source = { id: created.id, companyId: created.companyId };
+  }
+
+  sourceCache.set(key, source);
+  return source;
+}
+
+// ─── Main ──────────────────────────────────────────────────────────
+
 interface ArbeitNowJob {
   slug: string;
   company_name: string;
@@ -142,7 +200,7 @@ interface ArbeitNowJob {
   tags: string[];
   job_types: string[];
   location: string;
-  created_at: number; // unix timestamp
+  created_at: number;
 }
 
 async function main() {
@@ -159,9 +217,7 @@ async function main() {
   for (let page = 1; page <= MAX_PAGES; page++) {
     try {
       const url = `${API_BASE}?page=${page}`;
-      const res = await fetch(url, {
-        signal: AbortSignal.timeout(15000),
-      });
+      const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
 
       if (!res.ok) {
         console.log(`  Page ${page}: HTTP ${res.status}`);
@@ -194,42 +250,26 @@ async function main() {
             continue;
           }
 
+          const source = await getOrCreateSource(market);
           const sector = detectSector(job.title, job.tags || []);
-          const externalId = `arbeitnow-${job.slug}`;
           const fingerprint = md5(`${job.title}|${job.company_name}|${market}`);
+          const titleSlug = slugify(`${job.title}-${job.company_name}-${job.slug}`);
 
-          // Check if already exists
+          // Check fingerprint dupe
           const existing = await prisma.jobListing.findFirst({
-            where: {
-              external_id: externalId,
-            },
+            where: { fingerprint },
           });
 
           if (existing) {
-            // Update last_seen
             await prisma.jobListing.update({
               where: { id: existing.id },
-              data: { last_seen_at: new Date(), status: 'ACTIVE' },
+              data: { lastSeenAt: new Date(), status: 'ACTIVE' },
             });
             totalSkipped++;
             continue;
           }
 
-          // Also check fingerprint to avoid dupes
-          const dupeCheck = await prisma.jobListing.findFirst({
-            where: {
-              fingerprint,
-              country: market,
-              status: 'ACTIVE',
-            },
-          });
-
-          if (dupeCheck) {
-            totalSkipped++;
-            continue;
-          }
-
-          const workMode = job.remote ? 'REMOTE' : 'ONSITE';
+          const workMode = job.remote ? 'REMOTE' : 'ON_SITE';
           const jobType = (job.job_types || []).includes('Full Time')
             ? 'FULL_TIME'
             : (job.job_types || []).includes('Part Time')
@@ -238,24 +278,26 @@ async function main() {
                 ? 'CONTRACT'
                 : 'FULL_TIME';
 
+          const description = job.description?.replace(/<[^>]*>/g, '')?.substring(0, 5000) || null;
+
           await prisma.jobListing.create({
             data: {
               title: job.title.substring(0, 500),
-              company_name: job.company_name.substring(0, 200),
+              slug: titleSlug,
+              companyId: source.companyId,
+              sourceId: source.id,
+              sourceUrl: job.url,
               country: market,
               city: job.location?.split(',')[0]?.trim()?.substring(0, 100) || null,
-              url: job.url,
-              description: job.description?.substring(0, 5000) || null,
-              summary: job.description?.replace(/<[^>]*>/g, '')?.substring(0, 300) || null,
+              description,
+              summary: description?.substring(0, 300) || null,
               sector,
-              job_type: jobType,
-              work_mode: workMode,
-              source: 'ARBEITNOW',
-              external_id: externalId,
+              jobType,
+              workMode,
               fingerprint,
               status: 'ACTIVE',
-              last_seen_at: new Date(),
-              posted_date: job.created_at ? new Date(job.created_at * 1000) : new Date(),
+              lastSeenAt: new Date(),
+              postedDate: job.created_at ? new Date(job.created_at * 1000) : new Date(),
             },
           });
 
