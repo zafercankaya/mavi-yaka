@@ -1,5 +1,5 @@
 /**
- * bulk-import-adzuna.ts — Bulk Import from Adzuna API (18 countries)
+ * bulk-import-adzuna.ts — Bulk Import from Adzuna API (35 countries)
  *
  * Usage: npx ts-node --transpile-only src/bulk-import-adzuna.ts [market|ALL]
  * Example: npx ts-node --transpile-only src/bulk-import-adzuna.ts US
@@ -493,6 +493,477 @@ const MARKET_CONFIGS: MarketConfig[] = [
       'forklift operator', 'picker packer', 'builder', 'painter', 'welder',
       'scaffolder', 'roofer', 'landscaper', 'security guard', 'fruit picker',
       'dairy farm worker', 'tractor driver', 'fencer',
+    ],
+  },
+  // ─── NEW MARKETS (17) ────────────────────────────────────────────────
+  {
+    adzunaCode: 'tr', market: 'TR',
+    keywords: [
+      // Depo & Lojistik
+      'depocu', 'forklift operatörü', 'şoför', 'kurye', 'tır şoförü',
+      'kamyon şoförü', 'dağıtıcı', 'kargo elemanı', 'sevkiyatçı', 'paketçi',
+      // Temizlik & Bina
+      'temizlik görevlisi', 'apartman görevlisi', 'bahçıvan', 'hizmetli',
+      // Yeme-İçme & Otelcilik
+      'aşçı', 'garson', 'fırıncı', 'kasap', 'pastacı', 'bulaşıkçı',
+      'barmen', 'kat görevlisi', 'komi',
+      // İnşaat & Yapı
+      'inşaat işçisi', 'boyacı', 'tesisatçı', 'elektrikçi', 'kalıpçı',
+      'duvarcı', 'sıvacı', 'döşemeci', 'demir bükücü', 'vinççi',
+      'alçıcı', 'çatıcı', 'taşçı', 'beton işçisi',
+      // Üretim & Makine
+      'üretim elemanı', 'CNC operatörü', 'makine operatörü', 'paketleme elemanı',
+      'kaynakçı', 'montajcı', 'tornacı', 'frezeci', 'kalite kontrol',
+      // Elektrik & Teknik
+      'elektrikçi', 'mekatronikçi', 'bakım teknisyeni', 'tesisat ustası',
+      // Oto & Tamir
+      'oto tamircisi', 'oto boyacı', 'kaporatcı', 'lastikçi', 'oto elektrikçi',
+      // Sağlık & Bakım
+      'hasta bakıcı', 'yaşlı bakım elemanı', 'ambulans şoförü',
+      // Güvenlik & Diğer
+      'güvenlik görevlisi', 'çiftçi', 'hayvancı', 'balıkçı',
+      'çöp toplama', 'geri dönüşüm işçisi', 'kapıcı',
+    ],
+  },
+  {
+    adzunaCode: 'jp', market: 'JP',
+    keywords: [
+      // 倉庫・物流
+      '倉庫作業員', 'フォークリフトオペレーター', 'トラック運転手', '配達員',
+      'ピッキング', '梱包作業', '仕分け作業', '荷揚げ作業',
+      // 清掃・ビルメンテナンス
+      '清掃員', 'ビル管理', '用務員', '管理人',
+      // 飲食・宿泊
+      '調理師', '調理補助', 'ウェイター', 'パン職人', '洗い場',
+      'ホテル客室清掃', 'バーテンダー', '配膳',
+      // 建設・建築
+      '建設作業員', '鳶職', '大工', '左官', '塗装工',
+      '配管工', '電気工事士', '溶接工', '鉄筋工', '型枠大工',
+      'クレーンオペレーター', '土木作業員', '解体作業員',
+      // 製造・工場
+      '工場作業員', '機械オペレーター', '組立作業', '検品作業',
+      '旋盤工', 'フライス工', '板金工', 'プレス作業員',
+      // 自動車・整備
+      '自動車整備士', '板金塗装', 'タイヤ交換', '車検整備',
+      // 介護・医療補助
+      '介護士', '介護補助', 'ヘルパー', '看護助手',
+      // 警備・その他
+      '警備員', '農業', '漁業', '林業', '造園',
+      '清掃車運転手', '廃棄物収集', 'ビルメンテナンス',
+    ],
+  },
+  {
+    adzunaCode: 'kr', market: 'KR',
+    keywords: [
+      // 창고·물류
+      '창고관리', '지게차운전', '화물운전', '배달기사', '택배기사',
+      '물류센터', '상하차', '포장작업', '분류작업',
+      // 청소·시설
+      '청소원', '환경미화원', '건물관리', '시설관리', '경비원',
+      // 외식·숙박
+      '조리사', '주방보조', '홀서빙', '제빵사', '정육사',
+      '식기세척', '바리스타', '객실관리',
+      // 건설·건축
+      '건설노동자', '비계공', '목수', '미장공', '도배사',
+      '배관공', '전기기사', '용접공', '철근공', '형틀목공',
+      '크레인기사', '토목작업', '철거작업',
+      // 생산·제조
+      '생산직', '기계조작', '조립작업', '검수작업',
+      'CNC선반', '프레스작업', '사출작업', '포장작업원',
+      // 자동차·정비
+      '자동차정비', '판금도장', '타이어교환', '세차원',
+      // 요양·돌봄
+      '요양보호사', '간병인', '돌봄도우미',
+      // 경비·기타
+      '경비원', '농업', '어업', '축산업', '조경',
+      '환경미화', '재활용수거',
+    ],
+  },
+  {
+    adzunaCode: 'ru', market: 'RU',
+    keywords: [
+      // Склад и логистика
+      'Кладовщик', 'Водитель погрузчика', 'Водитель', 'Курьер',
+      'Комплектовщик', 'Грузчик', 'Экспедитор', 'Упаковщик',
+      'Водитель грузовика', 'Дальнобойщик',
+      // Уборка и обслуживание
+      'Уборщик', 'Дворник', 'Сантехник', 'Разнорабочий',
+      // Общепит и гостиницы
+      'Повар', 'Официант', 'Пекарь', 'Мясник', 'Кондитер',
+      'Кухонный работник', 'Посудомойщик', 'Бармен', 'Горничная',
+      // Строительство
+      'Строитель', 'Каменщик', 'Маляр', 'Штукатур', 'Плотник',
+      'Электрик', 'Сварщик', 'Арматурщик', 'Бетонщик',
+      'Крановщик', 'Монтажник', 'Подсобный рабочий',
+      // Производство
+      'Оператор станка', 'Токарь', 'Фрезеровщик', 'Слесарь',
+      'Наладчик', 'Упаковщик', 'Контролёр ОТК',
+      // Автомеханика
+      'Автомеханик', 'Автослесарь', 'Маляр авто', 'Шиномонтажник',
+      // Охрана и уход
+      'Охранник', 'Сторож', 'Санитар', 'Сиделка',
+      // Другое
+      'Садовник', 'Тракторист', 'Фермер', 'Скотник',
+      'Мусоровоз', 'Дорожный рабочий',
+    ],
+  },
+  {
+    adzunaCode: 'se', market: 'SE',
+    keywords: [
+      // Lager & Logistik
+      'Lagerarbetare', 'Truckförare', 'Lastbilschaufför', 'Leveranschaufför',
+      'Orderplock', 'Paketerare', 'Godsmottagare', 'Distributionsförare',
+      // Städning & Fastighet
+      'Städare', 'Fastighetsskötare', 'Vaktmästare', 'Fönsterputsare',
+      // Mat & Hotell
+      'Kock', 'Servitör', 'Bagare', 'Slaktare', 'Konditor',
+      'Köksbiträde', 'Diskare', 'Barista', 'Städerska hotell',
+      // Bygg & Hantverk
+      'Byggarbetare', 'Murare', 'Målare', 'Rörmokare', 'Elektriker',
+      'Svetsare', 'Snickare', 'Plåtslagare', 'Takläggare', 'Kakelsättare',
+      'Kranförare', 'Betongarbetare', 'Håltagare', 'Ställningsbyggare',
+      // Produktion & Industri
+      'Maskinoperatör', 'Fabriksarbetare', 'Produktionsarbetare', 'CNC-operatör',
+      'Montör', 'Svarvare', 'Fräsare', 'Kvalitetskontrollant',
+      // Fordon & Mekanik
+      'Bilmekaniker', 'Lastbilsmekaniker', 'Plåtslagare bil', 'Däckmontör',
+      // Vård & Omsorg
+      'Undersköterska', 'Vårdbiträde', 'Personlig assistent',
+      // Säkerhet & Övrigt
+      'Väktare', 'Trädgårdsarbetare', 'Lantbrukare', 'Skogsarbetare',
+      'Renhållningsarbetare', 'Busschaufför', 'Brevbärare',
+    ],
+  },
+  {
+    adzunaCode: 'ph', market: 'PH',
+    keywords: [
+      // Warehouse & Logistics
+      'warehouse worker', 'forklift operator', 'driver', 'delivery rider',
+      'helper', 'loader', 'packer', 'dispatcher', 'truck driver', 'courier',
+      // Cleaning & Facility
+      'janitor', 'utility worker', 'maintenance man', 'groundskeeper',
+      // Food & Hospitality
+      'cook', 'kitchen crew', 'baker', 'butcher', 'waiter', 'waitress',
+      'dishwasher', 'barista', 'room attendant', 'steward',
+      // Construction & Trades
+      'construction worker', 'mason', 'painter', 'plumber', 'electrician',
+      'welder', 'carpenter', 'tile setter', 'rebar man', 'scaffolder',
+      'crane operator', 'heavy equipment operator', 'laborer',
+      // Manufacturing
+      'factory worker', 'machine operator', 'production worker', 'assembly worker',
+      'quality inspector', 'sewing machine operator', 'packer',
+      // Auto & Mechanic
+      'mechanic', 'auto mechanic', 'diesel mechanic', 'body repair',
+      // Healthcare & Care
+      'caregiver', 'nursing aide', 'patient care assistant',
+      // Security & Other
+      'security guard', 'farm worker', 'fisherman', 'gardener',
+      'laundry attendant', 'gasoline boy', 'garbage collector',
+    ],
+  },
+  {
+    adzunaCode: 'th', market: 'TH',
+    keywords: [
+      // คลังสินค้าและโลจิสติกส์
+      'พนักงานคลังสินค้า', 'พนักงานขับรถโฟล์คลิฟท์', 'คนขับรถ', 'พนักงานส่งของ',
+      'พนักงานจัดเรียงสินค้า', 'พนักงานแพ็คสินค้า', 'พนักงานขนส่ง',
+      // ทำความสะอาดและอาคาร
+      'พนักงานทำความสะอาด', 'แม่บ้าน', 'ช่างซ่อมบำรุง', 'คนสวน',
+      // อาหารและโรงแรม
+      'พ่อครัว', 'แม่ครัว', 'บริกร', 'คนทำขนมปัง', 'คนล้างจาน',
+      'บาริสต้า', 'พนักงานต้อนรับ', 'แคชเชียร์',
+      // ก่อสร้างและช่าง
+      'คนงานก่อสร้าง', 'ช่างก่อ', 'ช่างทาสี', 'ช่างประปา', 'ช่างไฟฟ้า',
+      'ช่างเชื่อม', 'ช่างไม้', 'ช่างปูกระเบื้อง', 'ช่างฉาบปูน',
+      'พนักงานขับเครน', 'กรรมกร',
+      // โรงงานและผลิต
+      'พนักงานโรงงาน', 'พนักงานควบคุมเครื่องจักร', 'พนักงานประกอบ',
+      'พนักงานตรวจสอบคุณภาพ', 'พนักงานผลิต', 'ช่างกลึง',
+      // ยานยนต์
+      'ช่างซ่อมรถ', 'ช่างยนต์', 'ช่างสี', 'ช่างยาง',
+      // ดูแลและสุขภาพ
+      'ผู้ดูแลผู้สูงอายุ', 'ผู้ช่วยพยาบาล',
+      // รักษาความปลอดภัยและอื่นๆ
+      'รปภ', 'พนักงานรักษาความปลอดภัย', 'เกษตรกร', 'ชาวประมง',
+      'พนักงานเก็บขยะ', 'คนขับรถบัส',
+    ],
+  },
+  {
+    adzunaCode: 'id', market: 'ID',
+    keywords: [
+      // Gudang & Logistik
+      'Pekerja gudang', 'Operator forklift', 'Supir', 'Kurir', 'Supir truk',
+      'Kuli angkut', 'Packing', 'Helper gudang', 'Ekspedisi',
+      // Kebersihan & Gedung
+      'Cleaning service', 'Office boy', 'Tukang kebun', 'Satpam gedung',
+      // Makanan & Perhotelan
+      'Koki', 'Pelayan', 'Tukang roti', 'Tukang daging', 'Pencuci piring',
+      'Barista', 'Room attendant', 'Pramusaji',
+      // Konstruksi & Pertukangan
+      'Tukang bangunan', 'Tukang cat', 'Tukang pipa', 'Teknisi listrik',
+      'Tukang las', 'Tukang kayu', 'Tukang keramik', 'Tukang besi',
+      'Operator crane', 'Kuli bangunan', 'Mandor',
+      // Pabrik & Produksi
+      'Operator mesin', 'Pekerja pabrik', 'Operator produksi', 'Packing',
+      'Operator CNC', 'Quality control', 'Pekerja assembling',
+      // Otomotif
+      'Montir', 'Mekanik', 'Tukang ketok', 'Vulkanisir',
+      // Kesehatan & Perawatan
+      'Perawat lansia', 'Asisten perawat',
+      // Keamanan & Lain-lain
+      'Satpam', 'Petani', 'Nelayan', 'Buruh tani',
+      'Tukang sampah', 'Sopir bus', 'Teknisi AC',
+    ],
+  },
+  {
+    adzunaCode: 'vn', market: 'VN',
+    keywords: [
+      // Kho vận & Logistics
+      'Công nhân kho', 'Lái xe nâng', 'Lái xe', 'Giao hàng',
+      'Tài xế xe tải', 'Nhân viên kho', 'Bốc xếp', 'Đóng gói',
+      // Vệ sinh & Tòa nhà
+      'Vệ sinh', 'Tạp vụ', 'Bảo trì tòa nhà', 'Làm vườn',
+      // Ẩm thực & Khách sạn
+      'Đầu bếp', 'Phụ bếp', 'Phục vụ bàn', 'Thợ làm bánh',
+      'Rửa bát', 'Pha chế', 'Buồng phòng',
+      // Xây dựng & Thợ
+      'Công nhân xây dựng', 'Thợ xây', 'Thợ sơn', 'Thợ ống nước', 'Thợ điện',
+      'Thợ hàn', 'Thợ mộc', 'Thợ ốp lát', 'Thợ trát', 'Thợ sắt',
+      'Lái cần cẩu', 'Phụ hồ',
+      // Nhà máy & Sản xuất
+      'Công nhân sản xuất', 'Công nhân may', 'Vận hành máy', 'Lắp ráp',
+      'Kiểm tra chất lượng', 'Đóng gói sản phẩm', 'Công nhân nhà máy',
+      // Ô tô & Sửa chữa
+      'Thợ sửa xe', 'Thợ gò', 'Thợ sơn xe', 'Rửa xe',
+      // Chăm sóc & Y tế
+      'Hộ lý', 'Chăm sóc người già', 'Phụ tá y tế',
+      // Bảo vệ & Khác
+      'Bảo vệ', 'Nông dân', 'Ngư dân', 'Thợ cắt cỏ',
+      'Thu gom rác', 'Lái xe buýt',
+    ],
+  },
+  {
+    adzunaCode: 'my', market: 'MY',
+    keywords: [
+      // Warehouse & Logistics
+      'warehouse worker', 'forklift operator', 'driver', 'delivery rider',
+      'picker packer', 'lorry driver', 'despatch', 'store keeper',
+      'operator forklift', 'pemandu lori', 'penghantar',
+      // Cleaning & Facility
+      'cleaner', 'office boy', 'maintenance technician', 'gardener',
+      'pembersih', 'tukang kebun',
+      // Food & Hospitality
+      'cook', 'kitchen helper', 'baker', 'waiter', 'dishwasher',
+      'barista', 'room attendant', 'tukang masak', 'pelayan',
+      // Construction & Trades
+      'construction worker', 'painter', 'plumber', 'electrician',
+      'welder', 'carpenter', 'tiler', 'plasterer',
+      'pekerja binaan', 'tukang paip', 'tukang kayu', 'tukang cat',
+      // Manufacturing
+      'factory worker', 'machine operator', 'production operator',
+      'quality inspector', 'packer', 'assembly worker',
+      'pekerja kilang', 'operator mesin', 'operator pengeluaran',
+      // Auto & Mechanic
+      'mechanic', 'auto mechanic', 'panel beater', 'mekanik',
+      // Healthcare & Care
+      'caregiver', 'nursing aide', 'hospital attendant',
+      // Security & Other
+      'security guard', 'farm worker', 'fisherman', 'landscaper',
+      'pengawal keselamatan', 'pekerja ladang', 'nelayan',
+    ],
+  },
+  {
+    adzunaCode: 'pk', market: 'PK',
+    keywords: [
+      // Warehouse & Logistics
+      'warehouse worker', 'driver', 'delivery boy', 'loader', 'packer',
+      'forklift operator', 'truck driver', 'courier', 'helper',
+      // Cleaning & Facility
+      'cleaner', 'sweeper', 'office boy', 'peon', 'naib qasid',
+      // Food & Hospitality
+      'cook', 'chef', 'baker', 'waiter', 'tandoor master',
+      'kitchen helper', 'dishwasher', 'room boy',
+      // Construction & Trades
+      'construction worker', 'mason', 'painter', 'plumber', 'electrician',
+      'welder', 'carpenter', 'tile fixer', 'steel fixer', 'shuttering carpenter',
+      'crane operator', 'labourer', 'mistri', 'raj',
+      // Manufacturing
+      'factory worker', 'machine operator', 'production worker',
+      'quality checker', 'packing worker', 'stitching operator',
+      // Auto & Mechanic
+      'mechanic', 'auto mechanic', 'diesel mechanic', 'denter painter',
+      // Healthcare & Care
+      'ward boy', 'patient attendant', 'nursing aide',
+      // Security & Other
+      'security guard', 'chowkidar', 'watchman', 'gardener', 'farmer',
+      'fisherman', 'garbage collector', 'bus driver', 'conductor',
+    ],
+  },
+  {
+    adzunaCode: 'co', market: 'CO',
+    keywords: [
+      // Logística & Almacén
+      'almacenista', 'conductor', 'repartidor', 'auxiliar bodega',
+      'montacarguista', 'operador logístico', 'empacador', 'estibador',
+      // Limpieza & Mantenimiento
+      'aseador', 'auxiliar servicios generales', 'todero', 'jardinero',
+      // Alimentos & Hotelería
+      'cocinero', 'mesero', 'panadero', 'carnicero', 'pastelero',
+      'auxiliar cocina', 'barman', 'camarero', 'lavaplatos',
+      // Construcción
+      'albañil', 'pintor', 'plomero', 'electricista', 'carpintero',
+      'soldador', 'enchapador', 'estucador', 'armador', 'oficial obra',
+      'operador grúa', 'ayudante obra',
+      // Producción & Manufactura
+      'operario', 'operario producción', 'operador maquinaria',
+      'auxiliar producción', 'empaquetador', 'montajista',
+      // Mecánica
+      'mecánico', 'mecánico automotriz', 'latonero', 'técnico mantenimiento',
+      // Seguridad & Otros
+      'vigilante', 'guarda seguridad', 'agricultor', 'jornalero',
+      'conductor bus', 'recolector', 'reciclador', 'celador',
+    ],
+  },
+  {
+    adzunaCode: 'ae', market: 'AE',
+    keywords: [
+      // Warehouse & Logistics
+      'warehouse worker', 'forklift operator', 'driver', 'delivery driver',
+      'picker packer', 'loader', 'store keeper', 'heavy vehicle driver',
+      // Cleaning & Facility
+      'cleaner', 'janitor', 'housekeeper', 'maintenance technician', 'gardener',
+      'facility maintenance', 'pest control',
+      // Food & Hospitality
+      'cook', 'kitchen helper', 'baker', 'butcher', 'waiter', 'steward',
+      'dishwasher', 'barista', 'room attendant', 'commis',
+      // Construction & Trades
+      'construction worker', 'mason', 'painter', 'plumber', 'electrician',
+      'welder', 'carpenter', 'tiler', 'steel fixer', 'scaffolder',
+      'crane operator', 'rigger', 'labourer', 'ducting installer',
+      // Manufacturing
+      'factory worker', 'machine operator', 'production worker',
+      'quality inspector', 'packer', 'fabricator',
+      // Auto & Mechanic
+      'mechanic', 'auto mechanic', 'AC technician', 'diesel mechanic',
+      // Healthcare & Care
+      'caregiver', 'nursing aide', 'hospital attendant',
+      // Security & Other
+      'security guard', 'landscaper', 'camp boss', 'office boy',
+      'general helper', 'pool technician', 'pest control technician',
+    ],
+  },
+  {
+    adzunaCode: 'sa', market: 'SA',
+    keywords: [
+      // Warehouse & Logistics (English + Arabic)
+      'warehouse worker', 'forklift operator', 'driver', 'delivery driver',
+      'loader', 'store keeper', 'heavy vehicle driver',
+      'عامل مستودع', 'سائق', 'سائق توصيل', 'مشغل رافعة شوكية',
+      // Cleaning & Facility
+      'cleaner', 'janitor', 'housekeeper', 'gardener',
+      'عامل نظافة', 'بستاني', 'فني صيانة',
+      // Food & Hospitality
+      'cook', 'kitchen helper', 'baker', 'waiter', 'dishwasher',
+      'طباخ', 'مساعد مطبخ', 'خباز', 'نادل',
+      // Construction & Trades
+      'construction worker', 'mason', 'painter', 'plumber', 'electrician',
+      'welder', 'carpenter', 'tiler', 'steel fixer', 'scaffolder',
+      'عامل بناء', 'لحام', 'كهربائي', 'سباك', 'نجار', 'بناء', 'حداد',
+      // Manufacturing
+      'factory worker', 'machine operator', 'production worker',
+      'عامل مصنع', 'مشغل ماكينة',
+      // Auto & Mechanic
+      'mechanic', 'AC technician', 'diesel mechanic',
+      'ميكانيكي', 'فني تكييف',
+      // Security & Other
+      'security guard', 'office boy', 'general helper', 'landscaper',
+      'حارس أمن', 'عامل عام', 'مزارع',
+    ],
+  },
+  {
+    adzunaCode: 'eg', market: 'EG',
+    keywords: [
+      // مخازن ولوجستيات (Arabic + English)
+      'عامل مخزن', 'سائق', 'سائق توصيل', 'عامل تحميل',
+      'أمين مخزن', 'سائق نقل', 'مندوب توصيل',
+      'warehouse worker', 'driver', 'delivery driver', 'forklift operator',
+      // نظافة وصيانة
+      'عامل نظافة', 'بواب', 'فني صيانة', 'حارس عقار',
+      'cleaner', 'janitor', 'maintenance worker',
+      // طعام وضيافة
+      'طباخ', 'شيف', 'خباز', 'جزار', 'جرسون',
+      'مساعد مطبخ', 'غسيل أطباق',
+      'cook', 'chef', 'baker', 'waiter',
+      // بناء وحرف
+      'عامل بناء', 'نقاش', 'سباك', 'كهربائي',
+      'لحام', 'نجار', 'مبلط', 'حداد', 'محارة',
+      'عامل خرسانة', 'سقالات',
+      'construction worker', 'painter', 'plumber', 'electrician', 'welder',
+      // مصانع وإنتاج
+      'عامل مصنع', 'مشغل ماكينة', 'عامل إنتاج',
+      'عامل تعبئة', 'خراط', 'فراز',
+      'factory worker', 'machine operator', 'production worker',
+      // سيارات
+      'ميكانيكي', 'سمكري', 'كهربائي سيارات', 'فني تكييف',
+      'mechanic', 'auto electrician',
+      // حراسة وأخرى
+      'حارس أمن', 'فلاح', 'صياد', 'عامل نظافة شوارع',
+      'security guard', 'farmer', 'gardener',
+    ],
+  },
+  {
+    adzunaCode: 'ar', market: 'AR',
+    keywords: [
+      // Logística & Almacén
+      'operario', 'almacenero', 'chofer', 'repartidor', 'repositor',
+      'auxiliar logística', 'estibador', 'empaquetador', 'fletero',
+      // Limpieza & Mantenimiento
+      'limpieza', 'portero', 'encargado edificio', 'jardinero', 'sereno',
+      // Alimentos & Hotelería
+      'cocinero', 'mozo', 'panadero', 'carnicero', 'pastelero',
+      'ayudante cocina', 'barman', 'mucama', 'lavacopas',
+      // Construcción
+      'albañil', 'pintor', 'plomero', 'electricista', 'carpintero',
+      'soldador', 'yesero', 'durlock', 'armador', 'techista',
+      'operador grúa', 'peón obra',
+      // Producción & Manufactura
+      'operario producción', 'operador maquinaria', 'embalador',
+      'tornero', 'fresador', 'matricero', 'soldador industrial',
+      // Mecánica
+      'mecánico', 'mecánico automotor', 'chapista', 'gomero',
+      'técnico mantenimiento',
+      // Seguridad & Otros
+      'vigilante', 'guardia seguridad', 'peón rural', 'tractorista',
+      'cosechero', 'conductor colectivo', 'barrendero', 'reciclador',
+      'cadete', 'sereno',
+    ],
+  },
+  {
+    adzunaCode: 'ie', market: 'UK', // Ireland → UK market (English-speaking)
+    keywords: [
+      // Warehouse & Logistics
+      'warehouse operative', 'forklift driver', 'hgv driver', 'van driver',
+      'picker packer', 'goods in', 'despatch', 'delivery driver', 'courier',
+      // Cleaning & Facility
+      'cleaner', 'caretaker', 'maintenance operative', 'handyman',
+      'groundskeeper', 'window cleaner',
+      // Food & Hospitality
+      'kitchen porter', 'chef', 'commis chef', 'baker', 'barista',
+      'waiting staff', 'bar staff', 'hotel housekeeper', 'deli assistant',
+      // Construction & Trades
+      'labourer', 'bricklayer', 'plumber', 'electrician', 'welder',
+      'scaffolder', 'roofer', 'painter', 'plasterer', 'tiler',
+      'steel fixer', 'groundworker', 'shuttering carpenter',
+      // Manufacturing
+      'factory worker', 'machine operator', 'production operative',
+      'CNC operator', 'packer', 'quality inspector',
+      // Auto & Mechanic
+      'mechanic', 'tyre fitter', 'vehicle technician', 'body shop',
+      // Healthcare & Care
+      'care assistant', 'healthcare assistant', 'home carer',
+      // Security & Other
+      'security officer', 'farm worker', 'landscape gardener',
+      'refuse collector', 'postman', 'general operative',
     ],
   },
 ];

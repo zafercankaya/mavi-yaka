@@ -589,6 +589,86 @@ export async function startScheduler(prisma: PrismaClient): Promise<void> {
   scheduledJobs.push({ name: 'France Travail 2x Weekly Import', task: franceTravailTask });
   console.log('  - 0 8 * * 2,5 → France Travail (2x week Tue/Fri)');
 
+  // ─── EURES (EU Employment Services) ─── weekly Friday
+  const euresTask = cron.schedule('0 13 * * 5', async () => {
+    console.log('[Scheduler] Starting EURES EU import...');
+    try {
+      const { execSync } = require('child_process');
+      const cwd = __dirname.replace(/\/dist$/, '').replace(/\\dist$/, '');
+      execSync(`npx ts-node --transpile-only src/bulk-import-eures.ts`, {
+        cwd,
+        timeout: 7200_000,
+        env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
+        stdio: 'inherit',
+      });
+      console.log('[Scheduler] EURES EU import complete');
+    } catch (err) {
+      console.error(`[Scheduler] EURES error: ${(err as Error).message?.substring(0, 200)}`);
+    }
+  });
+  scheduledJobs.push({ name: 'EURES EU Weekly Import', task: euresTask });
+  console.log('  - 0 13 * * 5 → EURES EU (weekly Fri, 8 EU countries)');
+
+  // ─── Jora/SEEK (APAC markets) ─── weekly Saturday
+  const joraTask = cron.schedule('0 4 * * 6', async () => {
+    console.log('[Scheduler] Starting Jora/SEEK APAC import...');
+    try {
+      const { execSync } = require('child_process');
+      const cwd = __dirname.replace(/\/dist$/, '').replace(/\\dist$/, '');
+      execSync(`npx ts-node --transpile-only src/bulk-import-jora.ts`, {
+        cwd,
+        timeout: 7200_000,
+        env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
+        stdio: 'inherit',
+      });
+      console.log('[Scheduler] Jora/SEEK APAC import complete');
+    } catch (err) {
+      console.error(`[Scheduler] Jora/SEEK error: ${(err as Error).message?.substring(0, 200)}`);
+    }
+  });
+  scheduledJobs.push({ name: 'Jora/SEEK APAC Weekly Import', task: joraTask });
+  console.log('  - 0 4 * * 6 → Jora/SEEK APAC (weekly Sat, 5 countries)');
+
+  // ─── Craigslist (US + CA) ─── weekly Saturday
+  const craigslistTask = cron.schedule('0 15 * * 6', async () => {
+    console.log('[Scheduler] Starting Craigslist US+CA import...');
+    try {
+      const { execSync } = require('child_process');
+      const cwd = __dirname.replace(/\/dist$/, '').replace(/\\dist$/, '');
+      execSync(`npx ts-node --transpile-only src/bulk-import-craigslist.ts`, {
+        cwd,
+        timeout: 7200_000,
+        env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
+        stdio: 'inherit',
+      });
+      console.log('[Scheduler] Craigslist US+CA import complete');
+    } catch (err) {
+      console.error(`[Scheduler] Craigslist error: ${(err as Error).message?.substring(0, 200)}`);
+    }
+  });
+  scheduledJobs.push({ name: 'Craigslist US+CA Weekly Import', task: craigslistTask });
+  console.log('  - 0 15 * * 6 → Craigslist US+CA (weekly Sat, 38 cities)');
+
+  // ─── Subito.it (Italy classifieds) ─── weekly Thursday
+  const subitoItTask = cron.schedule('0 16 * * 4', async () => {
+    console.log('[Scheduler] Starting Subito.it Italy import...');
+    try {
+      const { execSync } = require('child_process');
+      const cwd = __dirname.replace(/\/dist$/, '').replace(/\\dist$/, '');
+      execSync(`npx ts-node --transpile-only src/bulk-import-subito-it.ts`, {
+        cwd,
+        timeout: 3600_000,
+        env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
+        stdio: 'inherit',
+      });
+      console.log('[Scheduler] Subito.it Italy import complete');
+    } catch (err) {
+      console.error(`[Scheduler] Subito.it error: ${(err as Error).message?.substring(0, 200)}`);
+    }
+  });
+  scheduledJobs.push({ name: 'Subito.it Italy Weekly Import', task: subitoItTask });
+  console.log('  - 0 16 * * 4 → Subito.it Italy (weekly Thu)');
+
   console.log('[Scheduler] All jobs registered\n');
 }
 
