@@ -688,6 +688,63 @@ export async function startScheduler(prisma: PrismaClient): Promise<void> {
   scheduledJobs.push({ name: 'ArbeitNow Daily Import', task: arbeitnowTask });
   console.log('  - 30 6 * * * → ArbeitNow (daily, Europe/DE)');
 
+  // ─── Himalayas (free API, 100K+ remote jobs, global) ─── daily
+  const himalayasTask = cron.schedule('0 7 * * *', async () => {
+    console.log('[Scheduler] Starting Himalayas import...');
+    try {
+      const { execSync } = require('child_process');
+      execSync(`npx ts-node --transpile-only src/bulk-import-himalayas.ts`, {
+        cwd: __dirname.replace(/\/dist$/, '').replace(/\\dist$/, ''),
+        env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
+        timeout: 600_000,
+        stdio: 'inherit',
+      });
+      console.log('[Scheduler] Himalayas import complete');
+    } catch (err) {
+      console.error(`[Scheduler] Himalayas error: ${(err as Error).message?.substring(0, 200)}`);
+    }
+  });
+  scheduledJobs.push({ name: 'Himalayas Daily Import', task: himalayasTask });
+  console.log('  - 0 7 * * * → Himalayas (daily, global remote)');
+
+  // ─── Greenhouse ATS (public API, major employers) ─── 2x/week
+  const greenhouseTask = cron.schedule('30 8 * * 1,4', async () => {
+    console.log('[Scheduler] Starting Greenhouse ATS import...');
+    try {
+      const { execSync } = require('child_process');
+      execSync(`npx ts-node --transpile-only src/bulk-import-greenhouse.ts`, {
+        cwd: __dirname.replace(/\/dist$/, '').replace(/\\dist$/, ''),
+        env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
+        timeout: 600_000,
+        stdio: 'inherit',
+      });
+      console.log('[Scheduler] Greenhouse import complete');
+    } catch (err) {
+      console.error(`[Scheduler] Greenhouse error: ${(err as Error).message?.substring(0, 200)}`);
+    }
+  });
+  scheduledJobs.push({ name: 'Greenhouse ATS 2x Weekly Import', task: greenhouseTask });
+  console.log('  - 30 8 * * 1,4 → Greenhouse ATS (Mon+Thu)');
+
+  // ─── Lever ATS (public API, verified companies) ─── 2x/week
+  const leverTask = cron.schedule('0 9 * * 2,5', async () => {
+    console.log('[Scheduler] Starting Lever ATS import...');
+    try {
+      const { execSync } = require('child_process');
+      execSync(`npx ts-node --transpile-only src/bulk-import-lever.ts`, {
+        cwd: __dirname.replace(/\/dist$/, '').replace(/\\dist$/, ''),
+        env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
+        timeout: 600_000,
+        stdio: 'inherit',
+      });
+      console.log('[Scheduler] Lever import complete');
+    } catch (err) {
+      console.error(`[Scheduler] Lever error: ${(err as Error).message?.substring(0, 200)}`);
+    }
+  });
+  scheduledJobs.push({ name: 'Lever ATS 2x Weekly Import', task: leverTask });
+  console.log('  - 0 9 * * 2,5 → Lever ATS (Tue+Fri)');
+
   console.log('[Scheduler] All jobs registered\n');
 }
 
