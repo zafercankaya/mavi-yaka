@@ -669,6 +669,25 @@ export async function startScheduler(prisma: PrismaClient): Promise<void> {
   scheduledJobs.push({ name: 'Subito.it Italy Weekly Import', task: subitoItTask });
   console.log('  - 0 16 * * 4 → Subito.it Italy (weekly Thu)');
 
+  // ─── ArbeitNow (free API, Europe/DE focused) ─── daily
+  const arbeitnowTask = cron.schedule('30 6 * * *', async () => {
+    console.log('[Scheduler] Starting ArbeitNow import...');
+    try {
+      const { execSync } = require('child_process');
+      execSync(`npx ts-node --transpile-only src/bulk-import-arbeitnow.ts`, {
+        cwd: __dirname.replace(/\/dist$/, '').replace(/\\dist$/, ''),
+        env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
+        timeout: 600_000, // 10 min
+        stdio: 'inherit',
+      });
+      console.log('[Scheduler] ArbeitNow import complete');
+    } catch (err) {
+      console.error(`[Scheduler] ArbeitNow error: ${(err as Error).message?.substring(0, 200)}`);
+    }
+  });
+  scheduledJobs.push({ name: 'ArbeitNow Daily Import', task: arbeitnowTask });
+  console.log('  - 30 6 * * * → ArbeitNow (daily, Europe/DE)');
+
   console.log('[Scheduler] All jobs registered\n');
 }
 
