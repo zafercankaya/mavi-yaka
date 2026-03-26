@@ -21,61 +21,61 @@ const API_BASE = 'https://www.arbeitnow.com/api/job-board-api';
 const MAX_PAGES = 30; // safety cap
 const REQUEST_DELAY_MS = 2000;
 
-// Map location strings to our Market enum
-const LOCATION_TO_MARKET: Record<string, string> = {
-  germany: 'DE', deutschland: 'DE', berlin: 'DE', munich: 'DE', münchen: 'DE',
-  hamburg: 'DE', frankfurt: 'DE', cologne: 'DE', köln: 'DE', düsseldorf: 'DE',
-  stuttgart: 'DE', dortmund: 'DE', essen: 'DE', leipzig: 'DE', bremen: 'DE',
-  dresden: 'DE', hannover: 'DE', nürnberg: 'DE', duisburg: 'DE', bochum: 'DE',
-  austria: 'DE', wien: 'DE', vienna: 'DE', // close enough for DE market
-  switzerland: 'DE', zürich: 'DE', zurich: 'DE', // Swiss-German jobs
-  netherlands: 'NL', amsterdam: 'NL', rotterdam: 'NL', utrecht: 'NL',
-  'the hague': 'NL', eindhoven: 'NL', den haag: 'NL',
-  france: 'FR', paris: 'FR', lyon: 'FR', marseille: 'FR',
-  spain: 'ES', madrid: 'ES', barcelona: 'ES',
-  italy: 'IT', milan: 'IT', rome: 'IT', roma: 'IT', milano: 'IT',
-  portugal: 'PT', lisbon: 'PT', lisboa: 'PT', porto: 'PT',
-  poland: 'PL', warsaw: 'PL', warszawa: 'PL', krakow: 'PL', kraków: 'PL',
-  sweden: 'SE', stockholm: 'SE', gothenburg: 'SE', malmö: 'SE',
-  uk: 'UK', london: 'UK', manchester: 'UK', birmingham: 'UK',
-  'united kingdom': 'UK', england: 'UK',
-  us: 'US', 'united states': 'US', 'new york': 'US', california: 'US',
-  canada: 'CA', toronto: 'CA', vancouver: 'CA',
-  australia: 'AU', sydney: 'AU', melbourne: 'AU',
-  india: 'IN', bangalore: 'IN', mumbai: 'IN',
-  brazil: 'BR', 'são paulo': 'BR', 'sao paulo': 'BR',
-  mexico: 'MX', 'mexico city': 'MX',
-  japan: 'JP', tokyo: 'JP',
-  turkey: 'TR', istanbul: 'TR', ankara: 'TR',
-  russia: 'RU', moscow: 'RU',
-  'south korea': 'KR', korea: 'KR', seoul: 'KR',
-  indonesia: 'ID', jakarta: 'ID',
-  philippines: 'PH', manila: 'PH',
-  thailand: 'TH', bangkok: 'TH',
-  vietnam: 'VN', 'ho chi minh': 'VN', hanoi: 'VN',
-  malaysia: 'MY', 'kuala lumpur': 'MY',
-  pakistan: 'PK', karachi: 'PK', lahore: 'PK',
-  egypt: 'EG', cairo: 'EG',
-  'saudi arabia': 'SA', riyadh: 'SA', jeddah: 'SA',
-  uae: 'AE', dubai: 'AE', 'abu dhabi': 'AE',
-  'south africa': 'ZA', johannesburg: 'ZA', cape town: 'ZA',
-  colombia: 'CO', bogota: 'CO', bogotá: 'CO',
-  argentina: 'AR', 'buenos aires': 'AR',
-};
+// Map location keywords to our Market enum
+const LOCATION_ENTRIES: [string, string][] = [
+  ['germany', 'DE'], ['deutschland', 'DE'], ['berlin', 'DE'], ['munich', 'DE'], ['münchen', 'DE'],
+  ['hamburg', 'DE'], ['frankfurt', 'DE'], ['cologne', 'DE'], ['köln', 'DE'], ['düsseldorf', 'DE'],
+  ['stuttgart', 'DE'], ['dortmund', 'DE'], ['essen', 'DE'], ['leipzig', 'DE'], ['bremen', 'DE'],
+  ['dresden', 'DE'], ['hannover', 'DE'], ['nürnberg', 'DE'], ['duisburg', 'DE'], ['bochum', 'DE'],
+  ['austria', 'DE'], ['wien', 'DE'], ['vienna', 'DE'],
+  ['switzerland', 'DE'], ['zürich', 'DE'], ['zurich', 'DE'],
+  ['netherlands', 'NL'], ['amsterdam', 'NL'], ['rotterdam', 'NL'], ['utrecht', 'NL'],
+  ['the hague', 'NL'], ['eindhoven', 'NL'], ['den haag', 'NL'],
+  ['france', 'FR'], ['paris', 'FR'], ['lyon', 'FR'], ['marseille', 'FR'],
+  ['spain', 'ES'], ['madrid', 'ES'], ['barcelona', 'ES'],
+  ['italy', 'IT'], ['milan', 'IT'], ['rome', 'IT'], ['roma', 'IT'], ['milano', 'IT'],
+  ['portugal', 'PT'], ['lisbon', 'PT'], ['lisboa', 'PT'], ['porto', 'PT'],
+  ['poland', 'PL'], ['warsaw', 'PL'], ['warszawa', 'PL'], ['krakow', 'PL'], ['kraków', 'PL'],
+  ['sweden', 'SE'], ['stockholm', 'SE'], ['gothenburg', 'SE'], ['malmö', 'SE'],
+  ['uk', 'UK'], ['london', 'UK'], ['manchester', 'UK'], ['birmingham', 'UK'],
+  ['united kingdom', 'UK'], ['england', 'UK'],
+  ['us', 'US'], ['united states', 'US'], ['new york', 'US'], ['california', 'US'],
+  ['canada', 'CA'], ['toronto', 'CA'], ['vancouver', 'CA'],
+  ['australia', 'AU'], ['sydney', 'AU'], ['melbourne', 'AU'],
+  ['india', 'IN'], ['bangalore', 'IN'], ['mumbai', 'IN'],
+  ['brazil', 'BR'], ['sao paulo', 'BR'],
+  ['mexico', 'MX'], ['mexico city', 'MX'],
+  ['japan', 'JP'], ['tokyo', 'JP'],
+  ['turkey', 'TR'], ['istanbul', 'TR'], ['ankara', 'TR'],
+  ['russia', 'RU'], ['moscow', 'RU'],
+  ['south korea', 'KR'], ['korea', 'KR'], ['seoul', 'KR'],
+  ['indonesia', 'ID'], ['jakarta', 'ID'],
+  ['philippines', 'PH'], ['manila', 'PH'],
+  ['thailand', 'TH'], ['bangkok', 'TH'],
+  ['vietnam', 'VN'], ['ho chi minh', 'VN'], ['hanoi', 'VN'],
+  ['malaysia', 'MY'], ['kuala lumpur', 'MY'],
+  ['pakistan', 'PK'], ['karachi', 'PK'], ['lahore', 'PK'],
+  ['egypt', 'EG'], ['cairo', 'EG'],
+  ['saudi arabia', 'SA'], ['riyadh', 'SA'], ['jeddah', 'SA'],
+  ['uae', 'AE'], ['dubai', 'AE'], ['abu dhabi', 'AE'],
+  ['south africa', 'ZA'], ['johannesburg', 'ZA'], ['cape town', 'ZA'],
+  ['colombia', 'CO'], ['bogota', 'CO'],
+  ['argentina', 'AR'], ['buenos aires', 'AR'],
+];
 
 function detectMarket(location: string): string | null {
   const loc = (location || '').toLowerCase().trim();
   if (!loc) return null;
 
   // Direct match
-  for (const [key, market] of Object.entries(LOCATION_TO_MARKET)) {
+  for (const [key, market] of LOCATION_ENTRIES) {
     if (loc.includes(key)) return market;
   }
 
   // Try last part (often "City, Country" format)
   const parts = loc.split(',').map(p => p.trim());
   for (const part of parts.reverse()) {
-    for (const [key, market] of Object.entries(LOCATION_TO_MARKET)) {
+    for (const [key, market] of LOCATION_ENTRIES) {
       if (part.includes(key)) return market;
     }
   }
