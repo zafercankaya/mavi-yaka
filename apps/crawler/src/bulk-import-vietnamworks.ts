@@ -311,7 +311,7 @@ async function main(): Promise<void> {
       try {
         const data = await searchJobs(keyword, page);
         const jobs = data?.data || [];
-        const total = data?.meta?.total || 0;
+        const nbPages = data?.meta?.nbPages || 1;
 
         if (jobs.length === 0) break;
         keywordFetched += jobs.length;
@@ -428,8 +428,8 @@ async function main(): Promise<void> {
           }
         }
 
-        // Check if we've fetched all results
-        if (keywordFetched >= total || jobs.length < PAGE_SIZE) break;
+        // Check if we've fetched all pages
+        if (page + 1 >= nbPages || jobs.length < PAGE_SIZE) break;
 
         await delay(REQUEST_DELAY_MS);
       } catch (err: any) {
