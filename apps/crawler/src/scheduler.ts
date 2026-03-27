@@ -856,6 +856,25 @@ export async function startScheduler(prisma: PrismaClient): Promise<void> {
   scheduledJobs.push({ name: 'BambooHR ATS 2x Weekly Import', task: bamboohrTask });
   console.log('  - 0 13 * * 2,5 → BambooHR ATS (Tue+Fri)');
 
+  // ─── VietnamWorks (free API, VN market) ─── 2x/week Mon+Thu
+  const vietnamworksTask = cron.schedule('0 14 * * 1,4', async () => {
+    console.log('[Scheduler] Starting VietnamWorks import...');
+    try {
+      const { execSync } = require('child_process');
+      execSync(`npx ts-node --transpile-only src/bulk-import-vietnamworks.ts`, {
+        cwd: __dirname.replace(/\/dist$/, '').replace(/\\dist$/, ''),
+        env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
+        timeout: 1_800_000,
+        stdio: 'inherit',
+      });
+      console.log('[Scheduler] VietnamWorks import complete');
+    } catch (err) {
+      console.error(`[Scheduler] VietnamWorks error: ${(err as Error).message?.substring(0, 200)}`);
+    }
+  });
+  scheduledJobs.push({ name: 'VietnamWorks 2x Weekly Import', task: vietnamworksTask });
+  console.log('  - 0 14 * * 1,4 → VietnamWorks (Mon+Thu)');
+
   console.log('[Scheduler] All jobs registered\n');
 }
 
