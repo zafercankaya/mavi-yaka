@@ -302,39 +302,41 @@ async function fetchCompanyJobs(slug: string): Promise<WorkableJob[] | null> {
   return data.jobs;
 }
 
-// ─── Process a single job listing ───────────────────────────────
+// ─── Batch upsert (same pattern as Adzuna) ──────────────────────
 
-async function processJob(
-  job: WorkableJob,
+async function flushBatch(batch: any[]): Promise<{ inserted: number; updated: number; filtered: number }> {
+  const { flushBatchUpsert } = await import('./utils/flush-batch-upsert');
+  return flushBatchUpsert(prisma, batch);
+}
+
+// ─── Build batch items from jobs ────────────────────────────────
+
+async function buildBatchItems(
+  jobs: WorkableJob[],
   config: CompanyConfig,
-  stats: {
-    inserted: number;
-    skipped: number;
-    notBlueCollar: number;
-    errors: number;
-    marketCounts: Record<string, number>;
-  },
+  stats: { notBlueCollar: number; marketCounts: Record<string, number> },
   dryRun: boolean,
-): Promise<void> {
-  try {
-    // Resolve country: prefer locations[0].countryCode, fall back to country name
+): Promise<any[]> {
+  const batch: any[] = [];
+
+  for (const job of jobs) {
+    // Resolve country
     let countryCode = job.locations?.[0]?.countryCode?.toLowerCase() || '';
     if (!countryCode && job.country) {
       countryCode = COUNTRY_NAME_TO_CODE[job.country.toLowerCase()] || '';
     }
     const market = CODE_TO_MARKET[countryCode];
-    if (!market) return;
+    if (!market) continue;
 
     const dept = job.department || null;
 
-    // Blue-collar filter — reject white-collar jobs
+    // Blue-collar filter
     if (!isBlueCollar(job.title, dept)) {
       stats.notBlueCollar++;
-      return;
+      continue;
     }
 
-    const externalId = `workable-${config.slug}-${job.shortcode}`;
-    const fingerprint = md5(externalId);
+    const fingerprint = md5(`workable-${config.slug}-${job.shortcode}`);
     const applyUrl = `https://apply.workable.com/${config.slug}/j/${job.shortcode}/`;
     const sector = detectSector(job.title, dept, config.sector);
     const jobType = detectJobType(job.employment_type);
@@ -343,53 +345,33 @@ async function processJob(
     const titleSlug = slugify(`${job.title}-${config.company}-${job.shortcode}`);
 
     if (dryRun) {
-      console.log(
-        `    [DRY-RUN] ${market} | ${job.title.substring(0, 60)} | ${city || 'N/A'} | ${sector}`,
-      );
-      stats.inserted++;
-      stats.marketCounts[market] = (stats.marketCounts[market] || 0) + 1;
-      return;
+      console.log(`    [DRY-RUN] ${market} | ${job.title.substring(0, 60)} | ${city || 'N/A'} | ${sector}`);
     }
 
     const source = await getOrCreateSource(config.company, market, config.slug);
 
-    await prisma.jobListing.upsert({
-      where: { fingerprint },
-      update: {
-        lastSeenAt: new Date(),
-        status: 'ACTIVE',
-      },
-      create: {
-        title: job.title.substring(0, 500),
-        slug: titleSlug,
-        companyId: source.companyId,
-        sourceId: source.id,
-        sourceUrl: applyUrl,
-        country: market,
-        city,
-        description: dept ? `Department: ${dept}` : null,
-        sector,
-        jobType: jobType as any,
-        workMode: workMode as any,
-        fingerprint,
-        status: 'ACTIVE',
-        lastSeenAt: new Date(),
-        postedDate: job.published_on ? new Date(job.published_on) : (job.created_at ? new Date(job.created_at) : new Date()),
-      },
+    batch.push({
+      title: job.title.substring(0, 500),
+      slug: titleSlug,
+      companyId: source.companyId,
+      sourceId: source.id,
+      sourceUrl: applyUrl,
+      country: market,
+      city,
+      description: dept ? `Department: ${dept}` : null,
+      sector,
+      jobType,
+      workMode,
+      fingerprint,
+      status: 'ACTIVE',
+      lastSeenAt: new Date(),
+      postedDate: job.published_on ? new Date(job.published_on) : (job.created_at ? new Date(job.created_at) : new Date()),
     });
 
-    stats.inserted++;
     stats.marketCounts[market] = (stats.marketCounts[market] || 0) + 1;
-  } catch (err: any) {
-    if (err.code === 'P2002') {
-      stats.skipped++;
-    } else {
-      stats.errors++;
-      if (process.env.DEBUG) {
-        console.log(`    job error (${job.shortcode}): ${err.message?.substring(0, 100)}`);
-      }
-    }
   }
+
+  return batch;
 }
 
 // ─── Main ────────────────────────────────────────────────────────
@@ -442,18 +424,22 @@ async function main() {
       console.log(`${jobs.length} jobs found`);
       stats.totalFetched += jobs.length;
 
-      const beforeInserted = stats.inserted;
       const beforeNotBC = stats.notBlueCollar;
-
-      for (const job of jobs) {
-        await processJob(job, config, stats, DRY_RUN);
-      }
-
-      const newInserted = stats.inserted - beforeInserted;
+      const batch = await buildBatchItems(jobs, config, stats, DRY_RUN);
       const newNotBC = stats.notBlueCollar - beforeNotBC;
-      console.log(
-        `    +${newInserted} inserted, ${newNotBC} non-blue-collar filtered, ${jobs.length - newInserted - newNotBC} skipped/errors`,
-      );
+
+      if (!DRY_RUN && batch.length > 0) {
+        const result = await flushBatch(batch);
+        stats.inserted += result.inserted;
+        stats.skipped += result.filtered;
+        console.log(
+          `    +${result.inserted} inserted, ${result.updated} updated, ${newNotBC} non-blue-collar, ${result.filtered} title-dedup`,
+        );
+      } else {
+        console.log(
+          `    ${batch.length} blue-collar, ${newNotBC} non-blue-collar filtered`,
+        );
+      }
 
       await delay(REQUEST_DELAY_MS);
     } catch (err: any) {
