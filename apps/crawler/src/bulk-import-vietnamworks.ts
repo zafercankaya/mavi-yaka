@@ -392,8 +392,6 @@ async function main(): Promise<void> {
             salaryMax: salary.salaryMax,
             salaryCurrency: salary.salaryCurrency,
             salaryPeriod: salary.salaryPeriod,
-            companyName: companyName || null,
-            companyLogoUrl: job.companyLogo || null,
             postedDate: postedDate,
             deadline: (deadline && !isNaN(deadline.getTime())) ? deadline : null,
             status: 'ACTIVE' as const,
@@ -405,10 +403,26 @@ async function main(): Promise<void> {
           // Flush batch
           if (batch.length >= BATCH_SIZE) {
             if (!DRY_RUN) {
-              const result = await flushBatchUpsert(prisma, batch);
-              keywordInserted += result.inserted;
-              totalUpdated += result.updated;
-              totalFiltered += result.filtered;
+              try {
+                const result = await flushBatchUpsert(prisma, batch);
+                keywordInserted += result.inserted;
+                totalUpdated += result.updated;
+                totalFiltered += result.filtered;
+              } catch (flushErr: any) {
+                console.error(`    [FLUSH ERROR] ${flushErr.message?.substring(0, 200)}`);
+                // Try individual inserts to find the bad record
+                let individualInserted = 0;
+                for (const item of batch) {
+                  try {
+                    const r = await prisma.jobListing.createMany({ data: [item], skipDuplicates: true });
+                    individualInserted += r.count;
+                  } catch (itemErr: any) {
+                    console.error(`    [BAD RECORD] ${item.title?.substring(0,50)}: ${itemErr.message?.substring(0, 150)}`);
+                    break; // Only log first bad record
+                  }
+                }
+                keywordInserted += individualInserted;
+              }
             }
             batch = [];
           }
