@@ -334,6 +334,80 @@ const MARKET_CONFIGS: MarketConfig[] = [
       'farm worker', 'tractor driver',
     ],
   },
+  {
+    adzunaCode: 'kr', market: 'KR',
+    keywords: [
+      '창고', '지게차', '운전기사', '택배기사', '배달',
+      '공장', '생산직', '조립', '용접', '포장',
+      '전기기사', '배관공', '목수', '미장공', '도장공',
+      '조리사', '주방보조', '서빙', '제빵사',
+      '청소', '경비원', '보안요원',
+      'warehouse', 'forklift', 'driver', 'factory worker', 'welder',
+      'electrician', 'plumber', 'carpenter', 'mechanic', 'cook',
+      'security guard', 'cleaner', 'delivery', 'construction worker',
+      'maintenance', 'technician', 'machine operator', 'packer',
+    ],
+  },
+  {
+    adzunaCode: 'th', market: 'TH',
+    keywords: [
+      'พนักงานคลังสินค้า', 'พนักงานขับรถ', 'แม่บ้าน', 'พ่อครัว',
+      'พนักงานผลิต', 'ช่างไฟฟ้า', 'ช่างเชื่อม', 'คนงานก่อสร้าง',
+      'รปภ', 'พนักงานส่งของ', 'ช่างซ่อม', 'ช่างยนต์', 'ช่างแอร์',
+      'warehouse', 'forklift', 'driver', 'factory', 'welder',
+      'electrician', 'plumber', 'mechanic', 'cook', 'cleaner',
+      'security guard', 'delivery', 'construction', 'technician',
+      'machine operator', 'hotel staff', 'housekeeping',
+    ],
+  },
+  {
+    adzunaCode: 'pk', market: 'PK',
+    keywords: [
+      'warehouse helper', 'driver', 'cleaner', 'cook', 'factory worker',
+      'electrician', 'welder', 'mason', 'security guard', 'packer',
+      'mechanic', 'plumber', 'labourer', 'gardener', 'helper',
+      'delivery rider', 'carpenter', 'painter', 'steel fixer',
+      'ac technician', 'hotel staff', 'waiter', 'kitchen helper',
+      'housekeeping', 'watchman', 'textile worker', 'machine operator',
+      'loader', 'production worker', 'crane operator', 'forklift',
+      'construction worker', 'dispatch rider', 'farm worker',
+    ],
+  },
+  {
+    adzunaCode: 'ae', market: 'AE',
+    keywords: [
+      'warehouse worker', 'forklift operator', 'driver', 'delivery driver',
+      'cleaner', 'cook', 'factory worker', 'electrician', 'welder',
+      'plumber', 'carpenter', 'painter', 'mason', 'steel fixer',
+      'ac technician', 'mechanic', 'security guard', 'packer',
+      'helper', 'labourer', 'construction worker', 'machine operator',
+      'housekeeping', 'waiter', 'kitchen helper', 'hotel staff',
+      'gardener', 'farm worker', 'crane operator',
+    ],
+  },
+  {
+    adzunaCode: 'sa', market: 'SA',
+    keywords: [
+      'عامل مستودع', 'سائق', 'عامل نظافة', 'طباخ', 'عامل مصنع',
+      'كهربائي', 'لحام', 'سباك', 'نجار', 'حارس أمن', 'ميكانيكي',
+      'warehouse', 'driver', 'cleaner', 'cook', 'factory worker',
+      'electrician', 'welder', 'plumber', 'carpenter', 'security guard',
+      'mechanic', 'helper', 'labourer', 'construction worker',
+      'ac technician', 'delivery', 'machine operator', 'painter',
+      'housekeeping', 'waiter', 'hotel staff',
+    ],
+  },
+  {
+    adzunaCode: 'eg', market: 'EG',
+    keywords: [
+      'عامل مخزن', 'سائق', 'عامل نظافة', 'طباخ', 'عامل مصنع',
+      'كهربائي', 'لحام', 'سباك', 'نجار', 'أمن', 'ميكانيكي',
+      'warehouse', 'driver', 'cleaner', 'cook', 'factory worker',
+      'electrician', 'welder', 'plumber', 'carpenter', 'security guard',
+      'mechanic', 'helper', 'labourer', 'construction worker',
+      'delivery', 'machine operator', 'painter', 'hotel staff',
+    ],
+  },
 ];
 
 // ─── Source management ───────────────────────────────────────────────
