@@ -126,6 +126,16 @@ const SHARED_NON_JOB_URL_PATTERNS: RegExp[] = [
   /\/employee-benefits/i, /\/benefits\/?$/i,
   /\/diversity/i, /\/inclusion/i, /\/csr\b/i, /\/esg\b/i,
   /javascript:void/i,
+  // E-commerce / product pages (NOT job listings)
+  /\/product[s]?\//i, /\/urun\//i, /\/butik\//i, /\/shop\//i,
+  /\/item[s]?\//i, /\/buy\//i, /\/cart\b/i, /\/checkout\b/i,
+  /\/p-\d+/i, /\/dp\/[A-Z0-9]/i,   // Amazon ASIN pattern
+  /\/catalogue\//i, /\/catalog\//i,
+  /\/collection[s]?\//i, /\/category\//i, /\/kategori\//i,
+  /\/add-to-cart/i, /\/sepete-ekle/i,
+  /\/wishlist\b/i, /\/compare\b/i,
+  /trendyol\.com\/butik/i, /trendyol\.com.*\/urun\//i,
+  /amazon\.(com|co\.|de|fr|it|es|nl|pl|se|com\.br|com\.mx|co\.jp|com\.au|in|sa|ae|com\.tr)\/dp\//i,
 ];
 
 // ─── TR Keywords ────────────────────────────────────────────────
@@ -1085,7 +1095,15 @@ function hardReject(
     }
   }
 
-  // 6. Non-job URL patterns
+  // 6. E-commerce / product URL hard reject
+  if (/\/(product|urun|butik|item)s?\/[^/]+/i.test(urlLower) ||
+      /\/(dp|gp\/product)\/[A-Z0-9]/i.test(urlLower) ||
+      /\/(add-to-cart|sepete-ekle|checkout|cart)\b/i.test(urlLower) ||
+      /trendyol\.com\/(butik|sr\?|urun\/)/i.test(urlLower)) {
+    return 'ecommerce_product_url';
+  }
+
+  // 7. Non-job URL patterns
   for (const p of keywords.nonJobUrlPatterns) {
     if (p.test(urlLower)) {
       // But if URL also matches job patterns, don't reject (e.g., /about-careers)
@@ -1094,12 +1112,12 @@ function hardReject(
     }
   }
 
-  // 7. CSS/garbage title fragments
+  // 8. CSS/garbage title fragments
   if (/^[.#\[\]{}@]/.test(listing.title) || /::before|::after|::placeholder/i.test(listing.title)) {
     return 'css_garbage';
   }
 
-  // 8. Foreign locale URL check
+  // 9. Foreign locale URL check
   if (market) {
     const localePatterns = MARKET_LOCALES[market];
     if (localePatterns) {

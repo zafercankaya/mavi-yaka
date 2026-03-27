@@ -364,5 +364,11 @@
     "signUpToFollow": "企業をフォローするには無料アカウントを作成してください",
     "signUpToSave": "求人を保存するには無料アカウントを作成してください",
     "signUpFree": "無料で登録"
+  },
+  "review": {
+    "title": "Mavi Yakaを楽しんでいますか？",
+    "subtitle": "フィードバックは改善に役立ちます！",
+    "yesLovingIt": "はい、気に入っています！",
+    "notReally": "あまり"
   }
 }

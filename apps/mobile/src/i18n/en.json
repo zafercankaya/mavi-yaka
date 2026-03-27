@@ -386,5 +386,11 @@
     "signUpToFollow": "Create a free account to follow companies",
     "signUpToSave": "Create a free account to save job listings",
     "signUpFree": "Sign Up Free"
+  },
+  "review": {
+    "title": "Enjoying Mavi Yaka?",
+    "subtitle": "Your feedback helps us improve!",
+    "yesLovingIt": "Yes, loving it!",
+    "notReally": "Not really"
   }
 }

@@ -364,5 +364,11 @@
     "signUpToFollow": "Skapa ett gratiskonto för att följa företag",
     "signUpToSave": "Skapa ett gratiskonto för att spara jobbannonser",
     "signUpFree": "Registrera gratis"
+  },
+  "review": {
+    "title": "Gillar du Mavi Yaka?",
+    "subtitle": "Din feedback hjälper oss att förbättra!",
+    "yesLovingIt": "Ja, jag älskar det!",
+    "notReally": "Inte riktigt"
   }
 }

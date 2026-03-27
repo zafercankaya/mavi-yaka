@@ -20,6 +20,8 @@
  * 16. Stale log cleanup
  * 17. Job listing limit monitoring
  * 18. Health report
+ * 19. Cross-source dedup (same title+city+country from different aggregators)
+ * 20. Career URL dedup (same source_url from different market sources)
  */
 import { PrismaClient, CrawlStatus } from '@prisma/client';
 
@@ -54,6 +56,8 @@ interface MaintenanceReport {
     foreignLocaleExpired: number;
     staleLogsCleaned: number;
     nearLimitBrands: number;
+    crossSourceDedupExpired: number;
+    careerUrlDedupExpired: number;
   };
 }
 
@@ -584,55 +588,65 @@ async function mergeDuplicateBrands(prisma: PrismaClient) {
 
 /** Task 4: Detect and deactivate dead sources (14+ days fatal failures) */
 async function deactivateDeadSources(prisma: PrismaClient) {
-  const cutoff = new Date(Date.now() - DEAD_SOURCE_THRESHOLD_DAYS * 24 * 60 * 60 * 1000);
+  // Use raw SQL to avoid Prisma bind variable limit (>32767 sources)
+  const cutoffDays = DEAD_SOURCE_THRESHOLD_DAYS;
+  const minFails = MIN_CONSECUTIVE_FAILURES;
 
-  const sources = await prisma.crawlSource.findMany({
-    where: { isActive: true },
-    select: {
-      id: true,
-      name: true,
-      companyId: true,
-      company: { select: { name: true, market: true } },
-      crawlLogs: {
-        where: { createdAt: { gt: cutoff } },
-        orderBy: { createdAt: 'desc' as const },
-        take: 3,
-        select: { status: true, errorMessage: true },
-      },
-    },
-  });
+  const cutoffDate = new Date(Date.now() - cutoffDays * 24 * 60 * 60 * 1000);
 
-  const toDeactivate: string[] = [];
+  const deadSources = await prisma.$queryRaw<Array<{ id: string }>>`
+    WITH recent_logs AS (
+      SELECT
+        cl.source_id,
+        cl.status,
+        cl.error_message,
+        ROW_NUMBER() OVER (PARTITION BY cl.source_id ORDER BY cl.created_at DESC) as rn
+      FROM crawl_logs cl
+      JOIN crawl_sources cs ON cl.source_id = cs.id
+      WHERE cs.is_active = true
+        AND cl.created_at > ${cutoffDate}
+    ),
+    source_status AS (
+      SELECT
+        source_id,
+        COUNT(*) as log_count,
+        COUNT(*) FILTER (WHERE status = 'RUNNING') as running_count,
+        COUNT(*) FILTER (WHERE status IN ('SUCCESS', 'PARTIAL')) as success_count,
+        COUNT(*) FILTER (WHERE
+          error_message LIKE '%ENOTFOUND%' OR
+          error_message LIKE '%DNS%' OR
+          error_message LIKE '%SSL%' OR
+          error_message LIKE '%CERT%' OR
+          error_message LIKE '%ECONNREFUSED%'
+        ) as fatal_count
+      FROM recent_logs
+      WHERE rn <= ${minFails}
+      GROUP BY source_id
+    )
+    SELECT source_id as id FROM source_status
+    WHERE log_count >= ${minFails}
+      AND running_count = 0
+      AND success_count = 0
+      AND fatal_count = log_count
+    LIMIT 1000
+  `;
 
-  for (const s of sources) {
-    if (s.crawlLogs.length < MIN_CONSECUTIVE_FAILURES) continue;
+  if (deadSources.length === 0) return { count: 0 };
 
-    // Skip if currently running
-    const isRunning = s.crawlLogs.some(l => l.status === CrawlStatus.RUNNING);
-    if (isRunning) continue;
+  const ids = deadSources.map(s => s.id);
 
-    // Skip if any success in recent logs
-    const hasSuccess = s.crawlLogs.some(
-      l => l.status === CrawlStatus.SUCCESS || l.status === CrawlStatus.PARTIAL,
-    );
-    if (hasSuccess) continue;
-
-    // All logs must be FAILED with fatal error
-    const allFatal = s.crawlLogs.every(l => hasFatalError(l.errorMessage));
-    if (!allFatal) continue;
-
-    toDeactivate.push(s.id);
+  // Batch update in chunks to avoid bind variable limits
+  const BATCH = 500;
+  for (let i = 0; i < ids.length; i += BATCH) {
+    const batch = ids.slice(i, i + BATCH);
+    await prisma.crawlSource.updateMany({
+      where: { id: { in: batch } },
+      data: { isActive: false },
+    });
   }
 
-  if (toDeactivate.length === 0) return { count: 0 };
-
-  await prisma.crawlSource.updateMany({
-    where: { id: { in: toDeactivate } },
-    data: { isActive: false },
-  });
-
   return {
-    count: toDeactivate.length,
+    count: ids.length,
     details: `Fatal errors: DNS/SSL/CERT (${DEAD_SOURCE_THRESHOLD_DAYS}d threshold)`,
   };
 }
@@ -1084,6 +1098,77 @@ async function generateHealthReport(prisma: PrismaClient) {
   return { count: 0, details: summary };
 }
 
+/** Task 19: Cross-source dedup — same title+city+country from different aggregators */
+async function crossSourceDedup(prisma: PrismaClient) {
+  // Find duplicate groups: same title + city + country from different JOB_PLATFORM sources
+  const dupeGroups: Array<{ title: string; city: string; country: string; ids: string[] }> = await prisma.$queryRaw`
+    SELECT jl.title, jl.city, jl.country, array_agg(jl.id ORDER BY jl.posted_date ASC) as ids
+    FROM job_listings jl
+    JOIN crawl_sources cs ON jl.source_id = cs.id
+    WHERE jl.status = 'ACTIVE'
+      AND cs.type = 'JOB_PLATFORM'
+      AND jl.city IS NOT NULL
+      AND jl.title IS NOT NULL
+      AND length(jl.title) > 5
+    GROUP BY jl.title, jl.city, jl.country
+    HAVING COUNT(DISTINCT cs.id) > 1
+    LIMIT 2000
+  `;
+
+  if (!dupeGroups || dupeGroups.length === 0) {
+    return { count: 0, details: 'No cross-source duplicates found' };
+  }
+
+  let totalExpired = 0;
+  for (const group of dupeGroups) {
+    // Keep the first (oldest), expire the rest
+    const idsToExpire = group.ids.slice(1);
+    if (idsToExpire.length > 0) {
+      const result = await prisma.jobListing.updateMany({
+        where: { id: { in: idsToExpire }, status: 'ACTIVE' },
+        data: { status: 'EXPIRED' },
+      });
+      totalExpired += result.count;
+    }
+  }
+
+  console.log(`[Maintenance] Cross-source dedup: ${totalExpired} duplicates expired from ${dupeGroups.length} groups`);
+  return { count: totalExpired, details: `${dupeGroups.length} groups` };
+}
+
+/** Task 20: Career URL dedup — same source_url from multiple market sources */
+async function careerUrlDedup(prisma: PrismaClient) {
+  // Find listings with identical source_url from different sources (company career pages)
+  const dupeGroups: Array<{ source_url: string; ids: string[] }> = await prisma.$queryRaw`
+    SELECT jl.source_url, array_agg(jl.id ORDER BY jl.posted_date ASC) as ids
+    FROM job_listings jl
+    WHERE jl.status = 'ACTIVE'
+      AND jl.source_url IS NOT NULL
+    GROUP BY jl.source_url
+    HAVING COUNT(DISTINCT jl.source_id) > 1
+    LIMIT 5000
+  `;
+
+  if (!dupeGroups || dupeGroups.length === 0) {
+    return { count: 0, details: 'No URL duplicates found' };
+  }
+
+  let totalExpired = 0;
+  for (const group of dupeGroups) {
+    const idsToExpire = group.ids.slice(1);
+    if (idsToExpire.length > 0) {
+      const result = await prisma.jobListing.updateMany({
+        where: { id: { in: idsToExpire }, status: 'ACTIVE' },
+        data: { status: 'EXPIRED' },
+      });
+      totalExpired += result.count;
+    }
+  }
+
+  console.log(`[Maintenance] Career URL dedup: ${totalExpired} duplicates expired from ${dupeGroups.length} groups`);
+  return { count: totalExpired, details: `${dupeGroups.length} groups` };
+}
+
 // ─── Main Entry Point ───────────────────────────────────
 
 export async function runDailyMaintenance(prisma: PrismaClient): Promise<MaintenanceReport> {
@@ -1130,6 +1215,8 @@ export async function runDailyMaintenance(prisma: PrismaClient): Promise<Mainten
       foreignLocaleExpired: 0,
       staleLogsCleaned: 0,
       nearLimitBrands: 0,
+      crossSourceDedupExpired: 0,
+      careerUrlDedupExpired: 0,
     },
   };
 
@@ -1221,6 +1308,16 @@ export async function runDailyMaintenance(prisma: PrismaClient): Promise<Mainten
   // Task 18: Health report
   const t18 = await runTask('Health Report', () => generateHealthReport(prisma));
   report.tasks.push(t18);
+
+  // Task 19: Cross-source dedup (aggregator APIs)
+  const t19 = await runTask('Cross-Source Dedup', () => crossSourceDedup(prisma));
+  report.tasks.push(t19);
+  report.summary.crossSourceDedupExpired = t19.count;
+
+  // Task 20: Career URL dedup (same URL from different market sources)
+  const t20 = await runTask('Career URL Dedup', () => careerUrlDedup(prisma));
+  report.tasks.push(t20);
+  report.summary.careerUrlDedupExpired = t20.count;
 
   // Print summary
   const active = report.tasks.filter(t => t.status === 'OK');

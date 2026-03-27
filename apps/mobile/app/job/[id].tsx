@@ -150,6 +150,8 @@ export default function JobDetailScreen() {
     } else {
       await WebBrowser.openBrowserAsync(job.sourceUrl);
     }
+    // Job apply is a strong positive signal
+    maybeRequestReview();
   };
 
   const handleShare = async () => {

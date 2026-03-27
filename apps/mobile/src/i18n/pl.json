@@ -364,5 +364,11 @@
     "signUpToFollow": "Załóż darmowe konto, aby obserwować firmy",
     "signUpToSave": "Załóż darmowe konto, aby zapisywać oferty pracy",
     "signUpFree": "Zarejestruj się za darmo"
+  },
+  "review": {
+    "title": "Podoba Ci się Mavi Yaka?",
+    "subtitle": "Twoja opinia pomaga nam się rozwijać!",
+    "yesLovingIt": "Tak, uwielbiam!",
+    "notReally": "Nie bardzo"
   }
 }

@@ -364,5 +364,11 @@
     "signUpToFollow": "Crie uma conta gratuita para seguir empresas",
     "signUpToSave": "Crie uma conta gratuita para salvar vagas",
     "signUpFree": "Cadastrar-se Grátis"
+  },
+  "review": {
+    "title": "Gostando do Mavi Yaka?",
+    "subtitle": "Seu feedback nos ajuda a melhorar!",
+    "yesLovingIt": "Sim, estou adorando!",
+    "notReally": "Nem tanto"
   }
 }

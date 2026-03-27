@@ -14,6 +14,7 @@
 
 import { PrismaClient, Market, Sector } from '@prisma/client';
 import { createHash } from 'crypto';
+import { isBlueCollar } from './utils/blue-collar-filter';
 
 const prisma = new PrismaClient();
 const REQUEST_DELAY_MS = 2000;
@@ -64,6 +65,23 @@ const BOARDS: BoardConfig[] = [
   // Misc with blue-collar
   { token: 'flex', company: 'Flex Ltd', market: 'US', extraMarkets: ['MX', 'BR', 'IN', 'MY', 'PL'] },
   { token: 'lyft', company: 'Lyft', market: 'US', extraMarkets: ['CA'] },
+
+  // New boards (March 2026)
+  { token: 'mongodb', company: 'MongoDB', market: 'US', extraMarkets: ['UK', 'DE', 'IN', 'AU'] },
+  { token: 'toast', company: 'Toast', market: 'US' },
+  { token: 'brex', company: 'Brex', market: 'US', extraMarkets: ['BR', 'CA'] },
+  { token: 'remotecom', company: 'Remote.com', market: 'US', extraMarkets: ['UK', 'DE', 'NL', 'PT'] },
+  { token: 'elastic', company: 'Elastic', market: 'US', extraMarkets: ['UK', 'DE', 'IN', 'AU'] },
+  { token: 'gitlab', company: 'GitLab', market: 'US' },
+  { token: 'asana', company: 'Asana', market: 'US' },
+  { token: 'figma', company: 'Figma', market: 'US', extraMarkets: ['UK'] },
+  { token: 'affirm', company: 'Affirm', market: 'US', extraMarkets: ['CA'] },
+  { token: 'discord', company: 'Discord', market: 'US' },
+  { token: 'gusto', company: 'Gusto', market: 'US' },
+  { token: 'chime', company: 'Chime', market: 'US' },
+  { token: 'airtable', company: 'Airtable', market: 'US' },
+  { token: 'squarespace', company: 'Squarespace', market: 'US' },
+  { token: 'lgelectronics', company: 'LG Electronics', market: 'US', extraMarkets: ['KR', 'IN', 'DE', 'BR', 'MX'] },
 ];
 
 // ─── Location detection from job location string ──────────────────
@@ -241,6 +259,7 @@ async function main() {
   let totalFetched = 0;
   let totalInserted = 0;
   let totalSkipped = 0;
+  let totalNotBlueCollar = 0;
   let totalErrors = 0;
   const marketCounts: Record<string, number> = {};
 
@@ -294,6 +313,12 @@ async function main() {
           const titleSlug = slugify(`${job.title}-${board.company}-${job.id}`);
           const dept = job.departments?.map(d => d.name).join(', ') || '';
 
+          // Blue-collar filter — reject white-collar jobs
+          if (!isBlueCollar(job.title, dept || null)) {
+            totalNotBlueCollar++;
+            continue;
+          }
+
           await prisma.jobListing.create({
             data: {
               title: job.title.substring(0, 500),
@@ -341,6 +366,7 @@ async function main() {
   console.log(`  Fetched: ${totalFetched}`);
   console.log(`  Inserted: ${totalInserted}`);
   console.log(`  Skipped: ${totalSkipped}`);
+  console.log(`  Not blue-collar: ${totalNotBlueCollar}`);
   console.log(`  Errors: ${totalErrors}`);
   console.log(`  Duration: ${elapsed}s`);
 

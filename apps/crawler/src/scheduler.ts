@@ -745,6 +745,79 @@ export async function startScheduler(prisma: PrismaClient): Promise<void> {
   scheduledJobs.push({ name: 'Lever ATS 2x Weekly Import', task: leverTask });
   console.log('  - 0 9 * * 2,5 → Lever ATS (Tue+Fri)');
 
+  // ─── hh.ru HeadHunter (free API, RU blue-collar) ─── 2x/week Wed+Sat
+  const hhruTask = cron.schedule('0 10 * * 3,6', async () => {
+    console.log('[Scheduler] Starting hh.ru HeadHunter import...');
+    try {
+      const { execSync } = require('child_process');
+      execSync(`npx ts-node --transpile-only src/bulk-import-hhru.ts`, {
+        cwd: __dirname.replace(/\/dist$/, '').replace(/\\dist$/, ''),
+        env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
+        timeout: 1_800_000,
+        stdio: 'inherit',
+      });
+      console.log('[Scheduler] hh.ru import complete');
+    } catch (err) {
+      console.error(`[Scheduler] hh.ru error: ${(err as Error).message?.substring(0, 200)}`);
+    }
+  });
+  scheduledJobs.push({ name: 'hh.ru HeadHunter 2x Weekly Import', task: hhruTask });
+  console.log('  - 0 10 * * 3,6 → hh.ru HeadHunter (Wed+Sat)');
+
+  // ─── Computrabajo (HTML scraping, LATAM blue-collar) ─── Weekly Sunday
+  const computrabajoTask = cron.schedule('0 11 * * 0', async () => {
+    console.log('[Scheduler] Starting Computrabajo LATAM import...');
+    try {
+      const { execSync } = require('child_process');
+      execSync(`npx ts-node --transpile-only src/bulk-import-computrabajo.ts`, {
+        cwd: __dirname.replace(/\/dist$/, '').replace(/\\dist$/, ''),
+        env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
+        timeout: 2_400_000,
+        stdio: 'inherit',
+      });
+      console.log('[Scheduler] Computrabajo import complete');
+    } catch (err) {
+      console.error(`[Scheduler] Computrabajo error: ${(err as Error).message?.substring(0, 200)}`);
+    }
+  });
+  scheduledJobs.push({ name: 'Computrabajo Weekly LATAM Import', task: computrabajoTask });
+  console.log('  - 0 11 * * 0 → Computrabajo LATAM (Sunday)');
+
+  // ─── TheMuse (free public API, Retail+Healthcare+Construction) ─── 2x/week
+  const themuseTask = cron.schedule('30 11 * * 1,4', async () => {
+    console.log('[Scheduler] Starting TheMuse import...');
+    try {
+      const { execSync } = require('child_process');
+      execSync(`npx ts-node --transpile-only src/bulk-import-themuse.ts`, {
+        cwd: __dirname.replace(/\/dist$/, '').replace(/\\dist$/, ''),
+        env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
+        timeout: 1_200_000,
+        stdio: 'inherit',
+      });
+      console.log('[Scheduler] TheMuse import complete');
+    } catch (err) {
+      console.error(`[Scheduler] TheMuse error: ${(err as Error).message?.substring(0, 200)}`);
+    }
+  });
+  scheduledJobs.push({ name: 'TheMuse 2x Weekly Import', task: themuseTask });
+  console.log('  - 30 11 * * 1,4 → TheMuse (Mon+Thu)');
+
+  // SmartRecruiters ATS (free public API, Bosch+Securitas+H&M etc.) — 2x/week Tue+Fri
+  const smartrecruitersTask = cron.schedule('0 12 * * 2,5', async () => {
+    console.log('[Scheduler] SmartRecruiters import starting...');
+    try {
+      const { execSync } = require('child_process');
+      execSync(
+        'npx ts-node --transpile-only src/bulk-import-smartrecruiters.ts',
+        { cwd: '/opt/mavi-yaka/apps/crawler', timeout: 1_800_000, stdio: 'inherit' },
+      );
+    } catch (err) {
+      console.error(`[Scheduler] SmartRecruiters error: ${(err as Error).message?.substring(0, 200)}`);
+    }
+  });
+  scheduledJobs.push({ name: 'SmartRecruiters 2x Weekly Import', task: smartrecruitersTask });
+  console.log('  - 0 12 * * 2,5 → SmartRecruiters (Tue+Fri)');
+
   console.log('[Scheduler] All jobs registered\n');
 }
 

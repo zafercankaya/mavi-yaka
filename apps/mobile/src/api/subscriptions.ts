@@ -22,7 +22,8 @@ export interface SubscriptionPlan {
   priceMonthly: number | null;
   priceYearly: number | null;
   maxCompanyFollows: number;
-  dailyNotifLimit: number;
+  maxSavedJobs: number;
+  dailyViewLimit: number;
   hasAdvancedFilter: boolean;
   adFree: boolean;
   weeklyDigest: boolean;
@@ -31,12 +32,15 @@ export interface SubscriptionPlan {
 export interface Entitlement {
   planName: string;
   maxCompanyFollows: number;
-  dailyNotifLimit: number;
+  maxSavedJobs: number;
+  dailyViewLimit: number;
   hasAdvancedFilter: boolean;
   adFree: boolean;
   weeklyDigest: boolean;
   currentCompanyFollowCount: number;
   frozenCompanyFollowCount: number;
+  currentSavedJobCount: number;
+  frozenSavedJobCount: number;
   isPremium: boolean;
 }
 

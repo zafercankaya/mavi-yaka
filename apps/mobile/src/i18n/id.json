@@ -364,5 +364,11 @@
     "signUpToFollow": "Buat akun gratis untuk mengikuti perusahaan",
     "signUpToSave": "Buat akun gratis untuk menyimpan lowongan kerja",
     "signUpFree": "Daftar Gratis"
+  },
+  "review": {
+    "title": "Suka Mavi Yaka?",
+    "subtitle": "Masukan Anda membantu kami menjadi lebih baik!",
+    "yesLovingIt": "Ya, saya suka!",
+    "notReally": "Tidak juga"
   }
 }

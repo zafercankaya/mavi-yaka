@@ -99,15 +99,9 @@ export default function SubscriptionScreen() {
             </Text>
           </View>
           <View style={styles.usageRow}>
-            <Text style={styles.usageLabel}>{t('subscription.companyFollowLimit')}</Text>
+            <Text style={styles.usageLabel}>{t('subscription.dailyViews')}</Text>
             <Text style={styles.usageValue}>
-              {entitlement.currentCompanyFollowCount} / {entitlement.maxCompanyFollows === -1 ? '∞' : entitlement.maxCompanyFollows}
-            </Text>
-          </View>
-          <View style={styles.usageRow}>
-            <Text style={styles.usageLabel}>{t('subscription.dailyNotifications')}</Text>
-            <Text style={styles.usageValue}>
-              {entitlement.dailyNotifLimit === -1 ? t('common.unlimited') : entitlement.dailyNotifLimit}
+              {entitlement.dailyViewLimit === -1 ? t('common.unlimited') : entitlement.dailyViewLimit}
             </Text>
           </View>
           <View style={styles.usageRow}>
@@ -271,14 +265,9 @@ function PlanCard({
           highlighted={plan.maxCompanyFollows === -1}
         />
         <FeatureRow
-          label={t('subscription.companyFollowLimit')}
-          value={plan.maxCompanyFollows === -1 ? t('common.unlimited') : `${plan.maxCompanyFollows}`}
-          highlighted={plan.maxCompanyFollows === -1}
-        />
-        <FeatureRow
-          label={t('subscription.dailyNotifications')}
-          value={plan.dailyNotifLimit === -1 ? t('common.unlimited') : `${plan.dailyNotifLimit}`}
-          highlighted={plan.dailyNotifLimit === -1}
+          label={t('subscription.dailyViews')}
+          value={plan.dailyViewLimit === -1 ? t('common.unlimited') : `${plan.dailyViewLimit}`}
+          highlighted={plan.dailyViewLimit === -1}
         />
         <FeatureRow
           label={t('subscription.advancedFilters')}

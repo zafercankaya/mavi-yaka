@@ -364,5 +364,11 @@
     "signUpToFollow": "Maak een gratis account aan om bedrijven te volgen",
     "signUpToSave": "Maak een gratis account aan om vacatures op te slaan",
     "signUpFree": "Gratis registreren"
+  },
+  "review": {
+    "title": "Bevalt Mavi Yaka?",
+    "subtitle": "Je feedback helpt ons verbeteren!",
+    "yesLovingIt": "Ja, ik vind het geweldig!",
+    "notReally": "Niet echt"
   }
 }

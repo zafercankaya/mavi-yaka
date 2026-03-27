@@ -388,5 +388,11 @@
     "signUpToFollow": "Firmaları takip etmek için ücretsiz hesap oluşturun",
     "signUpToSave": "İlanları kaydetmek için ücretsiz hesap oluşturun",
     "signUpFree": "Ücretsiz Kayıt Ol"
+  },
+  "review": {
+    "title": "Mavi Yaka'yı beğeniyor musun?",
+    "subtitle": "Geri bildiriminiz bizi geliştirmemize yardımcı olur!",
+    "yesLovingIt": "Evet, bayıldım!",
+    "notReally": "Pek değil"
   }
 }

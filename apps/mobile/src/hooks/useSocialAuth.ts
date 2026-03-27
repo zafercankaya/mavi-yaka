@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Platform, Alert } from 'react-native';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { socialLoginApi } from '../api/auth';
@@ -9,7 +10,7 @@ import { useAuthStore } from '../store/auth';
 
 WebBrowser.maybeCompleteAuthSession();
 
-// Google OAuth client ID'leri — kendi değerlerinizle değiştirin
+// Google OAuth client ID'leri
 const GOOGLE_CLIENT_ID_WEB = '1088967980979-70b4roa2v9p7v5vm652tqstac5umrbt9.apps.googleusercontent.com';
 
 const discovery = {
@@ -50,10 +51,36 @@ export function useSocialAuth() {
     }
   };
 
-  // Apple Sign In temporarily disabled — requires provisioning profile capabilities
   const signInWithApple = async () => {
     if (Platform.OS !== 'ios') return;
-    Alert.alert('Apple Sign In', 'Coming soon');
+    setLoading(true);
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+
+      if (!credential.identityToken) {
+        Alert.alert(t('auth.loginError'), t('auth.appleLoginFailed'));
+        return;
+      }
+
+      const displayName = credential.fullName
+        ? [credential.fullName.givenName, credential.fullName.familyName].filter(Boolean).join(' ')
+        : undefined;
+
+      const data = await socialLoginApi('APPLE', credential.identityToken, displayName || undefined);
+      await setAuth(data.user, data.accessToken, data.refreshToken);
+      router.replace('/(tabs)');
+    } catch (err: any) {
+      if (err.code === 'ERR_REQUEST_CANCELED') return;
+      const msg = err.response?.data?.message || t('auth.appleLoginFailed');
+      Alert.alert(t('auth.loginError'), msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return {

@@ -13,6 +13,7 @@
 
 import { PrismaClient, Market, Sector } from '@prisma/client';
 import { createHash } from 'crypto';
+import { isBlueCollar } from './utils/blue-collar-filter';
 
 const prisma = new PrismaClient();
 const REQUEST_DELAY_MS = 2000;
@@ -205,6 +206,7 @@ async function main() {
   let totalFetched = 0;
   let totalInserted = 0;
   let totalSkipped = 0;
+  let totalNotBlueCollar = 0;
   let totalErrors = 0;
   const marketCounts: Record<string, number> = {};
 
@@ -254,6 +256,14 @@ async function main() {
             continue;
           }
 
+          // Blue-collar filter — reject white-collar jobs
+          const dept = [job.categories?.team, job.categories?.department]
+            .filter(Boolean).join(' / ');
+          if (!isBlueCollar(job.text, dept || null)) {
+            totalNotBlueCollar++;
+            continue;
+          }
+
           const titleSlug = slugify(`${job.text}-${config.company}-${job.id.substring(0, 8)}`);
           const commitment = job.categories?.commitment || 'Full Time';
           const jobType = commitment.toLowerCase().includes('part')
@@ -263,8 +273,6 @@ async function main() {
               : 'FULL_TIME';
 
           const isRemote = locationStr.toLowerCase().includes('remote');
-          const dept = [job.categories?.team, job.categories?.department]
-            .filter(Boolean).join(' / ');
 
           await prisma.jobListing.create({
             data: {
@@ -313,6 +321,7 @@ async function main() {
   console.log(`  Fetched: ${totalFetched}`);
   console.log(`  Inserted: ${totalInserted}`);
   console.log(`  Skipped: ${totalSkipped}`);
+  console.log(`  Not blue-collar: ${totalNotBlueCollar}`);
   console.log(`  Errors: ${totalErrors}`);
   console.log(`  Duration: ${elapsed}s`);
 
