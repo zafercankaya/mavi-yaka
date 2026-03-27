@@ -360,7 +360,6 @@ async function processJob(
         status: 'ACTIVE',
       },
       create: {
-        externalId,
         title: job.title.substring(0, 500),
         slug: titleSlug,
         companyId: source.companyId,
