@@ -81,13 +81,25 @@ const COMPANIES: CompanyConfig[] = [
 
 // ─── Market mapping (ISO 2-letter country code → Market enum) ───
 
-const COUNTRY_TO_MARKET: Record<string, Market> = {
+const CODE_TO_MARKET: Record<string, Market> = {
   us: 'US', gb: 'UK', de: 'DE', fr: 'FR', es: 'ES', it: 'IT',
   nl: 'NL', pl: 'PL', se: 'SE', pt: 'PT', ca: 'CA', au: 'AU',
   in: 'IN', jp: 'JP', br: 'BR', mx: 'MX', tr: 'TR', ru: 'RU',
   id: 'ID', ph: 'PH', th: 'TH', kr: 'KR', eg: 'EG', sa: 'SA',
   ae: 'AE', ar: 'AR', co: 'CO', vn: 'VN', my: 'MY', pk: 'PK',
   za: 'ZA',
+};
+
+const COUNTRY_NAME_TO_CODE: Record<string, string> = {
+  'united states': 'us', 'united kingdom': 'gb', 'germany': 'de', 'france': 'fr',
+  'spain': 'es', 'italy': 'it', 'netherlands': 'nl', 'poland': 'pl',
+  'sweden': 'se', 'portugal': 'pt', 'canada': 'ca', 'australia': 'au',
+  'india': 'in', 'japan': 'jp', 'brazil': 'br', 'mexico': 'mx',
+  'turkey': 'tr', 'turkiye': 'tr', 'russia': 'ru', 'indonesia': 'id',
+  'philippines': 'ph', 'thailand': 'th', 'south korea': 'kr', 'korea': 'kr',
+  'egypt': 'eg', 'saudi arabia': 'sa', 'united arab emirates': 'ae',
+  'argentina': 'ar', 'colombia': 'co', 'vietnam': 'vn', 'malaysia': 'my',
+  'pakistan': 'pk', 'south africa': 'za',
 };
 
 // ─── Sector detection ────────────────────────────────────────────
@@ -154,16 +166,19 @@ function slugify(text: string): string {
 // ─── Workable API types ──────────────────────────────────────────
 
 interface WorkableJob {
-  id: string;
+  id?: string;
   title: string;
   shortcode: string;
   department?: string;
   city?: string;
-  country_code?: string;
+  state?: string;
+  country?: string; // full name: "United States"
   telecommuting?: boolean;
   url?: string;
   created_at?: string;
+  published_on?: string;
   employment_type?: string;
+  locations?: Array<{ countryCode?: string; city?: string; region?: string }>;
 }
 
 interface WorkableWidgetResponse {
@@ -302,8 +317,12 @@ async function processJob(
   dryRun: boolean,
 ): Promise<void> {
   try {
-    const countryCode = (job.country_code || '').toLowerCase();
-    const market = COUNTRY_TO_MARKET[countryCode];
+    // Resolve country: prefer locations[0].countryCode, fall back to country name
+    let countryCode = job.locations?.[0]?.countryCode?.toLowerCase() || '';
+    if (!countryCode && job.country) {
+      countryCode = COUNTRY_NAME_TO_CODE[job.country.toLowerCase()] || '';
+    }
+    const market = CODE_TO_MARKET[countryCode];
     if (!market) return;
 
     const dept = job.department || null;
