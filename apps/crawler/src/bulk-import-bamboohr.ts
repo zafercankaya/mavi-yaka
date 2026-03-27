@@ -38,64 +38,46 @@ interface CompanyConfig {
 }
 
 const COMPANIES: CompanyConfig[] = [
-  // Manufacturing
-  { slug: 'caterpillar', company: 'Caterpillar Inc.', sector: 'MANUFACTURING' },
-  { slug: 'deere', company: 'John Deere', sector: 'MANUFACTURING' },
-  { slug: 'cummins', company: 'Cummins Inc.', sector: 'MANUFACTURING' },
-  { slug: 'parker', company: 'Parker Hannifin', sector: 'MANUFACTURING' },
-  { slug: 'emerson', company: 'Emerson Electric', sector: 'MANUFACTURING' },
+  // Construction (verified BambooHR slugs)
+  { slug: 'theweitzcompany', company: 'The Weitz Company', sector: 'CONSTRUCTION' },
+  { slug: 'rycon', company: 'Rycon Construction', sector: 'CONSTRUCTION' },
+  { slug: 'storyconstruction', company: 'Story Construction', sector: 'CONSTRUCTION' },
+  { slug: 'schellinger', company: 'Schellinger Construction', sector: 'CONSTRUCTION' },
+  { slug: 'thewitmergroup', company: 'The Witmer Group', sector: 'CONSTRUCTION' },
+  { slug: 'watertownenterprises', company: 'Watertown Enterprises', sector: 'CONSTRUCTION' },
+  { slug: 'm3inc', company: 'M3 Inc. (Masonry)', sector: 'CONSTRUCTION' },
+  { slug: 'division15mechanical', company: 'Division 15 Mechanical', sector: 'CONSTRUCTION' },
 
-  // Construction
-  { slug: 'turner-construction', company: 'Turner Construction', sector: 'CONSTRUCTION' },
-  { slug: 'hensel-phelps', company: 'Hensel Phelps', sector: 'CONSTRUCTION' },
-  { slug: 'sundt', company: 'Sundt Construction', sector: 'CONSTRUCTION' },
-  { slug: 'mortenson', company: 'Mortenson Construction', sector: 'CONSTRUCTION' },
-  { slug: 'brasfield-gorrie', company: 'Brasfield & Gorrie', sector: 'CONSTRUCTION' },
+  // Steel & Fabrication
+  { slug: 'unitedsteel', company: 'United Steel Inc.', sector: 'METAL_STEEL' },
+  { slug: 'jgmusa', company: 'JGM Steel Fabrication', sector: 'METAL_STEEL' },
 
-  // Logistics & Transportation
-  { slug: 'ryder', company: 'Ryder System', sector: 'LOGISTICS_TRANSPORTATION' },
-  { slug: 'old-dominion', company: 'Old Dominion Freight Line', sector: 'LOGISTICS_TRANSPORTATION' },
-  { slug: 'saia', company: 'Saia LTL Freight', sector: 'LOGISTICS_TRANSPORTATION' },
-  { slug: 'estes-express', company: 'Estes Express Lines', sector: 'LOGISTICS_TRANSPORTATION' },
-  { slug: 'yrc-freight', company: 'YRC Freight', sector: 'LOGISTICS_TRANSPORTATION' },
+  // HVAC & Plumbing
+  { slug: 'applewoodfixit', company: 'Applewood Plumbing Heating & Electric', sector: 'CONSTRUCTION' },
+  { slug: 'storerservices', company: 'Storer Services (HVAC)', sector: 'CONSTRUCTION' },
+  { slug: 'energy1', company: 'Energy 1 HVAC', sector: 'CONSTRUCTION' },
+  { slug: 'homesmartservices', company: 'HomeSmart Services', sector: 'FACILITY_MANAGEMENT' },
 
-  // Food & Hospitality
-  { slug: 'chipotle', company: 'Chipotle Mexican Grill', sector: 'FOOD_BEVERAGE' },
-  { slug: 'wendys', company: "Wendy's", sector: 'FOOD_BEVERAGE' },
-  { slug: 'panera', company: 'Panera Bread', sector: 'FOOD_BEVERAGE' },
-  { slug: 'chick-fil-a', company: 'Chick-fil-A', sector: 'FOOD_BEVERAGE' },
-  { slug: 'whataburger', company: 'Whataburger', sector: 'FOOD_BEVERAGE' },
+  // Trucking & Transportation
+  { slug: 'wilbankstrucking', company: 'Wilbanks Trucking Services', sector: 'LOGISTICS_TRANSPORTATION' },
+  { slug: 'logmet', company: 'LOGMET Transport', sector: 'LOGISTICS_TRANSPORTATION' },
 
-  // Retail
-  { slug: 'lowes', company: "Lowe's Companies", sector: 'RETAIL' },
-  { slug: 'menards', company: 'Menards', sector: 'RETAIL' },
-  { slug: 'tractor-supply', company: 'Tractor Supply Co.', sector: 'RETAIL' },
-  { slug: 'dollar-general', company: 'Dollar General', sector: 'RETAIL' },
-  { slug: 'autozone', company: 'AutoZone', sector: 'RETAIL' },
+  // Warehouse & Distribution
+  { slug: 'generalpacific', company: 'General Pacific Inc.', sector: 'LOGISTICS_TRANSPORTATION' },
 
-  // Facility Services
-  { slug: 'cintas', company: 'Cintas Corporation', sector: 'FACILITY_MANAGEMENT' },
-  { slug: 'unifirst', company: 'UniFirst Corporation', sector: 'FACILITY_MANAGEMENT' },
-  { slug: 'servicemaster', company: 'ServiceMaster', sector: 'FACILITY_MANAGEMENT' },
-  { slug: 'rollins', company: 'Rollins Inc.', sector: 'FACILITY_MANAGEMENT' },
-
-  // Healthcare Support
-  { slug: 'davita', company: 'DaVita Inc.', sector: 'HEALTHCARE' },
-  { slug: 'hca-healthcare', company: 'HCA Healthcare', sector: 'HEALTHCARE' },
+  // Restoration & Roofing
+  { slug: 'crbr', company: 'CRBR Restoration', sector: 'CONSTRUCTION' },
+  { slug: 'roofcommander', company: 'Roof Commander', sector: 'CONSTRUCTION' },
+  { slug: 'broit', company: 'Broit Lifting', sector: 'CONSTRUCTION' },
 
   // Automotive
-  { slug: 'penske', company: 'Penske Automotive Group', sector: 'AUTOMOTIVE' },
-  { slug: 'asbury-automotive', company: 'Asbury Automotive Group', sector: 'AUTOMOTIVE' },
-  { slug: 'lithia-motors', company: 'Lithia Motors', sector: 'AUTOMOTIVE' },
+  { slug: 'thedetroitgarage', company: 'The Detroit Garage', sector: 'AUTOMOTIVE' },
+  { slug: 'velocityrestorations', company: 'Velocity Restorations', sector: 'AUTOMOTIVE' },
+  { slug: 'winrockautomotivegroup', company: 'WinRock Automotive Group', sector: 'AUTOMOTIVE' },
+  { slug: 'orag', company: 'OpenRoad Auto Group', sector: 'AUTOMOTIVE' },
 
-  // Energy
-  { slug: 'energy-transfer', company: 'Energy Transfer', sector: 'MINING_ENERGY' },
-  { slug: 'williams-companies', company: 'Williams Companies', sector: 'MINING_ENERGY' },
-
-  // Agriculture
-  { slug: 'cargill', company: 'Cargill', sector: 'AGRICULTURE' },
-  { slug: 'adm', company: 'Archer-Daniels-Midland', sector: 'AGRICULTURE' },
-  { slug: 'land-olakes', company: 'Land O\'Lakes', sector: 'AGRICULTURE' },
+  // Landscaping & Agriculture
+  { slug: 'crosscreeknursery', company: 'Cross Creek Nursery', sector: 'AGRICULTURE' },
 ];
 
 // ─── Market mapping (ISO 2-letter country code → Market enum) ───
@@ -322,9 +304,15 @@ async function getOrCreateSource(
 async function fetchCompanyJobs(slug: string): Promise<BambooHRJob[] | null> {
   const url = `https://${slug}.bamboohr.com/careers/list.json`;
 
+  const headers = {
+    'Accept': 'application/json, text/javascript, */*; q=0.01',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    'Referer': `https://${slug}.bamboohr.com/careers`,
+  };
+
   let res: Response;
   try {
-    res = await fetch(url, { signal: AbortSignal.timeout(30000) });
+    res = await fetch(url, { headers, signal: AbortSignal.timeout(30000) });
   } catch (err: any) {
     console.log(`    fetch error: ${err.message?.substring(0, 80)}`);
     return null;
@@ -335,13 +323,24 @@ async function fetchCompanyJobs(slug: string): Promise<BambooHRJob[] | null> {
     return null;
   }
 
+  // 403 = blocked, try alternate endpoint
+  if (res.status === 403) {
+    // Try the newer /careers/list endpoint
+    try {
+      const altUrl = `https://${slug}.bamboohr.com/careers/list`;
+      res = await fetch(altUrl, { headers: { ...headers, 'Accept': 'application/json' }, signal: AbortSignal.timeout(30000) });
+      if (!res.ok) return null;
+    } catch {
+      return null;
+    }
+  }
+
   // 429 = rate limited
   if (res.status === 429) {
     console.log(`    rate limited, waiting 5s...`);
     await delay(5000);
-    // Retry once
     try {
-      res = await fetch(url, { signal: AbortSignal.timeout(30000) });
+      res = await fetch(url, { headers, signal: AbortSignal.timeout(30000) });
     } catch {
       return null;
     }
