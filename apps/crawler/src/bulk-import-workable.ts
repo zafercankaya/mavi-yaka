@@ -354,7 +354,7 @@ async function processJob(
     const source = await getOrCreateSource(config.company, market, config.slug);
 
     await prisma.jobListing.upsert({
-      where: { externalId },
+      where: { fingerprint },
       update: {
         lastSeenAt: new Date(),
         status: 'ACTIVE',
@@ -375,7 +375,7 @@ async function processJob(
         fingerprint,
         status: 'ACTIVE',
         lastSeenAt: new Date(),
-        postedDate: job.created_at ? new Date(job.created_at) : new Date(),
+        postedDate: job.published_on ? new Date(job.published_on) : (job.created_at ? new Date(job.created_at) : new Date()),
       },
     });
 
