@@ -4,10 +4,10 @@
  * Workable public postings API — no auth required.
  * Targets large blue-collar employers (DHL, FedEx, Marriott, McDonald's, etc.)
  *
- * API: https://apply.workable.com/api/v3/accounts/{slug}/jobs
+ * API: https://apply.workable.com/api/v1/widget/accounts/{slug}
  * - Free, no API key
- * - Max 100 per page, offset-based pagination
- * - Job detail: https://apply.workable.com/api/v3/accounts/{slug}/jobs/{shortcode}
+ * - Returns all jobs at once (no pagination needed)
+ * - Response: { name, description, jobs: [{ id, title, shortcode, department, city, country_code, telecommuting, ... }] }
  * - Apply URL: https://apply.workable.com/{slug}/j/{shortcode}/
  *
  * Usage:
@@ -23,7 +23,6 @@ import { isBlueCollar } from './utils/blue-collar-filter';
 
 const prisma = new PrismaClient();
 const REQUEST_DELAY_MS = 500;
-const PAGE_SIZE = 100;
 
 // ─── CLI args ────────────────────────────────────────────────────
 
@@ -40,61 +39,44 @@ interface CompanyConfig {
 }
 
 const COMPANIES: CompanyConfig[] = [
-  // Logistics & Delivery
-  { slug: 'dhl', company: 'DHL', sector: 'LOGISTICS_TRANSPORTATION' },
-  { slug: 'fedex', company: 'FedEx', sector: 'LOGISTICS_TRANSPORTATION' },
-  { slug: 'ups-2', company: 'UPS', sector: 'LOGISTICS_TRANSPORTATION' },
-  { slug: 'xpo-logistics', company: 'XPO Logistics', sector: 'LOGISTICS_TRANSPORTATION' },
-  { slug: 'ceva-logistics', company: 'CEVA Logistics', sector: 'LOGISTICS_TRANSPORTATION' },
-  { slug: 'kuehne-nagel', company: 'Kuehne+Nagel', sector: 'LOGISTICS_TRANSPORTATION' },
+  // Logistics & Warehousing (verified slugs)
+  { slug: 'voyago', company: 'Voyago (Transdev)', sector: 'LOGISTICS_TRANSPORTATION' },
+  { slug: 'charger-logistics-inc', company: 'Charger Logistics', sector: 'LOGISTICS_TRANSPORTATION' },
+  { slug: 'vero-hr-ltd', company: 'Vero HR', sector: 'LOGISTICS_TRANSPORTATION' },
+  { slug: 'doman-building-materials', company: 'Doman Building Materials', sector: 'LOGISTICS_TRANSPORTATION' },
+  { slug: 'logistics-uk', company: 'Logistics UK', sector: 'LOGISTICS_TRANSPORTATION' },
 
-  // Retail & E-commerce
-  { slug: 'amazon', company: 'Amazon', sector: 'ECOMMERCE_CARGO' },
-  { slug: 'walmart', company: 'Walmart', sector: 'RETAIL' },
-  { slug: 'target', company: 'Target', sector: 'RETAIL' },
-  { slug: 'costco', company: 'Costco', sector: 'RETAIL' },
-  { slug: 'kroger', company: 'Kroger', sector: 'RETAIL' },
-  { slug: 'ikea', company: 'IKEA', sector: 'RETAIL' },
-  { slug: 'aldi', company: 'ALDI', sector: 'RETAIL' },
-  { slug: 'lidl', company: 'Lidl', sector: 'RETAIL' },
-  { slug: 'carrefour', company: 'Carrefour', sector: 'RETAIL' },
+  // Construction & Trades
+  { slug: 'enterprise-electrical', company: 'Enterprise Electrical', sector: 'CONSTRUCTION' },
+  { slug: 'midlands-contracting', company: 'Midlands Contracting', sector: 'CONSTRUCTION' },
+  { slug: 'hayward-lumber-1', company: 'Hayward Lumber', sector: 'CONSTRUCTION' },
+  { slug: 'peach-2', company: 'P.E.A.C.H. Teams (Plumbing/HVAC)', sector: 'CONSTRUCTION' },
 
-  // Hospitality
-  { slug: 'marriott', company: 'Marriott International', sector: 'HOSPITALITY' },
-  { slug: 'hilton', company: 'Hilton', sector: 'HOSPITALITY' },
-  { slug: 'ihg', company: 'IHG Hotels & Resorts', sector: 'HOSPITALITY' },
-  { slug: 'accor', company: 'Accor', sector: 'HOSPITALITY' },
-  { slug: 'hyatt', company: 'Hyatt', sector: 'HOSPITALITY' },
+  // Manufacturing & Production
+  { slug: 'almag-aluminum', company: 'Almag Aluminum', sector: 'MANUFACTURING' },
+  { slug: 'ag-barr', company: 'AG Barr', sector: 'MANUFACTURING' },
+  { slug: 'motor-coach-industries', company: 'Motor Coach Industries', sector: 'MANUFACTURING' },
+  { slug: 'ourhomesnacks', company: 'Our Home Snacks', sector: 'MANUFACTURING' },
 
-  // Food & Quick Service
-  { slug: 'mcdonalds', company: "McDonald's", sector: 'FOOD_BEVERAGE' },
-  { slug: 'starbucks', company: 'Starbucks', sector: 'FOOD_BEVERAGE' },
-  { slug: 'subway-1', company: 'Subway', sector: 'FOOD_BEVERAGE' },
-  { slug: 'dominos', company: "Domino's Pizza", sector: 'FOOD_BEVERAGE' },
+  // Cleaning & Facility Services
+  { slug: 'citywide', company: 'City Wide Facility Solutions', sector: 'FACILITY_MANAGEMENT' },
+  { slug: 'abm-careers', company: 'ABM UK', sector: 'FACILITY_MANAGEMENT' },
+  { slug: 'slatecleaning', company: 'Slate Cleaning', sector: 'FACILITY_MANAGEMENT' },
+  { slug: 'optimegroup', company: 'Optime Group', sector: 'FACILITY_MANAGEMENT' },
 
-  // Construction & Engineering
-  { slug: 'skanska', company: 'Skanska', sector: 'CONSTRUCTION' },
-  { slug: 'aecom', company: 'AECOM', sector: 'CONSTRUCTION' },
-  { slug: 'fluor', company: 'Fluor Corporation', sector: 'CONSTRUCTION' },
-  { slug: 'bechtel', company: 'Bechtel', sector: 'CONSTRUCTION' },
+  // Hospitality & Food Service
+  { slug: 'ayana', company: 'AYANA Hospitality', sector: 'HOSPITALITY' },
+  { slug: 'banffcollective', company: 'Banff Hospitality Collective', sector: 'HOSPITALITY' },
+  { slug: 'swot-hospitality-management-company', company: 'SWOT Hospitality', sector: 'HOSPITALITY' },
+  { slug: 'riot-hospitality-group', company: 'Riot Hospitality Group', sector: 'HOSPITALITY' },
+  { slug: 'lafrance-hospitality', company: 'Lafrance Hospitality', sector: 'HOSPITALITY' },
+  { slug: 'five-star-correctional-services-inc', company: 'Five Star Food Services', sector: 'FOOD_BEVERAGE' },
+  { slug: 'company-shop-group', company: 'Company Shop Group', sector: 'RETAIL' },
 
-  // Facility Management & Cleaning
-  { slug: 'iss-facility', company: 'ISS Facility Services', sector: 'FACILITY_MANAGEMENT' },
-  { slug: 'sodexo', company: 'Sodexo', sector: 'FACILITY_MANAGEMENT' },
-  { slug: 'aramark', company: 'Aramark', sector: 'FACILITY_MANAGEMENT' },
-
-  // Automotive & Manufacturing
-  { slug: 'toyota', company: 'Toyota', sector: 'AUTOMOTIVE' },
-  { slug: 'ford', company: 'Ford Motor Company', sector: 'AUTOMOTIVE' },
-  { slug: 'bmw-group', company: 'BMW Group', sector: 'AUTOMOTIVE' },
-  { slug: 'volkswagen-group', company: 'Volkswagen Group', sector: 'AUTOMOTIVE' },
-
-  // Security
-  { slug: 'securitas', company: 'Securitas', sector: 'SECURITY' },
-  { slug: 'g4s', company: 'G4S', sector: 'SECURITY' },
-
-  // Healthcare Support
-  { slug: 'fresenius', company: 'Fresenius', sector: 'HEALTHCARE' },
+  // Staffing (blue-collar placements)
+  { slug: 'quickhirestaffing', company: 'Quick Hire Staffing', sector: 'OTHER' },
+  { slug: 'thisway', company: 'ThisWay Global', sector: 'OTHER' },
+  { slug: 'royalty-hospitality-staffing-1', company: 'Royalty Hospitality Staffing', sector: 'HOSPITALITY' },
 ];
 
 // ─── Market mapping (ISO 2-letter country code → Market enum) ───
@@ -176,21 +158,18 @@ interface WorkableJob {
   title: string;
   shortcode: string;
   department?: string;
-  location: {
-    city?: string;
-    country_code?: string;
-    telecommuting?: boolean;
-  };
+  city?: string;
+  country_code?: string;
+  telecommuting?: boolean;
   url?: string;
   created_at?: string;
-  employment_type?: string; // 'full-time' | 'part-time' | 'contract' | 'temporary' | 'internship'
+  employment_type?: string;
 }
 
-interface WorkableResponse {
-  results: WorkableJob[];
-  paging?: {
-    next?: string;
-  };
+interface WorkableWidgetResponse {
+  name?: string;
+  description?: string;
+  jobs: WorkableJob[];
 }
 
 // ─── Job type / work mode helpers ───────────────────────────────
@@ -206,7 +185,7 @@ function detectJobType(employmentType?: string): string {
 }
 
 function detectWorkMode(job: WorkableJob): string {
-  if (job.location?.telecommuting) return 'REMOTE';
+  if (job.telecommuting) return 'REMOTE';
   return 'ON_SITE';
 }
 
@@ -254,7 +233,7 @@ async function getOrCreateSource(
         crawlMethod: 'API',
         market,
         companyId: company.id,
-        seedUrls: [`https://apply.workable.com/api/v3/accounts/${slug}/jobs`],
+        seedUrls: [`https://apply.workable.com/api/v1/widget/accounts/${slug}`],
         isActive: true,
         agingDays: 30,
       },
@@ -269,57 +248,43 @@ async function getOrCreateSource(
 // ─── Fetch all jobs for a company slug ──────────────────────────
 
 async function fetchCompanyJobs(slug: string): Promise<WorkableJob[] | null> {
-  const allJobs: WorkableJob[] = [];
-  let offset = 0;
+  const url = `https://apply.workable.com/api/v1/widget/accounts/${slug}`;
 
-  while (true) {
-    const url = `https://apply.workable.com/api/v3/accounts/${slug}/jobs?limit=${PAGE_SIZE}&offset=${offset}`;
-
-    let res: Response;
-    try {
-      res = await fetch(url, { signal: AbortSignal.timeout(30000) });
-    } catch (err: any) {
-      console.log(`    fetch error: ${err.message?.substring(0, 80)}`);
-      return null;
-    }
-
-    // 404 = company not on Workable
-    if (res.status === 404) {
-      return null;
-    }
-
-    // 429 = rate limited
-    if (res.status === 429) {
-      console.log(`    rate limited, waiting 5s...`);
-      await delay(5000);
-      continue;
-    }
-
-    if (!res.ok) {
-      console.log(`    HTTP ${res.status} from ${slug}`);
-      return null;
-    }
-
-    let data: WorkableResponse;
-    try {
-      data = (await res.json()) as WorkableResponse;
-    } catch {
-      console.log(`    invalid JSON from ${slug}`);
-      return null;
-    }
-
-    if (!Array.isArray(data.results) || data.results.length === 0) break;
-
-    allJobs.push(...data.results);
-
-    // No more pages if we got fewer results than PAGE_SIZE
-    if (data.results.length < PAGE_SIZE) break;
-
-    offset += PAGE_SIZE;
-    await delay(REQUEST_DELAY_MS);
+  let res: Response;
+  try {
+    res = await fetch(url, { signal: AbortSignal.timeout(30000) });
+  } catch (err: any) {
+    console.log(`    fetch error: ${err.message?.substring(0, 80)}`);
+    return null;
   }
 
-  return allJobs;
+  if (res.status === 404) return null;
+
+  if (res.status === 429) {
+    console.log(`    rate limited, waiting 5s...`);
+    await delay(5000);
+    // retry once
+    try {
+      res = await fetch(url, { signal: AbortSignal.timeout(30000) });
+    } catch { return null; }
+  }
+
+  if (!res.ok) {
+    console.log(`    HTTP ${res.status} from ${slug}`);
+    return null;
+  }
+
+  let data: WorkableWidgetResponse;
+  try {
+    data = (await res.json()) as WorkableWidgetResponse;
+  } catch {
+    console.log(`    invalid JSON from ${slug}`);
+    return null;
+  }
+
+  if (!Array.isArray(data.jobs) || data.jobs.length === 0) return [];
+
+  return data.jobs;
 }
 
 // ─── Process a single job listing ───────────────────────────────
@@ -337,7 +302,7 @@ async function processJob(
   dryRun: boolean,
 ): Promise<void> {
   try {
-    const countryCode = job.location?.country_code?.toLowerCase() || '';
+    const countryCode = (job.country_code || '').toLowerCase();
     const market = COUNTRY_TO_MARKET[countryCode];
     if (!market) return;
 
@@ -355,7 +320,7 @@ async function processJob(
     const sector = detectSector(job.title, dept, config.sector);
     const jobType = detectJobType(job.employment_type);
     const workMode = detectWorkMode(job);
-    const city = job.location?.city?.substring(0, 100) || null;
+    const city = job.city?.substring(0, 100) || null;
     const titleSlug = slugify(`${job.title}-${config.company}-${job.shortcode}`);
 
     if (dryRun) {
