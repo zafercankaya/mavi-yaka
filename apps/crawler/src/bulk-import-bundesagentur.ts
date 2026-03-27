@@ -18,8 +18,8 @@ const prisma = new PrismaClient();
 const API_BASE = 'https://rest.arbeitsagentur.de/jobboerse/jobsuche-service/pc/v4/jobs';
 const API_KEY = 'jobboerse-jobsuche';
 const RESULTS_PER_PAGE = 100;
-const MAX_PAGES = 10; // Limit to 10 pages per keyword to prevent DB inflation (was 100)
-const MAX_TOTAL_LISTINGS = 15_000; // Hard cap on total listings per import run
+const MAX_PAGES = 25; // Limit to 25 pages per keyword to prevent DB inflation (was 10)
+const MAX_TOTAL_LISTINGS = 50_000; // Hard cap on total listings per import run (was 15_000)
 const REQUEST_DELAY_MS = 300;
 const REQUEST_TIMEOUT_MS = 20_000;
 
@@ -75,9 +75,10 @@ const SEARCH_QUERIES = [
   'Koch', 'Küchenhilfe', 'Spülkraft', 'Kellner', 'Servicekraft', 'Bäcker',
   'Konditor', 'Fleischer', 'Metzger', 'Barkeeper',
   // Bau & Handwerk
-  'Bauhelfer', 'Bauarbeiter', 'Maurer', 'Zimmermann', 'Dachdecker', 'Maler Lackierer',
+  'Bauhelfer', 'Bauarbeiter', 'Maurer', 'Zimmermann', 'Zimmerer', 'Dachdecker', 'Maler Lackierer',
   'Fliesenleger', 'Estrichleger', 'Trockenbauer', 'Gerüstbauer', 'Betonbauer',
-  'Straßenbauer', 'Tiefbauer', 'Rohrleger', 'Isolierer', 'Glaser',
+  'Straßenbauer', 'Tiefbau', 'Tiefbauer', 'Hochbau', 'Rohrleger', 'Isolierer', 'Glaser',
+  'Klempner',
   // Produktion & Maschine
   'Produktionsmitarbeiter', 'Produktionshelfer', 'Maschinenführer', 'Maschinenbediener',
   'Montierer', 'Verpackungsmitarbeiter', 'Fertigungsmitarbeiter',
@@ -87,16 +88,22 @@ const SEARCH_QUERIES = [
   'CNC Dreher', 'CNC Fräser',
   // Elektro & Technik
   'Elektriker', 'Elektroniker', 'Elektroinstallateur', 'Mechatroniker',
-  'Anlagenmechaniker', 'Kältetechniker', 'Heizungsmonteur', 'Sanitär Monteur',
+  'Anlagenmechaniker', 'Kältetechniker', 'Kälteanlagenbauer', 'Heizungsmonteur', 'Sanitär Monteur',
+  'Aufzugmonteur',
   // KFZ & Mechanik
   'Kfz Mechatroniker', 'Kfz Mechaniker', 'Fahrzeuglackierer', 'Karosseriebauer',
   // Pflege & Betreuung
   'Pflegehelfer', 'Altenpflegehelfer', 'Krankenpflegehelfer', 'Betreuungskraft',
   // Garten & Landwirtschaft
   'Gärtner', 'Landschaftsgärtner', 'Landwirtschaftshelfer', 'Forstarbeiter', 'Tierpfleger',
+  'Landmaschinenmechaniker', 'Winzer',
+  // Gastronomie Ergänzung
+  'Bäckereiverkäufer',
   // Sicherheit & Sonstige
   'Sicherheitsmitarbeiter', 'Wachmann', 'Pförtner', 'Busfahrer', 'Müllwerker',
-  'Briefträger', 'Straßenreiniger', 'Haustechniker',
+  'Briefträger', 'Straßenreiniger', 'Haustechniker', 'Schädlingsbekämpfer',
+  // Hafen & Schwerlast
+  'Hafenarbeiter', 'Kranführer', 'Baggerführer',
 ];
 
 // ─── Source lookup/creation ──────────────────────────────────────────

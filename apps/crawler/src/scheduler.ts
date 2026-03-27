@@ -289,8 +289,8 @@ export async function startScheduler(prisma: PrismaClient): Promise<void> {
   scheduledJobs.push({ name: 'Sweden Weekly Import', task: swedenTask });
   console.log('  - 30 3 * * 2 → Sweden Arbetsförmedlingen (weekly Tue)');
 
-  // Weekly Germany Bundesagentur at Thursday 02:30 UTC
-  const germanyTask = cron.schedule('30 2 * * 4', async () => {
+  // Germany Bundesagentur 2x/week Mon+Thu at 02:30 UTC
+  const germanyTask = cron.schedule('30 2 * * 1,4', async () => {
     console.log('[Scheduler] Running Germany Bundesagentur import...');
     try {
       const { execSync } = require('child_process');
@@ -308,8 +308,8 @@ export async function startScheduler(prisma: PrismaClient): Promise<void> {
       console.error(`[Scheduler] Germany error: ${(err as Error).message?.substring(0, 200)}`);
     }
   });
-  scheduledJobs.push({ name: 'Germany Weekly Import', task: germanyTask });
-  console.log('  - 30 2 * * 4 → Germany Bundesagentur (weekly Thu)');
+  scheduledJobs.push({ name: 'Germany 2x Weekly Import', task: germanyTask });
+  console.log('  - 30 2 * * 1,4 → Germany Bundesagentur (2x/week Mon+Thu)');
 
   // Monthly Canada Job Bank CSV at 1st of month 01:30 UTC
   const canadaTask = cron.schedule('30 1 1 * *', async () => {
@@ -817,6 +817,44 @@ export async function startScheduler(prisma: PrismaClient): Promise<void> {
   });
   scheduledJobs.push({ name: 'SmartRecruiters 2x Weekly Import', task: smartrecruitersTask });
   console.log('  - 0 12 * * 2,5 → SmartRecruiters (Tue+Fri)');
+
+  // ─── Workable ATS (free public API, 38 major employers) ─── 2x/week Wed+Sat
+  const workableTask = cron.schedule('30 12 * * 3,6', async () => {
+    console.log('[Scheduler] Starting Workable ATS import...');
+    try {
+      const { execSync } = require('child_process');
+      execSync(`npx ts-node --transpile-only src/bulk-import-workable.ts`, {
+        cwd: __dirname.replace(/\/dist$/, '').replace(/\\dist$/, ''),
+        env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
+        timeout: 1_800_000,
+        stdio: 'inherit',
+      });
+      console.log('[Scheduler] Workable import complete');
+    } catch (err) {
+      console.error(`[Scheduler] Workable error: ${(err as Error).message?.substring(0, 200)}`);
+    }
+  });
+  scheduledJobs.push({ name: 'Workable ATS 2x Weekly Import', task: workableTask });
+  console.log('  - 30 12 * * 3,6 → Workable ATS (Wed+Sat)');
+
+  // ─── BambooHR ATS (free public API, 38 US employers) ─── 2x/week Tue+Fri
+  const bamboohrTask = cron.schedule('0 13 * * 2,5', async () => {
+    console.log('[Scheduler] Starting BambooHR ATS import...');
+    try {
+      const { execSync } = require('child_process');
+      execSync(`npx ts-node --transpile-only src/bulk-import-bamboohr.ts`, {
+        cwd: __dirname.replace(/\/dist$/, '').replace(/\\dist$/, ''),
+        env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL },
+        timeout: 1_800_000,
+        stdio: 'inherit',
+      });
+      console.log('[Scheduler] BambooHR import complete');
+    } catch (err) {
+      console.error(`[Scheduler] BambooHR error: ${(err as Error).message?.substring(0, 200)}`);
+    }
+  });
+  scheduledJobs.push({ name: 'BambooHR ATS 2x Weekly Import', task: bamboohrTask });
+  console.log('  - 0 13 * * 2,5 → BambooHR ATS (Tue+Fri)');
 
   console.log('[Scheduler] All jobs registered\n');
 }

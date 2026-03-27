@@ -109,6 +109,34 @@ const MARKET_CONFIGS: MarketConfig[] = [
       // Security & Other
       'security guard', 'landscaper', 'mover', 'farmworker', 'animal caretaker',
       'garbage collector', 'recycling worker', 'solar installer', 'cable technician',
+      // Production & Line Workers
+      'line worker', 'process worker', 'production line', 'boiler operator', 'boiler technician',
+      // HVAC & Refrigeration
+      'HVAC installer', 'air conditioning technician', 'refrigeration technician', 'refrigeration mechanic',
+      // Dock & Port
+      'stevedore', 'longshoreman',
+      // Heavy Equipment
+      'excavator operator', 'bulldozer operator', 'dump truck driver',
+      // Agriculture
+      'vineyard worker', 'farm laborer', 'harvest worker',
+      // Specialty Trades
+      'locksmith', 'scaffold erector', 'roofing worker', 'tiler', 'insulation installer',
+      'pool technician', 'pool cleaner', 'tree trimmer', 'arborist',
+      'paver', 'concrete finisher', 'sheet metal worker', 'millwright', 'rigger',
+      'blaster', 'sandblaster',
+      // Oil & Gas / Rail / Telecom
+      'oil rig worker', 'roughneck', 'rail worker', 'track worker', 'signal technician',
+      'fiber optic technician', 'elevator technician', 'elevator mechanic',
+      // Specialty Services
+      'fire sprinkler installer', 'septic tank worker', 'chimney sweep',
+      // Textile & Personal Services
+      'upholsterer', 'shoe repair', 'cobbler', 'tailor', 'seamstress', 'alteration worker',
+      'laundry worker', 'dry cleaner', 'car detailer', 'auto detailer',
+      'parking attendant', 'valet', 'power washer', 'pressure washer operator',
+      // Demolition & Traffic
+      'waste sorter', 'demolition worker', 'traffic controller', 'flagger',
+      // Mining & Timber
+      'mining worker', 'mine worker', 'quarry worker', 'sawmill worker', 'lumber worker',
     ],
   },
   {
@@ -137,6 +165,24 @@ const MARKET_CONFIGS: MarketConfig[] = [
       // Security & Other
       'security officer', 'door supervisor', 'farm worker', 'refuse collector',
       'postman', 'bin man', 'landscape gardener', 'tree surgeon',
+      // Additional trades & specialty
+      'line worker', 'process worker', 'boiler operator', 'boiler technician',
+      'HVAC installer', 'HVAC technician', 'refrigeration technician', 'refrigeration mechanic',
+      'dock worker', 'stevedore', 'longshoreman',
+      'excavator operator', 'bulldozer operator', 'dump truck driver',
+      'vineyard worker', 'farm laborer', 'harvest worker',
+      'locksmith', 'scaffold erector', 'roofing worker', 'insulation installer',
+      'pool technician', 'tree trimmer', 'arborist',
+      'paver', 'concrete finisher', 'sheet metal worker', 'millwright', 'rigger',
+      'blaster', 'sandblaster', 'oil rig worker', 'roughneck',
+      'rail worker', 'track worker', 'signal technician',
+      'fiber optic technician', 'elevator technician', 'elevator mechanic',
+      'fire sprinkler installer', 'septic tank worker', 'chimney sweep',
+      'upholsterer', 'tailor', 'seamstress', 'laundry worker', 'dry cleaner',
+      'car detailer', 'auto detailer', 'parking attendant', 'valet',
+      'power washer', 'pressure washer operator', 'waste sorter',
+      'demolition worker', 'traffic controller', 'flagger',
+      'mining worker', 'quarry worker', 'sawmill worker', 'lumber worker',
     ],
   },
   {
@@ -272,6 +318,15 @@ const MARKET_CONFIGS: MarketConfig[] = [
       // Security & Other
       'security guard', 'landscaper', 'farm worker', 'arborist', 'mover',
       'garbage collector', 'snow removal', 'cable technician',
+      // Additional trades & specialty
+      'process worker', 'line worker', 'boiler operator', 'boiler technician',
+      'HVAC installer', 'refrigeration technician', 'refrigeration mechanic',
+      'rigger', 'sheet metal worker', 'paver', 'tiler', 'insulation installer',
+      'pool technician', 'tree trimmer', 'fiber optic technician',
+      'elevator technician', 'elevator mechanic', 'fire sprinkler installer',
+      'demolition worker', 'traffic controller', 'flagger',
+      'mining worker', 'quarry worker', 'sawmill worker', 'lumber worker',
+      'laundry worker', 'car detailer', 'upholsterer', 'locksmith',
     ],
   },
   {
@@ -324,6 +379,24 @@ const MARKET_CONFIGS: MarketConfig[] = [
       // Security & Other
       'security officer', 'landscaper', 'farmhand', 'fruit picker',
       'station hand', 'tree lopper', 'pest controller',
+      // Additional trades & specialty
+      'tiler', 'plasterer', 'millwright', 'sheet metal worker',
+      'boiler operator', 'boiler technician', 'HVAC installer',
+      'refrigeration technician', 'refrigeration mechanic',
+      'excavator operator', 'bulldozer operator', 'dump truck driver',
+      'stevedore', 'longshoreman',
+      'vineyard worker', 'farm laborer', 'harvest worker',
+      'locksmith', 'arborist', 'tree trimmer', 'concrete finisher', 'paver',
+      'pool technician', 'pool cleaner', 'window cleaner',
+      'blaster', 'sandblaster', 'oil rig worker', 'roughneck',
+      'rail worker', 'track worker', 'signal technician',
+      'fiber optic technician', 'elevator technician', 'elevator mechanic',
+      'fire sprinkler installer', 'septic tank worker', 'chimney sweep',
+      'upholsterer', 'tailor', 'seamstress', 'laundry worker', 'dry cleaner',
+      'car detailer', 'auto detailer', 'parking attendant',
+      'power washer', 'pressure washer operator', 'waste sorter',
+      'demolition worker', 'traffic controller', 'flagger',
+      'mining worker', 'mine worker', 'quarry worker', 'sawmill worker', 'lumber worker',
     ],
   },
   {
