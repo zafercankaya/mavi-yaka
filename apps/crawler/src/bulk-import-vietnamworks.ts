@@ -20,8 +20,8 @@ import { flushBatchUpsert, resetTitleCounts } from './utils/flush-batch-upsert';
 const prisma = new PrismaClient();
 
 const API_URL = 'https://ms.vietnamworks.com/job-search/v1.0/search';
-const PAGE_SIZE = 200;
-const MAX_PAGES_PER_KEYWORD = 15; // 15 × 200 = 3,000 per keyword
+const PAGE_SIZE = 100; // VietnamWorks caps at 100
+const MAX_PAGES_PER_KEYWORD = 30; // 30 × 100 = 3,000 per keyword
 const REQUEST_DELAY_MS = 1200;
 const BATCH_SIZE = 100;
 
@@ -234,6 +234,51 @@ async function searchJobs(keyword: string, page: number): Promise<any> {
   }
 }
 
+// ─── Source lookup/creation ──────────────────────────────────────────
+
+async function getOrCreateSource(): Promise<{ id: string; companyId: string }> {
+  // Find existing VietnamWorks source
+  let source = await prisma.crawlSource.findFirst({
+    where: { market: 'VN', name: { contains: 'VietnamWorks' }, isActive: true },
+    select: { id: true, companyId: true },
+  });
+
+  if (!source) {
+    // Find or create VietnamWorks company
+    let company = await prisma.company.findFirst({
+      where: { name: 'VietnamWorks', market: 'VN' },
+      select: { id: true },
+    });
+
+    if (!company) {
+      company = await prisma.company.create({
+        data: {
+          name: 'VietnamWorks',
+          slug: 'vietnamworks-vn',
+          market: 'VN',
+          sector: 'OTHER',
+          websiteUrl: 'https://www.vietnamworks.com',
+        },
+      });
+    }
+
+    const created = await prisma.crawlSource.create({
+      data: {
+        name: 'VietnamWorks VN Job Listings',
+        type: 'JOB_PLATFORM',
+        crawlMethod: 'API',
+        market: 'VN',
+        companyId: company.id,
+        seedUrls: ['https://ms.vietnamworks.com/job-search/v1.0/search'],
+        isActive: true,
+      },
+    });
+    source = { id: created.id, companyId: created.companyId };
+  }
+
+  return source;
+}
+
 // ─── Main import ────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
@@ -241,6 +286,10 @@ async function main(): Promise<void> {
   console.log(`  Keywords: ${KEYWORDS.length}`);
   console.log(`  Max pages/keyword: ${MAX_PAGES_PER_KEYWORD}`);
   console.log(`  Dry run: ${DRY_RUN}\n`);
+
+  const source = await getOrCreateSource();
+  console.log(`  Source ID: ${source.id}`);
+  console.log(`  Company ID: ${source.companyId}\n`);
 
   const startTime = Date.now();
   const seenFingerprints = new Set<string>(); // Cross-keyword dedup
@@ -329,6 +378,8 @@ async function main(): Promise<void> {
             benefits: benefits || null,
             sourceUrl,
             fingerprint,
+            sourceId: source.id,
+            companyId: source.companyId,
             country: 'VN' as Market,
             city: loc.city,
             state: loc.state,
