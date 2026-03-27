@@ -6,6 +6,6 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: '*',
       allow: '/',
     },
-    sitemap: 'https://maviyaka.com/sitemap.xml',
+    sitemap: 'https://mavi-yaka-web.vercel.app/sitemap.xml',
   };
 }

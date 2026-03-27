@@ -1,7 +1,7 @@
 import { MetadataRoute } from 'next';
 import { MARKETS } from '@/data/markets';
 
-const BASE_URL = 'https://maviyaka.com';
+const BASE_URL = 'https://mavi-yaka-web.vercel.app';
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const marketPages = MARKETS.map(m => ({

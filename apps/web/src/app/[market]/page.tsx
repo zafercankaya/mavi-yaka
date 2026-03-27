@@ -76,6 +76,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     other: {
       'google-play-app': 'app-id=com.maviyaka.app',
+      'apple-itunes-app': 'app-id=6761062434',
     },
   };
 }

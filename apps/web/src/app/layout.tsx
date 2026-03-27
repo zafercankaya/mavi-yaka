@@ -1,8 +1,14 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { MARKETS } from '@/data/markets';
 import './globals.css';
 
 const BASE_URL = 'https://mavi-yaka-web.vercel.app';
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: '#1565C0',
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
@@ -12,6 +18,16 @@ export const metadata: Metadata = {
   },
   description: 'Find blue-collar jobs across 31 countries. 670,000+ warehouse, factory, construction, logistics, and security jobs updated daily. Free on iOS and Android.',
   keywords: ['blue collar jobs', 'warehouse jobs', 'factory jobs', 'construction jobs', 'logistics jobs', 'security jobs', 'manual labor jobs', 'trade jobs'],
+  manifest: '/manifest.json',
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/images/icon-192.png',
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Mavi Yaka',
+  },
   openGraph: {
     type: 'website',
     siteName: 'Mavi Yaka',
@@ -34,6 +50,7 @@ export const metadata: Metadata = {
   },
   other: {
     'google-play-app': 'app-id=com.maviyaka.app',
+    'apple-itunes-app': 'app-id=6761062434',
   },
 };
 
